@@ -189,7 +189,6 @@ function FlowCanvas() {
     );
 }
 
-// Memoize the FlowCanvas component
 const MemoizedFlowCanvas = React.memo(FlowCanvas);
 
 export function DiagramCanvas() {
