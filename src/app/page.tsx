@@ -8,11 +8,17 @@ import { useCallback, useState, useRef } from "react";
 import { DiagramCanvas } from "@/components/DiagramCanvas";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ViewController } from "@/controllers/ViewController";
+import { PropertiesBar } from "@/components/PropertiesBar";
 
 const viewController = new ViewController();
 
 export default function DiagramEditor() {
-    const { getSerializedState, loadSerializedState } = useStore();
+    const {
+        getSerializedState,
+        loadSerializedState,
+        selectedProperties,
+        updateSelectedProperties,
+    } = useStore();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [lastAction, setLastAction] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +96,18 @@ export default function DiagramEditor() {
             <div className="flex-1 flex">
                 <ComponentDrawer />
                 <DiagramCanvas />
+                {selectedProperties.length > 0 && (
+                    <PropertiesBar
+                        properties={selectedProperties}
+                        onPropertyChange={(key, value) => {
+                            const updatedProperties = selectedProperties.map(
+                                (prop) =>
+                                    prop.key === key ? { ...prop, value } : prop
+                            );
+                            updateSelectedProperties(updatedProperties);
+                        }}
+                    />
+                )}
             </div>
             <input
                 type="file"
