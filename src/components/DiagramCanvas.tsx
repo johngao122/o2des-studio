@@ -130,36 +130,21 @@ function FlowCanvas() {
 
     const handleEdgeClick = useCallback(
         (event: React.MouseEvent, edge: Edge) => {
-            console.log("Edge selected:", {
-                id: edge.id,
-                source: edge.source,
-                sourceHandle: edge.sourceHandle,
-                target: edge.target,
-                targetHandle: edge.targetHandle,
-            });
+            const { onEdgesChange } = useStore.getState();
+            onEdgesChange([
+                {
+                    id: edge.id,
+                    type: "select",
+                    selected: true,
+                },
+            ]);
         },
         []
     );
 
     const handleNodesChange = useCallback((changes: NodeChange[]) => {
-        // Handle selection changes directly through the store
-        const selectionChanges = changes.filter(
-            (change) => change.type === "select"
-        );
-        if (selectionChanges.length > 0) {
-            useStore.setState((state) => ({
-                nodes: applyNodeChanges(
-                    selectionChanges,
-                    state.nodes
-                ) as BaseNode[],
-            }));
-        }
-
-        // Handle other changes through command controller
-        const command = commandController.createNodesChangeCommand(changes);
-        if (command) {
-            commandController.execute(command);
-        }
+        const { onNodesChange } = useStore.getState();
+        onNodesChange(changes);
     }, []);
 
     return (
