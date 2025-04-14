@@ -28,7 +28,7 @@ export class AutosaveService {
     private readonly STORAGE_KEY = "o2des_studio_autosave";
     private readonly NOTIFICATION_SHOWN_KEY =
         "o2des_autosave_notification_shown";
-    private readonly DEBOUNCE_DELAY = 1000;
+    private readonly DEBOUNCE_DELAY = 500;
 
     private constructor() {
         this.serializationService = new SerializationService();
