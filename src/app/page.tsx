@@ -4,13 +4,18 @@ import "reactflow/dist/style.css";
 import { useStore } from "../store";
 import { Toolbar } from "@/components/Toolbar";
 import ComponentDrawer from "@/components/ComponentDrawer";
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { DiagramCanvas } from "@/components/DiagramCanvas";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ViewController } from "@/controllers/ViewController";
 import { PropertiesBar } from "@/components/PropertiesBar";
+import { toast } from "sonner";
+import { SerializationService } from "@/services/SerializationService";
+import { AutosaveService } from "@/services/AutosaveService";
 
 const viewController = new ViewController();
+const serializationService = new SerializationService();
+const autosaveService = AutosaveService.getInstance();
 
 export default function DiagramEditor() {
     const {
@@ -18,29 +23,160 @@ export default function DiagramEditor() {
         loadSerializedState,
         selectedProperties,
         updateSelectedProperties,
+        projectName,
     } = useStore();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [lastAction, setLastAction] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Placeholder functions for toolbar actions
+    useEffect(() => {
+        document.title = `${projectName} - O²DES Studio`;
+    }, [projectName]);
+
+    useEffect(() => {
+        if (autosaveService.hasSavedState()) {
+            const confirmLoad = window.confirm(
+                "We found an autosaved project. Would you like to restore it?"
+            );
+
+            if (confirmLoad) {
+                autosaveService.loadSavedState();
+                toast.success("Autosaved project restored", {
+                    description: "Your last session has been restored",
+                    duration: 3000,
+                });
+                setLastAction("Autosaved project restored");
+            } else {
+                autosaveService.clearSavedState();
+            }
+        }
+    }, []);
+
     const handleSave = useCallback(() => {
-        const state = getSerializedState();
-        setLastAction("Diagram saved");
-    }, [getSerializedState]);
+        try {
+            const state = getSerializedState();
+            const blob = new Blob([state], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${projectName
+                .replace(/\s+/g, "_")
+                .toLowerCase()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast.success("Project saved successfully", {
+                description: `Saved as ${a.download}`,
+                duration: 3000,
+            });
+            setLastAction("Project saved");
+
+            autosaveService.clearSavedState();
+        } catch (error) {
+            console.error("Error saving project:", error);
+            toast.error("Failed to save project", {
+                description:
+                    "An unexpected error occurred while saving your project.",
+                duration: 4000,
+            });
+        }
+    }, [getSerializedState, projectName]);
 
     const handleLoad = useCallback(
         (event: React.ChangeEvent<HTMLInputElement>) => {
             const file = event.target.files?.[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const content = e.target?.result as string;
-                    loadSerializedState(content);
-                    setLastAction("Diagram loaded");
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                const safeLoadProject = () => {
+                    try {
+                        const content = e.target?.result as string;
+
+                        if (typeof content !== "string") {
+                            toast.error("Invalid file", {
+                                description: "File could not be read as text",
+                                duration: 4000,
+                            });
+                            return;
+                        }
+
+                        try {
+                            JSON.parse(content);
+                        } catch (jsonError) {
+                            let errorMessage = "Invalid JSON format";
+                            if (jsonError instanceof Error) {
+                                errorMessage = jsonError.message;
+                            }
+                            toast.error("Invalid save file", {
+                                description: errorMessage,
+                                duration: 4000,
+                            });
+                            return;
+                        }
+
+                        const validationResult =
+                            serializationService.validateProject(content);
+                        if (!validationResult.valid) {
+                            toast.error("Invalid project file", {
+                                description:
+                                    validationResult.error ||
+                                    "The file is not a valid project file",
+                                duration: 4000,
+                            });
+                            return;
+                        }
+
+                        try {
+                            loadSerializedState(content);
+
+                            toast.success("Project loaded successfully", {
+                                description: `Loaded from ${file.name}`,
+                                duration: 3000,
+                            });
+                            setLastAction("Project loaded");
+                        } catch (loadError) {
+                            console.error(
+                                "Error in loadSerializedState:",
+                                loadError
+                            );
+                            toast.error("Failed to load project", {
+                                description:
+                                    loadError instanceof Error
+                                        ? loadError.message
+                                        : "Error loading project data",
+                                duration: 4000,
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Project loading error:", error);
+
+                        toast.error("Failed to load project", {
+                            description:
+                                error instanceof Error
+                                    ? error.message
+                                    : "An unexpected error occurred",
+                            duration: 4000,
+                        });
+                    }
                 };
-                reader.readAsText(file);
-            }
+
+                safeLoadProject();
+            };
+
+            reader.onerror = () => {
+                toast.error("Failed to read file", {
+                    description: "Could not read the selected file.",
+                    duration: 4000,
+                });
+            };
+
+            reader.readAsText(file);
+
+            event.target.value = "";
         },
         [loadSerializedState]
     );
@@ -69,7 +205,6 @@ export default function DiagramEditor() {
         setLastAction("Showing shortcuts");
     }, []);
 
-    // Initialize keyboard shortcuts
     useKeyboardShortcuts({
         onSave: handleSave,
         onLoad: () => fileInputRef.current?.click(),

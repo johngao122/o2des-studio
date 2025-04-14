@@ -9,6 +9,7 @@ import {
 } from "reactflow";
 import { applyNodeChanges, applyEdgeChanges, addEdge } from "reactflow";
 import { nanoid } from "nanoid";
+import { AutosaveService } from "../services/AutosaveService";
 
 interface Command {
     execute: () => void;
@@ -25,10 +26,13 @@ export class CommandController {
     private undoStack: Command[] = [];
     private redoStack: Command[] = [];
     private dragState: Map<string, DragState> = new Map();
+    private autosaveService: AutosaveService;
 
-    private constructor() {}
+    private constructor() {
+        this.autosaveService = AutosaveService.getInstance();
+    }
 
-    static getInstance(): CommandController {
+    public static getInstance(): CommandController {
         if (!CommandController.instance) {
             CommandController.instance = new CommandController();
         }
@@ -49,6 +53,8 @@ export class CommandController {
             "Redo Stack:",
             this.redoStack.length
         );
+
+        this.autosaveService.autosave();
     }
 
     undo() {
@@ -62,6 +68,8 @@ export class CommandController {
                 "Redo Stack:",
                 this.redoStack.length
             );
+
+            this.autosaveService.autosave();
         }
     }
 
@@ -76,6 +84,8 @@ export class CommandController {
                 "Redo Stack:",
                 this.redoStack.length
             );
+
+            this.autosaveService.autosave();
         }
     }
 
