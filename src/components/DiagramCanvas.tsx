@@ -20,12 +20,14 @@ import { ViewController } from "@/controllers/ViewController";
 import { NodeController } from "@/controllers/NodeController";
 import { CommandController } from "@/controllers/CommandController";
 import { BaseNode } from "@/types/base";
+import { AutosaveService } from "@/services/AutosaveService";
 
 // Define static instances and options outside component
 const viewController = new ViewController();
 const nodeFactory = new NodeFactory();
 const nodeController = new NodeController();
 const commandController = CommandController.getInstance();
+const autosaveService = AutosaveService.getInstance();
 
 // Define flow options statically
 const flowOptions = {
@@ -124,9 +126,14 @@ function FlowCanvas() {
         event.dataTransfer.dropEffect = "move";
     }, []);
 
-    const onMoveEnd = useCallback((event: any, viewport: Viewport) => {
-        viewController.setViewport(viewport.x, viewport.y, viewport.zoom);
-    }, []);
+    const onMoveEnd = useCallback(
+        (event: MouseEvent | TouchEvent, viewport: Viewport) => {
+            viewController.setViewport(viewport.x, viewport.y, viewport.zoom);
+
+            autosaveService.autosave();
+        },
+        []
+    );
 
     const handleEdgeClick = useCallback(
         (event: React.MouseEvent, edge: Edge) => {
@@ -138,6 +145,8 @@ function FlowCanvas() {
                     selected: true,
                 },
             ]);
+
+            autosaveService.autosave();
         },
         []
     );
@@ -145,6 +154,13 @@ function FlowCanvas() {
     const handleNodesChange = useCallback((changes: NodeChange[]) => {
         const { onNodesChange } = useStore.getState();
         onNodesChange(changes);
+
+        const selectionChanges = changes.filter(
+            (change) => change.type === "select"
+        );
+        if (selectionChanges.length > 0) {
+            autosaveService.autosave();
+        }
     }, []);
 
     return (

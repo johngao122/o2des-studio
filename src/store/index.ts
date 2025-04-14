@@ -13,12 +13,26 @@ import { BaseNode, BaseEdge } from "../types/base";
 import { nanoid } from "nanoid";
 import superjson from "superjson";
 import { CommandController } from "../controllers/CommandController";
+import { SerializationService } from "../services/SerializationService";
 
 const commandController = CommandController.getInstance();
+const serializationService = new SerializationService();
+
+interface ProjectMetadata {
+    version: string;
+    created: string;
+    modified: string;
+    projectName: string;
+    description?: string;
+    author?: string;
+    tags?: string[];
+}
 
 interface StoreState {
+    projectName: string;
     nodes: BaseNode[];
     edges: BaseEdge[];
+    metadata: ProjectMetadata;
     selectedElements: { nodes: string[]; edges: string[] };
     selectedProperties: {
         key: string;
@@ -48,32 +62,48 @@ interface StoreState {
             editable: boolean;
         }[]
     ) => void;
+    updateProjectName: (name: string) => void;
+    updateMetadata: (metadata: Partial<ProjectMetadata>) => void;
 }
 
 interface SerializedState {
+    projectName: string;
     nodes: BaseNode[];
     edges: BaseEdge[];
+    metadata: ProjectMetadata;
 }
 
+const createDefaultMetadata = (): ProjectMetadata => {
+    const now = new Date().toISOString();
+    return {
+        version: "1.0.0",
+        created: now,
+        modified: now,
+        projectName: "Untitled Project",
+        description: "",
+        author: "",
+        tags: [],
+    };
+};
+
 export const useStore = create<StoreState>((set, get) => ({
+    projectName: "Untitled Project",
     nodes: [],
     edges: [],
+    metadata: createDefaultMetadata(),
     selectedElements: { nodes: [], edges: [] },
     selectedProperties: [],
     viewportTransform: { x: 0, y: 0, zoom: 1 },
 
     onNodesChange: (changes: NodeChange[]) => {
-        // First apply all changes
         const newNodes = applyNodeChanges(changes, get().nodes) as BaseNode[];
 
-        // Get currently selected node if any
         const selectedNodeIds = get().selectedElements.nodes;
         const selectedNode =
             selectedNodeIds.length === 1
                 ? newNodes.find((n) => n.id === selectedNodeIds[0])
                 : null;
 
-        // Update properties if we have a selected node
         const updatedProperties = selectedNode
             ? [
                   {
@@ -114,7 +144,6 @@ export const useStore = create<StoreState>((set, get) => ({
               ]
             : [];
 
-        // Handle selection changes
         const selectionChanges = changes.filter(
             (change) => change.type === "select"
         );
@@ -133,7 +162,6 @@ export const useStore = create<StoreState>((set, get) => ({
             return;
         }
 
-        // Handle position changes
         const positionChanges = changes.filter(
             (change: NodeChange) =>
                 change.type === "position" &&
@@ -146,19 +174,29 @@ export const useStore = create<StoreState>((set, get) => ({
             if (command) {
                 commandController.execute(command);
             }
-            // Update state with new positions and properties
+
             set({
                 nodes: newNodes,
                 selectedProperties: updatedProperties,
             });
+
+            const now = new Date().toISOString();
+            set((state) => ({
+                metadata: { ...state.metadata, modified: now },
+            }));
+
             return;
         }
 
-        // Handle any other changes
         set({
             nodes: newNodes,
             selectedProperties: updatedProperties,
         });
+
+        const now = new Date().toISOString();
+        set((state) => ({
+            metadata: { ...state.metadata, modified: now },
+        }));
     },
 
     onEdgesChange: (changes: EdgeChange[]) => {
@@ -256,13 +294,88 @@ export const useStore = create<StoreState>((set, get) => ({
     },
 
     getSerializedState: () => {
-        const { nodes, edges } = get();
-        return superjson.stringify({ nodes, edges });
+        const { nodes, edges, projectName, metadata } = get();
+
+        const serializedModel = serializationService.serializeModel(
+            nodes,
+            edges,
+            projectName,
+            metadata
+        );
+
+        return superjson.stringify(serializedModel);
     },
 
     loadSerializedState: (serialized: string) => {
-        const state = superjson.parse<SerializedState>(serialized);
-        set({ nodes: state.nodes, edges: state.edges });
+        if (!serialized || typeof serialized !== "string") {
+            throw new Error("Invalid serialized data: empty or not a string");
+        }
+
+        let parsed: SerializedState;
+
+        try {
+            parsed = superjson.parse<SerializedState>(serialized);
+        } catch (parseError) {
+            console.error(
+                "SuperJSON parsing error:",
+                parseError instanceof Error
+                    ? parseError.message
+                    : "Unknown parse error"
+            );
+
+            throw new Error(
+                "Failed to parse project: Invalid format or structure"
+            );
+        }
+
+        if (!parsed || typeof parsed !== "object") {
+            throw new Error(
+                "Invalid project format: Not a valid project object"
+            );
+        }
+
+        if (!Array.isArray(parsed.nodes)) {
+            throw new Error("Invalid project format: Missing nodes array");
+        }
+
+        if (!Array.isArray(parsed.edges)) {
+            throw new Error("Invalid project format: Missing edges array");
+        }
+
+        if (!parsed.metadata || typeof parsed.metadata !== "object") {
+            console.warn(
+                "Missing or invalid metadata, creating default metadata"
+            );
+            parsed.metadata = createDefaultMetadata();
+        }
+
+        try {
+            const { nodes, edges, projectName, metadata } =
+                serializationService.deserializeModel(parsed);
+
+            const updatedMetadata = {
+                ...metadata,
+                modified: new Date().toISOString(),
+            };
+
+            set({
+                nodes,
+                edges,
+                projectName: projectName || "Untitled Project",
+                metadata: updatedMetadata,
+            });
+        } catch (deserializeError) {
+            console.error(
+                "Deserialization error:",
+                deserializeError instanceof Error
+                    ? deserializeError.message
+                    : "Unknown deserialization error"
+            );
+
+            throw new Error(
+                "Failed to load project: Unable to process project structure"
+            );
+        }
     },
 
     undo: () => {
@@ -331,5 +444,26 @@ export const useStore = create<StoreState>((set, get) => ({
                 if (command) commandController.execute(command);
             }
         }
+    },
+
+    updateProjectName: (name: string) => {
+        set({
+            projectName: name,
+            metadata: {
+                ...get().metadata,
+                projectName: name,
+                modified: new Date().toISOString(),
+            },
+        });
+    },
+
+    updateMetadata: (metadata: Partial<ProjectMetadata>) => {
+        set((state) => ({
+            metadata: {
+                ...state.metadata,
+                ...metadata,
+                modified: new Date().toISOString(),
+            },
+        }));
     },
 }));

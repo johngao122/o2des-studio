@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ChangeEvent, useRef } from "react";
+import React, { ChangeEvent, useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -32,6 +32,9 @@ import {
     Moon,
     Sun,
     Keyboard,
+    Pencil,
+    Check,
+    Download,
 } from "lucide-react";
 import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
@@ -60,7 +63,62 @@ export function Toolbar({
     onShowShortcuts,
 }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { undo, redo, canUndo, canRedo } = useStore();
+    const {
+        undo,
+        redo,
+        canUndo,
+        canRedo,
+        projectName,
+        updateProjectName,
+        metadata,
+    } = useStore();
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [nameValue, setNameValue] = useState(projectName);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const [formattedDate, setFormattedDate] = useState<string>("");
+
+    useEffect(() => {
+        setNameValue(projectName);
+    }, [projectName]);
+
+    useEffect(() => {
+        if (isEditingName && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isEditingName]);
+
+    useEffect(() => {
+        if (metadata?.modified) {
+            try {
+                const date = new Date(metadata.modified);
+                setFormattedDate(
+                    date.toLocaleString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    })
+                );
+            } catch (e) {
+                setFormattedDate("Unknown");
+            }
+        }
+    }, [metadata?.modified]);
+
+    const handleNameSubmit = () => {
+        updateProjectName(nameValue);
+        setIsEditingName(false);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+            handleNameSubmit();
+        } else if (e.key === "Escape") {
+            setNameValue(projectName);
+            setIsEditingName(false);
+        }
+    };
 
     const handleFileUploadClick = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -78,6 +136,51 @@ export function Toolbar({
                     <FileIcon className="h-4 w-4 text-white" />
                 </div>
 
+                {/* Project Name */}
+                <div className="flex items-center mr-4 h-8">
+                    {isEditingName ? (
+                        <div className="flex items-center bg-secondary/30 rounded px-2">
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={nameValue}
+                                onChange={(e) => setNameValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onBlur={handleNameSubmit}
+                                className="border-none bg-transparent focus:outline-none focus:ring-1 focus:ring-primary h-8 px-2 text-sm font-medium w-48"
+                                aria-label="Project name"
+                            />
+                            <Button
+                                onClick={handleNameSubmit}
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1"
+                                aria-label="Save project name"
+                            >
+                                <Check className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div
+                            className="flex items-center cursor-pointer hover:bg-secondary/30 rounded px-2 h-8 transition-colors"
+                            onClick={() => setIsEditingName(true)}
+                            title="Click to edit project name"
+                        >
+                            <span className="text-sm font-medium text-foreground">
+                                {projectName}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-50 hover:opacity-100 transition-opacity"
+                                aria-label="Edit project name"
+                            >
+                                <Pencil className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
                 {/* File Menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -89,8 +192,8 @@ export function Toolbar({
                         <DropdownMenuItem onSelect={onSave}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Save
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Save Project
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
                                     {formatShortcut(KeyboardShortcuts.SAVE)}
@@ -101,7 +204,7 @@ export function Toolbar({
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Upload className="mr-2 h-4 w-4" />
-                                    Load
+                                    Load Project
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
                                     {formatShortcut(KeyboardShortcuts.LOAD)}
@@ -356,8 +459,15 @@ export function Toolbar({
                 </DropdownMenu>
             </div>
 
-            <div className="ml-auto flex items-center">
-                <span className="text-xs text-muted-foreground mr-2">
+            <div className="ml-auto flex items-center space-x-2">
+                {/* Last modified info */}
+                {formattedDate && (
+                    <div className="text-xs text-muted-foreground flex items-center mr-2">
+                        <span className="mr-1">Last modified:</span>
+                        <span className="font-medium">{formattedDate}</span>
+                    </div>
+                )}
+                <span className="text-xs text-muted-foreground">
                     {lastAction || "All changes saved"}
                 </span>
             </div>
