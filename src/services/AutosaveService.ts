@@ -1,6 +1,22 @@
 import { useStore } from "../store";
 import { SerializationService } from "./SerializationService";
 import { toast } from "sonner";
+import superjson from "superjson";
+
+interface SerializedState {
+    projectName: string;
+    nodes: any[];
+    edges: any[];
+    metadata: {
+        version: string;
+        created: string;
+        modified: string;
+        projectName: string;
+        description?: string;
+        author?: string;
+        tags?: string[];
+    };
+}
 
 /**
  * Service to handle autosaving the project state to session storage
@@ -44,24 +60,23 @@ export class AutosaveService {
 
                 const serializedState = store.getSerializedState();
 
-                // Debug logs for serialized state
-                console.log("Serialized state for autosave:", serializedState);
-                try {
-                    const parsedState = JSON.parse(serializedState);
-                    console.log("Parsed state:", {
-                        projectName: parsedState.projectName,
-                        nodesCount: parsedState.nodes?.length || 0,
-                        edgesCount: parsedState.edges?.length || 0,
-                        metadata: parsedState.metadata,
-                    });
-                } catch (err) {
-                    console.error(
-                        "Failed to parse serialized state for debugging:",
-                        err
-                    );
-                }
+                const parsedState =
+                    superjson.parse<SerializedState>(serializedState);
 
-                sessionStorage.setItem(this.STORAGE_KEY, serializedState);
+                const wrappedState = JSON.stringify({
+                    json: parsedState,
+                    meta: {
+                        values: {},
+                    },
+                });
+
+                console.log("Project data for autosave:", {
+                    projectName: parsedState.projectName,
+                    nodesCount: parsedState.nodes?.length || 0,
+                    edgesCount: parsedState.edges?.length || 0,
+                });
+
+                sessionStorage.setItem(this.STORAGE_KEY, wrappedState);
                 console.log("Project autosaved to session storage");
 
                 this.showAutosaveNotification();
@@ -89,8 +104,26 @@ export class AutosaveService {
      * Check if there's a valid saved project state in session storage
      */
     public hasSavedState(): boolean {
-        const savedState = sessionStorage.getItem(this.STORAGE_KEY);
-        return !!savedState;
+        try {
+            const savedState = sessionStorage.getItem(this.STORAGE_KEY);
+            if (!savedState) return false;
+
+            const parsed = JSON.parse(savedState);
+
+            const projectData = parsed.json || parsed;
+
+            return !!(
+                projectData &&
+                projectData.nodes &&
+                Array.isArray(projectData.nodes) &&
+                projectData.nodes.length > 0 &&
+                projectData.edges &&
+                Array.isArray(projectData.edges)
+            );
+        } catch (error) {
+            console.error("Error checking saved state:", error);
+            return false;
+        }
     }
 
     /**
@@ -99,26 +132,24 @@ export class AutosaveService {
     public loadSavedState(): void {
         try {
             const savedState = sessionStorage.getItem(this.STORAGE_KEY);
-            if (savedState) {
-                console.log("Loading autosaved state:", savedState);
-                try {
-                    const parsedState = JSON.parse(savedState);
-                    console.log("Parsed autosaved state:", {
-                        projectName: parsedState.projectName,
-                        nodesCount: parsedState.nodes?.length || 0,
-                        edgesCount: parsedState.edges?.length || 0,
-                        metadata: parsedState.metadata,
-                    });
-                } catch (err) {
-                    console.error(
-                        "Failed to parse saved state for debugging:",
-                        err
-                    );
-                }
+            if (!savedState) return;
 
-                useStore.getState().loadSerializedState(savedState);
-                console.log("Autosaved project loaded from session storage");
-            }
+            console.log("Loading autosaved state...");
+
+            const parsed = JSON.parse(savedState);
+
+            const projectData = parsed.json || parsed;
+
+            const superJsonData = superjson.stringify(projectData);
+
+            console.log("Parsed autosaved state:", {
+                projectName: projectData.projectName,
+                nodesCount: projectData.nodes?.length || 0,
+                edgesCount: projectData.edges?.length || 0,
+            });
+
+            useStore.getState().loadSerializedState(superJsonData);
+            console.log("Autosaved project loaded from session storage");
         } catch (error) {
             console.error("Error loading autosaved project:", error);
             toast.error("Could not load autosaved project", {

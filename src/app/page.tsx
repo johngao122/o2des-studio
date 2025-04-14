@@ -12,6 +12,7 @@ import { PropertiesBar } from "@/components/PropertiesBar";
 import { toast } from "sonner";
 import { SerializationService } from "@/services/SerializationService";
 import { AutosaveService } from "@/services/AutosaveService";
+import superjson from "superjson";
 
 const viewController = new ViewController();
 const serializationService = new SerializationService();
@@ -55,7 +56,17 @@ export default function DiagramEditor() {
     const handleSave = useCallback(() => {
         try {
             const state = getSerializedState();
-            const blob = new Blob([state], { type: "application/json" });
+
+            const parsedState = superjson.parse(state);
+
+            const fileState = JSON.stringify({
+                json: parsedState,
+                meta: {
+                    values: {},
+                },
+            });
+
+            const blob = new Blob([fileState], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -104,8 +115,9 @@ export default function DiagramEditor() {
                             return;
                         }
 
+                        let parsedContent;
                         try {
-                            JSON.parse(content);
+                            parsedContent = JSON.parse(content);
                         } catch (jsonError) {
                             let errorMessage = "Invalid JSON format";
                             if (jsonError instanceof Error) {
@@ -118,26 +130,54 @@ export default function DiagramEditor() {
                             return;
                         }
 
-                        const validationResult =
-                            serializationService.validateProject(content);
-                        if (!validationResult.valid) {
+                        let projectData = parsedContent;
+                        if (
+                            parsedContent.json &&
+                            typeof parsedContent.json === "object"
+                        ) {
+                            console.log(
+                                "Detected nested JSON format, unwrapping..."
+                            );
+                            projectData = parsedContent.json;
+                        }
+
+                        if (
+                            !projectData.nodes ||
+                            !Array.isArray(projectData.nodes)
+                        ) {
                             toast.error("Invalid project file", {
                                 description:
-                                    validationResult.error ||
-                                    "The file is not a valid project file",
+                                    "Missing nodes array in project file",
+                                duration: 4000,
+                            });
+                            return;
+                        }
+
+                        if (
+                            !projectData.edges ||
+                            !Array.isArray(projectData.edges)
+                        ) {
+                            toast.error("Invalid project file", {
+                                description:
+                                    "Missing edges array in project file",
                                 duration: 4000,
                             });
                             return;
                         }
 
                         try {
-                            loadSerializedState(content);
+                            const superJsonData =
+                                superjson.stringify(projectData);
+
+                            loadSerializedState(superJsonData);
 
                             toast.success("Project loaded successfully", {
                                 description: `Loaded from ${file.name}`,
                                 duration: 3000,
                             });
                             setLastAction("Project loaded");
+
+                            autosaveService.clearSavedState();
                         } catch (loadError) {
                             console.error(
                                 "Error in loadSerializedState:",
@@ -153,7 +193,6 @@ export default function DiagramEditor() {
                         }
                     } catch (error) {
                         console.error("Project loading error:", error);
-
                         toast.error("Failed to load project", {
                             description:
                                 error instanceof Error
@@ -175,7 +214,6 @@ export default function DiagramEditor() {
             };
 
             reader.readAsText(file);
-
             event.target.value = "";
         },
         [loadSerializedState]
