@@ -36,20 +36,12 @@ export default function DiagramEditor() {
 
     useEffect(() => {
         if (autosaveService.hasSavedState()) {
-            const confirmLoad = window.confirm(
-                "We found an autosaved project. Would you like to restore it?"
-            );
-
-            if (confirmLoad) {
-                autosaveService.loadSavedState();
-                toast.success("Autosaved project restored", {
-                    description: "Your last session has been restored",
-                    duration: 3000,
-                });
-                setLastAction("Autosaved project restored");
-            } else {
-                autosaveService.clearSavedState();
-            }
+            autosaveService.loadSavedState();
+            toast.success("Autosaved project restored", {
+                description: "Your last session has been restored",
+                duration: 3000,
+            });
+            setLastAction("Autosaved project restored");
         }
     }, []);
 
