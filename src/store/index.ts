@@ -137,6 +137,12 @@ export const useStore = create<StoreState>((set, get) => ({
                             editable: false,
                         },
                         {
+                            key: "name",
+                            value: selectedNode.name || selectedNode.id,
+                            type: "string" as const,
+                            editable: true,
+                        },
+                        {
                             key: "type",
                             value: selectedNode.type,
                             type: "string" as const,
@@ -164,6 +170,10 @@ export const useStore = create<StoreState>((set, get) => ({
                                         ? ("number" as const)
                                         : ("string" as const),
                                 editable: true,
+                                isTextArea:
+                                    key === "initializations" ||
+                                    (Array.isArray(value) &&
+                                        value.join().length > 50),
                             })),
                     ];
                 }
@@ -215,6 +225,12 @@ export const useStore = create<StoreState>((set, get) => ({
                             editable: false,
                         },
                         {
+                            key: "name",
+                            value: selectedNode.name || selectedNode.id,
+                            type: "string" as const,
+                            editable: true,
+                        },
+                        {
                             key: "type",
                             value: selectedNode.type,
                             type: "string" as const,
@@ -242,6 +258,10 @@ export const useStore = create<StoreState>((set, get) => ({
                                         ? ("number" as const)
                                         : ("string" as const),
                                 editable: true,
+                                isTextArea:
+                                    key === "initializations" ||
+                                    (Array.isArray(value) &&
+                                        value.join().length > 50),
                             })),
                     ];
                 }
@@ -499,19 +519,34 @@ export const useStore = create<StoreState>((set, get) => ({
             const nodeId = selectedElements.nodes[0];
             const node = nodes.find((n) => n.id === nodeId);
             if (node) {
-                const newData = editableProperties.reduce(
-                    (acc, prop) => ({
+                const newData = editableProperties.reduce((acc, prop) => {
+                    if (prop.key === "name") {
+                        return acc;
+                    }
+                    return {
                         ...acc,
-                        [prop.key]: prop.value,
-                    }),
-                    {}
+                        [prop.key]:
+                            prop.key === "initializations" &&
+                            typeof prop.value === "string"
+                                ? prop.value
+                                      .split("\n")
+                                      .filter((line) => line.trim() !== "")
+                                : prop.value,
+                    };
+                }, {});
+
+                const nameProperty = editableProperties.find(
+                    (p) => p.key === "name"
                 );
+                const updateData: any = { data: { ...node.data, ...newData } };
+
+                if (nameProperty) {
+                    updateData.name = nameProperty.value as string;
+                }
 
                 const command = commandController.createUpdateNodeCommand(
                     nodeId,
-                    {
-                        data: { ...node.data, ...newData },
-                    }
+                    updateData
                 );
                 commandController.execute(command);
             }

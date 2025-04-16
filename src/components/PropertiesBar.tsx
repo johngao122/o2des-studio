@@ -3,12 +3,14 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Property {
     key: string;
     value: string | number;
     type: "string" | "number";
     editable: boolean;
+    isTextArea?: boolean;
 }
 
 interface PropertiesBarProps {
@@ -95,30 +97,54 @@ export function PropertiesBar({
                                     </span>
                                 )}
                             </Label>
-                            <Input
-                                type={property.type}
-                                value={String(property.value)}
-                                readOnly={!property.editable}
-                                className={cn(
-                                    "mt-1",
-                                    !property.editable &&
-                                        "bg-muted text-muted-foreground"
-                                )}
-                                onChange={(e) => {
-                                    if (!property.editable) return;
-                                    const newValue =
-                                        property.type === "number"
-                                            ? parseFloat(e.target.value) || 0
-                                            : e.target.value;
-                                    console.log("Property change:", {
-                                        key: property.key,
-                                        oldValue: property.value,
-                                        newValue,
-                                        type: property.type,
-                                    });
-                                    onPropertyChange(property.key, newValue);
-                                }}
-                            />
+                            {property.isTextArea ? (
+                                <Textarea
+                                    value={String(property.value)}
+                                    readOnly={!property.editable}
+                                    className={cn(
+                                        "mt-1",
+                                        !property.editable &&
+                                            "bg-muted text-muted-foreground"
+                                    )}
+                                    onChange={(e) => {
+                                        if (!property.editable) return;
+                                        onPropertyChange(
+                                            property.key,
+                                            e.target.value
+                                        );
+                                    }}
+                                    rows={5}
+                                />
+                            ) : (
+                                <Input
+                                    type={property.type}
+                                    value={String(property.value)}
+                                    readOnly={!property.editable}
+                                    className={cn(
+                                        "mt-1",
+                                        !property.editable &&
+                                            "bg-muted text-muted-foreground"
+                                    )}
+                                    onChange={(e) => {
+                                        if (!property.editable) return;
+                                        const newValue =
+                                            property.type === "number"
+                                                ? parseFloat(e.target.value) ||
+                                                  0
+                                                : e.target.value;
+                                        console.log("Property change:", {
+                                            key: property.key,
+                                            oldValue: property.value,
+                                            newValue,
+                                            type: property.type,
+                                        });
+                                        onPropertyChange(
+                                            property.key,
+                                            newValue
+                                        );
+                                    }}
+                                />
+                            )}
                             <Separator className="mt-4" />
                         </div>
                     );
