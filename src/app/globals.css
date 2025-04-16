@@ -168,3 +168,24 @@ body {
         @apply bg-background text-foreground;
     }
 }
+
+/* Custom styles for ReactFlow selection box */
+.react-flow__selection {
+    background-color: rgba(59, 130, 246, 0.1);
+    border: 2px dashed rgba(59, 130, 246, 0.5);
+    border-radius: 4px;
+}
+
+/* Change cursor during right-click for panning */
+.react-flow__pane {
+    cursor: default;
+}
+
+.react-flow__pane.dragging {
+    cursor: grabbing !important;
+}
+
+/* Highlight selectable area during drag */
+.react-flow__selection-pane {
+    cursor: crosshair;
+}
