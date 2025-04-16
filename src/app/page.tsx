@@ -25,6 +25,7 @@ export default function DiagramEditor() {
         selectedProperties,
         updateSelectedProperties,
         projectName,
+        selectionInfo,
     } = useStore();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [lastAction, setLastAction] = useState<string>("");
@@ -261,7 +262,7 @@ export default function DiagramEditor() {
             <div className="flex-1 flex">
                 <ComponentDrawer />
                 <DiagramCanvas />
-                {selectedProperties.length > 0 && (
+                {selectedProperties.length > 0 || selectionInfo ? (
                     <PropertiesBar
                         properties={selectedProperties}
                         onPropertyChange={(key, value) => {
@@ -271,8 +272,9 @@ export default function DiagramEditor() {
                             );
                             updateSelectedProperties(updatedProperties);
                         }}
+                        selectionInfo={selectionInfo}
                     />
-                )}
+                ) : null}
             </div>
             <input
                 type="file"

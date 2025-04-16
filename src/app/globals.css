@@ -82,6 +82,8 @@ body {
 
 .react-flow__node {
     @apply shadow-md;
+    transition: none !important;
+    will-change: transform;
 }
 
 .react-flow__handle {
@@ -167,4 +169,47 @@ body {
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* Custom styles for ReactFlow selection box */
+.react-flow__selection {
+    background-color: rgba(59, 130, 246, 0.1);
+    border: 2px dashed rgba(59, 130, 246, 0.5);
+    border-radius: 4px;
+    /* Improve performance with hardware acceleration */
+    transform: translateZ(0);
+    will-change: transform;
+    pointer-events: none;
+}
+
+/* Change cursor during right-click for panning */
+.react-flow__pane {
+    cursor: default;
+}
+
+.react-flow__pane.dragging {
+    cursor: grabbing !important;
+}
+
+/* Highlight selectable area during drag */
+.react-flow__selection-pane {
+    cursor: crosshair;
+}
+
+/* Performance optimizations for selections */
+.react-flow__node.selected {
+    /* Use a simple border instead of box-shadow which is expensive to render */
+    box-shadow: none !important;
+    border: 2px solid #3b82f6 !important;
+}
+
+/* Improve edge rendering performance */
+.react-flow__edge {
+    pointer-events: visibleStroke;
+}
+
+/* Ensure the viewport has hardware acceleration */
+.react-flow__viewport {
+    transform: translateZ(0);
+    will-change: transform;
 }

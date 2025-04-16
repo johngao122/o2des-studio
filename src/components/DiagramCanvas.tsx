@@ -12,6 +12,7 @@ import ReactFlow, {
     Edge,
     applyNodeChanges,
     useReactFlow,
+    OnSelectionChangeParams,
 } from "reactflow";
 import { useStore } from "@/store";
 import { nodeTypes } from "@/components/nodes";
@@ -22,14 +23,12 @@ import { CommandController } from "@/controllers/CommandController";
 import { BaseNode } from "@/types/base";
 import { AutosaveService } from "@/services/AutosaveService";
 
-// Define static instances and options outside component
 const viewController = new ViewController();
 const nodeFactory = new NodeFactory();
 const nodeController = new NodeController();
 const commandController = CommandController.getInstance();
 const autosaveService = AutosaveService.getInstance();
 
-// Define flow options statically
 const flowOptions = {
     nodeTypes,
     nodesDraggable: true,
@@ -37,6 +36,23 @@ const flowOptions = {
     elementsSelectable: true,
     connectOnClick: false,
     connectionMode: ConnectionMode.Loose,
+    selectNodesOnDrag: true,
+    selectionOnDrag: true,
+    panOnScroll: true,
+    panOnDrag: [2] as number[],
+    elevateNodesOnSelect: false,
+    elevateEdgesOnSelect: false,
+    defaultViewport: { x: 0, y: 0, zoom: 1 },
+    minZoom: 0.1,
+    maxZoom: 4,
+    snapToGrid: false,
+    zoomOnScroll: true,
+    zoomOnPinch: true,
+    snapGrid: [15, 15] as [number, number],
+    translateExtent: [
+        [-1000, -1000],
+        [2000, 2000],
+    ] as [[number, number], [number, number]],
 } as const;
 
 function FlowCanvas() {
@@ -71,7 +87,6 @@ function FlowCanvas() {
         }
     }, []);
 
-    // Memoize the nodes with their data
     const nodesWithData = useMemo(
         () =>
             nodes.map((node) => ({
@@ -86,7 +101,6 @@ function FlowCanvas() {
 
     const handleConnect = useCallback(
         (params: any) => {
-            // Type the params properly
             const connection = {
                 source: params.source,
                 sourceHandle: params.sourceHandle,
@@ -94,7 +108,6 @@ function FlowCanvas() {
                 targetHandle: params.targetHandle,
             };
 
-            // Only create connection if we have valid handles
             if (!connection.sourceHandle || !connection.targetHandle) {
                 console.warn("Connection missing handle IDs:", connection);
                 return;
@@ -138,13 +151,43 @@ function FlowCanvas() {
     const handleEdgeClick = useCallback(
         (event: React.MouseEvent, edge: Edge) => {
             const { onEdgesChange } = useStore.getState();
-            onEdgesChange([
-                {
-                    id: edge.id,
-                    type: "select",
-                    selected: true,
-                },
-            ]);
+
+            const isMultiSelect = event.shiftKey;
+
+            if (isMultiSelect) {
+                const currentEdges = useStore.getState().selectedElements.edges;
+                const isSelected = currentEdges.includes(edge.id);
+
+                onEdgesChange([
+                    {
+                        id: edge.id,
+                        type: "select",
+                        selected: !isSelected,
+                    },
+                ]);
+            } else {
+                const { onNodesChange } = useStore.getState();
+                const selectedNodes =
+                    useStore.getState().selectedElements.nodes;
+
+                if (selectedNodes.length > 0) {
+                    onNodesChange(
+                        selectedNodes.map((nodeId) => ({
+                            id: nodeId,
+                            type: "select",
+                            selected: false,
+                        }))
+                    );
+                }
+
+                onEdgesChange([
+                    {
+                        id: edge.id,
+                        type: "select",
+                        selected: true,
+                    },
+                ]);
+            }
 
             autosaveService.autosave();
         },
@@ -153,15 +196,73 @@ function FlowCanvas() {
 
     const handleNodesChange = useCallback((changes: NodeChange[]) => {
         const { onNodesChange } = useStore.getState();
-        onNodesChange(changes);
 
         const selectionChanges = changes.filter(
             (change) => change.type === "select"
         );
+
         if (selectionChanges.length > 0) {
+            const isDragOperation = changes.some(
+                (change) =>
+                    change.type === "position" ||
+                    (change.type === "select" && changes.length > 5)
+            );
+
+            if (!isDragOperation) {
+                const { onEdgesChange } = useStore.getState();
+                const selectedEdges =
+                    useStore.getState().selectedElements.edges;
+
+                if (selectedEdges.length > 0) {
+                    requestAnimationFrame(() => {
+                        onEdgesChange(
+                            selectedEdges.map((edgeId) => ({
+                                id: edgeId,
+                                type: "select" as const,
+                                selected: false,
+                            }))
+                        );
+                    });
+                }
+            }
+        }
+
+        onNodesChange(changes);
+
+        const isExplicitSelectionChange =
+            selectionChanges.length > 0 &&
+            !changes.some((change) => change.type === "position");
+
+        if (isExplicitSelectionChange) {
             autosaveService.autosave();
         }
     }, []);
+
+    const handleSelectionChange = useCallback(
+        ({ nodes, edges }: OnSelectionChangeParams) => {
+            if (nodes.length > 0 || edges.length > 0) {
+                const selectedEdgeIds = edges.map((e) => e.id);
+                const { onEdgesChange } = useStore.getState();
+
+                if (selectedEdgeIds.length > 0) {
+                    requestAnimationFrame(() => {
+                        onEdgesChange(
+                            selectedEdgeIds.map((id) => ({
+                                id,
+                                type: "select" as const,
+                                selected: true,
+                            }))
+                        );
+
+                        autosaveService.autosave();
+                    });
+                } else {
+                    autosaveService.autosave();
+                }
+            }
+        },
+        []
+    );
 
     return (
         <ReactFlow
@@ -174,8 +275,12 @@ function FlowCanvas() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onMoveEnd={onMoveEnd}
+            onSelectionChange={handleSelectionChange}
+            multiSelectionKeyCode="Shift"
+            selectionKeyCode={null}
             {...flowOptions}
             className="bg-zinc-50 dark:bg-zinc-900"
+            disableKeyboardA11y={true}
         >
             <Background />
             <Controls />
@@ -185,6 +290,17 @@ function FlowCanvas() {
                 className="bg-white dark:bg-zinc-800 p-2 rounded shadow-lg"
             >
                 <h1 className="text-xl font-bold">O²DES Studio</h1>
+            </Panel>
+            <Panel
+                position="bottom-right"
+                className="bg-white/80 dark:bg-zinc-800/80 p-2 rounded shadow-lg text-xs"
+            >
+                <div className="text-gray-500 dark:text-gray-400">
+                    <div>
+                        Drag to select • Right-click to pan • Shift+click for
+                        multi-select
+                    </div>
+                </div>
             </Panel>
         </ReactFlow>
     );

@@ -40,6 +40,10 @@ interface StoreState {
         type: "string" | "number";
         editable: boolean;
     }[];
+    selectionInfo?: {
+        nodes: number;
+        edges: number;
+    };
     viewportTransform: {
         x: number;
         y: number;
@@ -93,71 +97,101 @@ export const useStore = create<StoreState>((set, get) => ({
     metadata: createDefaultMetadata(),
     selectedElements: { nodes: [], edges: [] },
     selectedProperties: [],
+    selectionInfo: undefined,
     viewportTransform: { x: 0, y: 0, zoom: 1 },
 
     onNodesChange: (changes: NodeChange[]) => {
         const newNodes = applyNodeChanges(changes, get().nodes) as BaseNode[];
 
-        const selectedNodeIds = get().selectedElements.nodes;
-        const selectedNode =
-            selectedNodeIds.length === 1
-                ? newNodes.find((n) => n.id === selectedNodeIds[0])
-                : null;
-
-        const updatedProperties = selectedNode
-            ? [
-                  {
-                      key: "id",
-                      value: selectedNode.id,
-                      type: "string" as const,
-                      editable: false,
-                  },
-                  {
-                      key: "type",
-                      value: selectedNode.type,
-                      type: "string" as const,
-                      editable: false,
-                  },
-                  {
-                      key: "x",
-                      value: selectedNode.position.x,
-                      type: "number" as const,
-                      editable: false,
-                  },
-                  {
-                      key: "y",
-                      value: selectedNode.position.y,
-                      type: "number" as const,
-                      editable: false,
-                  },
-                  ...Object.entries(selectedNode.data)
-                      .filter(([key]) => key !== "updateNodeData")
-                      .map(([key, value]) => ({
-                          key,
-                          value: value as string | number,
-                          type:
-                              typeof value === "number"
-                                  ? ("number" as const)
-                                  : ("string" as const),
-                          editable: true,
-                      })),
-              ]
-            : [];
-
         const selectionChanges = changes.filter(
             (change) => change.type === "select"
         );
+
         if (selectionChanges.length > 0) {
-            const newSelectedIds = newNodes
+            const selectedNodeIds = newNodes
                 .filter((n) => n.selected)
                 .map((n) => n.id);
+
+            const selectedEdgeIds = get().selectedElements.edges;
+            const multipleNodesSelected = selectedNodeIds.length > 1;
+            const multipleEdgesSelected = selectedEdgeIds.length > 1;
+            const mixedSelection =
+                selectedNodeIds.length > 0 && selectedEdgeIds.length > 0;
+
+            let updatedProperties: any[] = [];
+            const selectionInfo = {
+                nodes: selectedNodeIds.length,
+                edges: selectedEdgeIds.length,
+            };
+
+            if (selectedNodeIds.length === 1 && selectedEdgeIds.length === 0) {
+                const selectedNode = newNodes.find(
+                    (n) => n.id === selectedNodeIds[0]
+                );
+                if (selectedNode) {
+                    updatedProperties = [
+                        {
+                            key: "id",
+                            value: selectedNode.id,
+                            type: "string" as const,
+                            editable: false,
+                        },
+                        {
+                            key: "name",
+                            value: selectedNode.name || selectedNode.id,
+                            type: "string" as const,
+                            editable: true,
+                        },
+                        {
+                            key: "type",
+                            value: selectedNode.type,
+                            type: "string" as const,
+                            editable: false,
+                        },
+                        {
+                            key: "x",
+                            value: selectedNode.position.x,
+                            type: "number" as const,
+                            editable: false,
+                        },
+                        {
+                            key: "y",
+                            value: selectedNode.position.y,
+                            type: "number" as const,
+                            editable: false,
+                        },
+                        ...Object.entries(selectedNode.data)
+                            .filter(([key]) => key !== "updateNodeData")
+                            .map(([key, value]) => ({
+                                key,
+                                value: value as string | number,
+                                type:
+                                    typeof value === "number"
+                                        ? ("number" as const)
+                                        : ("string" as const),
+                                editable: true,
+                                isTextArea:
+                                    key === "initializations" ||
+                                    (Array.isArray(value) &&
+                                        value.join().length > 50),
+                            })),
+                    ];
+                }
+            }
+
             set({
                 nodes: newNodes,
                 selectedElements: {
-                    ...get().selectedElements,
-                    nodes: newSelectedIds,
+                    nodes: selectedNodeIds,
+                    edges: selectedEdgeIds,
                 },
                 selectedProperties: updatedProperties,
+                selectionInfo:
+                    multipleNodesSelected ||
+                    multipleEdgesSelected ||
+                    mixedSelection
+                        ? selectionInfo
+                        : undefined,
             });
             return;
         }
@@ -175,6 +209,64 @@ export const useStore = create<StoreState>((set, get) => ({
                 commandController.execute(command);
             }
 
+            const selectedNodeIds = get().selectedElements.nodes;
+            let updatedProperties = get().selectedProperties;
+
+            if (selectedNodeIds.length === 1) {
+                const selectedNode = newNodes.find(
+                    (n) => n.id === selectedNodeIds[0]
+                );
+                if (selectedNode) {
+                    updatedProperties = [
+                        {
+                            key: "id",
+                            value: selectedNode.id,
+                            type: "string" as const,
+                            editable: false,
+                        },
+                        {
+                            key: "name",
+                            value: selectedNode.name || selectedNode.id,
+                            type: "string" as const,
+                            editable: true,
+                        },
+                        {
+                            key: "type",
+                            value: selectedNode.type,
+                            type: "string" as const,
+                            editable: false,
+                        },
+                        {
+                            key: "x",
+                            value: selectedNode.position.x,
+                            type: "number" as const,
+                            editable: false,
+                        },
+                        {
+                            key: "y",
+                            value: selectedNode.position.y,
+                            type: "number" as const,
+                            editable: false,
+                        },
+                        ...Object.entries(selectedNode.data)
+                            .filter(([key]) => key !== "updateNodeData")
+                            .map(([key, value]) => ({
+                                key,
+                                value: value as string | number,
+                                type:
+                                    typeof value === "number"
+                                        ? ("number" as const)
+                                        : ("string" as const),
+                                editable: true,
+                                isTextArea:
+                                    key === "initializations" ||
+                                    (Array.isArray(value) &&
+                                        value.join().length > 50),
+                            })),
+                    ];
+                }
+            }
+
             set({
                 nodes: newNodes,
                 selectedProperties: updatedProperties,
@@ -190,7 +282,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
         set({
             nodes: newNodes,
-            selectedProperties: updatedProperties,
         });
 
         const now = new Date().toISOString();
@@ -203,6 +294,7 @@ export const useStore = create<StoreState>((set, get) => ({
         const selectionChanges = changes.filter(
             (change) => change.type === "select"
         );
+
         if (selectionChanges.length > 0) {
             const newEdges = applyEdgeChanges(
                 selectionChanges,
@@ -212,73 +304,95 @@ export const useStore = create<StoreState>((set, get) => ({
             const selectedEdgeIds = newEdges
                 .filter((e) => e.selected)
                 .map((e) => e.id);
-            const selectedEdge =
-                selectedEdgeIds.length === 1
-                    ? get().edges.find((e) => e.id === selectedEdgeIds[0])
-                    : null;
+
+            const selectedNodeIds = get().selectedElements.nodes;
+            const multipleNodesSelected = selectedNodeIds.length > 1;
+            const multipleEdgesSelected = selectedEdgeIds.length > 1;
+            const mixedSelection =
+                selectedNodeIds.length > 0 && selectedEdgeIds.length > 0;
+
+            let updatedProperties: any[] = [];
+            const selectionInfo = {
+                nodes: selectedNodeIds.length,
+                edges: selectedEdgeIds.length,
+            };
+
+            if (selectedEdgeIds.length === 1 && selectedNodeIds.length === 0) {
+                const selectedEdge = get().edges.find(
+                    (e) => e.id === selectedEdgeIds[0]
+                );
+                if (selectedEdge) {
+                    updatedProperties = [
+                        {
+                            key: "id",
+                            value: selectedEdge.id,
+                            type: "string",
+                            editable: false,
+                        },
+                        {
+                            key: "source",
+                            value: selectedEdge.source,
+                            type: "string",
+                            editable: false,
+                        },
+                        {
+                            key: "sourceHandle",
+                            value: selectedEdge.sourceHandle || "",
+                            type: "string",
+                            editable: false,
+                        },
+                        {
+                            key: "target",
+                            value: selectedEdge.target,
+                            type: "string",
+                            editable: false,
+                        },
+                        {
+                            key: "targetHandle",
+                            value: selectedEdge.targetHandle || "",
+                            type: "string",
+                            editable: false,
+                        },
+                        ...Object.entries(selectedEdge)
+                            .filter(
+                                ([key]) =>
+                                    ![
+                                        "id",
+                                        "source",
+                                        "sourceHandle",
+                                        "target",
+                                        "targetHandle",
+                                        "selected",
+                                    ].includes(key)
+                            )
+                            .map(([key, value]) => ({
+                                key,
+                                value: value as string | number,
+                                type:
+                                    typeof value === "number"
+                                        ? ("number" as const)
+                                        : ("string" as const),
+                                editable: true,
+                            })),
+                    ];
+                }
+            }
 
             set({
                 edges: newEdges,
                 selectedElements: {
-                    ...get().selectedElements,
+                    nodes: selectedNodeIds,
                     edges: selectedEdgeIds,
                 },
-                selectedProperties: selectedEdge
-                    ? [
-                          {
-                              key: "id",
-                              value: selectedEdge.id,
-                              type: "string",
-                              editable: false,
-                          },
-                          {
-                              key: "source",
-                              value: selectedEdge.source,
-                              type: "string",
-                              editable: false,
-                          },
-                          {
-                              key: "sourceHandle",
-                              value: selectedEdge.sourceHandle || "",
-                              type: "string",
-                              editable: false,
-                          },
-                          {
-                              key: "target",
-                              value: selectedEdge.target,
-                              type: "string",
-                              editable: false,
-                          },
-                          {
-                              key: "targetHandle",
-                              value: selectedEdge.targetHandle || "",
-                              type: "string",
-                              editable: false,
-                          },
-                          ...Object.entries(selectedEdge)
-                              .filter(
-                                  ([key]) =>
-                                      ![
-                                          "id",
-                                          "source",
-                                          "sourceHandle",
-                                          "target",
-                                          "targetHandle",
-                                          "selected",
-                                      ].includes(key)
-                              )
-                              .map(([key, value]) => ({
-                                  key,
-                                  value: value as string | number,
-                                  type:
-                                      typeof value === "number"
-                                          ? ("number" as const)
-                                          : ("string" as const),
-                                  editable: true,
-                              })),
-                      ]
-                    : [],
+                selectedProperties: updatedProperties,
+                selectionInfo:
+                    multipleNodesSelected ||
+                    multipleEdgesSelected ||
+                    mixedSelection
+                        ? selectionInfo
+                        : undefined,
             });
+            return;
         }
 
         const command = commandController.createEdgesChangeCommand(changes);
@@ -405,19 +519,34 @@ export const useStore = create<StoreState>((set, get) => ({
             const nodeId = selectedElements.nodes[0];
             const node = nodes.find((n) => n.id === nodeId);
             if (node) {
-                const newData = editableProperties.reduce(
-                    (acc, prop) => ({
+                const newData = editableProperties.reduce((acc, prop) => {
+                    if (prop.key === "name") {
+                        return acc;
+                    }
+                    return {
                         ...acc,
-                        [prop.key]: prop.value,
-                    }),
-                    {}
+                        [prop.key]:
+                            prop.key === "initializations" &&
+                            typeof prop.value === "string"
+                                ? prop.value
+                                      .split("\n")
+                                      .filter((line) => line.trim() !== "")
+                                : prop.value,
+                    };
+                }, {});
+
+                const nameProperty = editableProperties.find(
+                    (p) => p.key === "name"
                 );
+                const updateData: any = { data: { ...node.data, ...newData } };
+
+                if (nameProperty) {
+                    updateData.name = nameProperty.value as string;
+                }
 
                 const command = commandController.createUpdateNodeCommand(
                     nodeId,
-                    {
-                        data: { ...node.data, ...newData },
-                    }
+                    updateData
                 );
                 commandController.execute(command);
             }

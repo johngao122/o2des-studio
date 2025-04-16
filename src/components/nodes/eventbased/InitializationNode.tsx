@@ -4,6 +4,8 @@ import { memo, useState, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps, XYPosition } from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
+import { useStore } from "@/store";
+import { BaseNode } from "@/types/base";
 
 const commandController = CommandController.getInstance();
 
@@ -12,9 +14,14 @@ interface InitializationNodeData {
     updateNodeData?: (nodeId: string, data: any) => void;
 }
 
+interface ExtendedNodeProps extends NodeProps<InitializationNodeData> {
+    name?: string;
+}
+
 interface InitializationNodeJSON {
     id: string;
     type: "initialization";
+    name?: string;
     data: {
         initializations: string[];
     };
@@ -27,6 +34,7 @@ export const createJSON = (
     return {
         id: props.id,
         type: "initialization",
+        name: (props as any).name,
         data: {
             initializations: props.data.initializations.flatMap((init) => {
                 const parts = init
@@ -45,6 +53,9 @@ export const createJSON = (
 export const InitializationNodePreview = () => {
     return (
         <div className="relative px-4 py-2 border-2 border-black dark:border-white bg-white dark:bg-zinc-800 min-w-[200px]">
+            <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1">
+                Initialization
+            </div>
             <div className="mt-2 min-h-[40px] text-center dark:text-gray-300">
                 <div className="my-1">
                     <MathJax>{""}</MathJax>
@@ -63,7 +74,7 @@ const InitializationNode = memo(
         dragging,
         xPos,
         yPos,
-    }: NodeProps<InitializationNodeData>) => {
+    }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState(
             data.initializations.join("\n")
@@ -89,6 +100,16 @@ const InitializationNode = memo(
             commandController.execute(command);
         }, [editValue, id, data]);
 
+        //NOTE: This is something that will need to be looked into in the future
+        const node = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === id);
+        const nodeName = node?.name || id;
+
+        useEffect(() => {
+            // Placeholder for future debugging or monitoring logic if needed
+        }, [node]);
+
         return (
             <div
                 className={`relative px-4 py-2 border-2 ${
@@ -100,6 +121,11 @@ const InitializationNode = memo(
                 }`}
                 onDoubleClick={handleDoubleClick}
             >
+                {/* Node Name/Title */}
+                <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1">
+                    {nodeName}
+                </div>
+
                 {id !== "preview" && (
                     <>
                         {/* Top Handles */}
@@ -166,12 +192,23 @@ const InitializationNode = memo(
             return true;
         }
 
+        //NOTE: This is something that will need to be looked into in the future
+        const prevNode = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === prev.id);
+        const nextNode = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === next.id);
+        const prevName = prevNode?.name;
+        const nextName = nextNode?.name;
+
         return (
             prev.id === next.id &&
             prev.selected === next.selected &&
             prev.isConnectable === next.isConnectable &&
             prev.xPos === next.xPos &&
             prev.yPos === next.yPos &&
+            prevName === nextName &&
             JSON.stringify(prev.data.initializations) ===
                 JSON.stringify(next.data.initializations)
         );
