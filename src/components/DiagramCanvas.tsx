@@ -40,6 +40,19 @@ const flowOptions = {
     selectionOnDrag: true,
     panOnScroll: true,
     panOnDrag: [2] as number[],
+    elevateNodesOnSelect: false,
+    elevateEdgesOnSelect: false,
+    defaultViewport: { x: 0, y: 0, zoom: 1 },
+    minZoom: 0.1,
+    maxZoom: 4,
+    snapToGrid: false,
+    zoomOnScroll: true,
+    zoomOnPinch: true,
+    snapGrid: [15, 15] as [number, number],
+    translateExtent: [
+        [-1000, -1000],
+        [2000, 2000],
+    ] as [[number, number], [number, number]],
 } as const;
 
 function FlowCanvas() {
@@ -189,28 +202,38 @@ function FlowCanvas() {
         );
 
         if (selectionChanges.length > 0) {
-            const isMultiSelectionEnabled = false;
+            const isDragOperation = changes.some(
+                (change) =>
+                    change.type === "position" ||
+                    (change.type === "select" && changes.length > 5)
+            );
 
-            if (!isMultiSelectionEnabled) {
+            if (!isDragOperation) {
                 const { onEdgesChange } = useStore.getState();
                 const selectedEdges =
                     useStore.getState().selectedElements.edges;
 
                 if (selectedEdges.length > 0) {
-                    onEdgesChange(
-                        selectedEdges.map((edgeId) => ({
-                            id: edgeId,
-                            type: "select" as const,
-                            selected: false,
-                        }))
-                    );
+                    requestAnimationFrame(() => {
+                        onEdgesChange(
+                            selectedEdges.map((edgeId) => ({
+                                id: edgeId,
+                                type: "select" as const,
+                                selected: false,
+                            }))
+                        );
+                    });
                 }
             }
         }
 
         onNodesChange(changes);
 
-        if (selectionChanges.length > 0) {
+        const isExplicitSelectionChange =
+            selectionChanges.length > 0 &&
+            !changes.some((change) => change.type === "position");
+
+        if (isExplicitSelectionChange) {
             autosaveService.autosave();
         }
     }, []);
@@ -222,16 +245,20 @@ function FlowCanvas() {
                 const { onEdgesChange } = useStore.getState();
 
                 if (selectedEdgeIds.length > 0) {
-                    onEdgesChange(
-                        selectedEdgeIds.map((id) => ({
-                            id,
-                            type: "select" as const,
-                            selected: true,
-                        }))
-                    );
-                }
+                    requestAnimationFrame(() => {
+                        onEdgesChange(
+                            selectedEdgeIds.map((id) => ({
+                                id,
+                                type: "select" as const,
+                                selected: true,
+                            }))
+                        );
 
-                autosaveService.autosave();
+                        autosaveService.autosave();
+                    });
+                } else {
+                    autosaveService.autosave();
+                }
             }
         },
         []
@@ -253,6 +280,7 @@ function FlowCanvas() {
             selectionKeyCode={null}
             {...flowOptions}
             className="bg-zinc-50 dark:bg-zinc-900"
+            disableKeyboardA11y={true}
         >
             <Background />
             <Controls />
