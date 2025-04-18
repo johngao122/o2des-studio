@@ -6,6 +6,7 @@ import {
     Connection,
     Viewport,
     NodePositionChange,
+    MarkerType,
 } from "reactflow";
 import { applyNodeChanges, applyEdgeChanges, addEdge } from "reactflow";
 import { nanoid } from "nanoid";
@@ -40,13 +41,12 @@ export class CommandController {
     }
 
     execute(command: Command) {
-        // Create a descriptive string for the command
         const commandDesc = command.execute.toString().slice(0, 150) + "...";
         console.log("Executing command:", commandDesc);
 
         command.execute();
         this.undoStack.push(command);
-        this.redoStack = []; // Clear redo stack when new command is executed
+        this.redoStack = [];
         console.log(
             "Command executed - Undo Stack:",
             this.undoStack.length,
@@ -97,7 +97,6 @@ export class CommandController {
         return this.redoStack.length > 0;
     }
 
-    // Command factory methods
     createAddNodeCommand(node: BaseNode): Command {
         console.log("Creating add node command for node:", {
             id: node.id,
@@ -137,25 +136,56 @@ export class CommandController {
         nodeId: string,
         updates: Partial<BaseNode>
     ): Command {
-        const originalNode = useStore
-            .getState()
-            .nodes.find((n) => n.id === nodeId);
-        if (!originalNode) throw new Error("Node not found");
+        const { nodes } = useStore.getState();
+        const node = nodes.find((n) => n.id === nodeId);
+
+        if (!node) {
+            throw new Error(`Node with id ${nodeId} not found`);
+        }
 
         return {
             execute: () => {
                 useStore.setState((state) => ({
-                    nodes: state.nodes.map((node) =>
-                        node.id === nodeId ? { ...node, ...updates } : node
+                    nodes: state.nodes.map((n) =>
+                        n.id === nodeId ? { ...n, ...updates } : n
                     ),
                 }));
+                this.autosaveService.autosave();
             },
             undo: () => {
                 useStore.setState((state) => ({
-                    nodes: state.nodes.map((node) =>
-                        node.id === nodeId ? originalNode : node
+                    nodes: state.nodes.map((n) => (n.id === nodeId ? node : n)),
+                }));
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    createUpdateEdgeCommand(
+        edgeId: string,
+        updates: Partial<BaseEdge>
+    ): Command {
+        const { edges } = useStore.getState();
+        const edge = edges.find((e) => e.id === edgeId);
+
+        if (!edge) {
+            throw new Error(`Edge with id ${edgeId} not found`);
+        }
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    edges: state.edges.map((e) =>
+                        e.id === edgeId ? { ...e, ...updates } : e
                     ),
                 }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                useStore.setState((state) => ({
+                    edges: state.edges.map((e) => (e.id === edgeId ? edge : e)),
+                }));
+                this.autosaveService.autosave();
             },
         };
     }
@@ -178,11 +208,9 @@ export class CommandController {
             })
         );
 
-        // Only handle position changes - ignore all other types
         const positionChanges = changes.filter(
             (change): change is NodePositionChange =>
                 change.type === "position" &&
-                // Only handle position changes for existing nodes
                 useStore.getState().nodes.some((n) => n.id === change.id)
         );
 
@@ -196,11 +224,9 @@ export class CommandController {
     private handleDragChanges(changes: NodePositionChange[]): Command | null {
         const currentNodes = useStore.getState().nodes;
 
-        // Process each drag change
         for (const change of changes) {
             if (!change.dragging) continue;
 
-            // If this is the start of a drag operation
             if (!this.dragState.has(change.id)) {
                 const node = currentNodes.find((n) => n.id === change.id);
                 if (!node) continue;
@@ -215,7 +241,6 @@ export class CommandController {
         const endedDrags = changes.filter((change) => !change.dragging);
         const ongoingDrags = changes.filter((change) => change.dragging);
 
-        // Handle completed drags
         if (endedDrags.length > 0) {
             const commands: Command[] = [];
 
@@ -263,7 +288,6 @@ export class CommandController {
             }
         }
 
-        // For ongoing drags, just update the position without creating a command
         if (ongoingDrags.length > 0) {
             const newNodes = applyNodeChanges(
                 ongoingDrags,
@@ -276,12 +300,10 @@ export class CommandController {
     }
 
     createEdgesChangeCommand(changes: EdgeChange[]): Command | null {
-        // Filter out selection changes
         const nonSelectionChanges = changes.filter(
             (change) => change.type !== "select"
         );
 
-        // If there are no non-selection changes, return null
         if (nonSelectionChanges.length === 0) return null;
 
         const currentEdges = useStore.getState().edges;
@@ -300,6 +322,27 @@ export class CommandController {
         };
     }
 
+    private determineEdgeType(
+        sourceNode: BaseNode | undefined,
+        targetNode: BaseNode | undefined
+    ): string | undefined {
+        if (!sourceNode || !targetNode) {
+            return undefined;
+        }
+
+        const sourceGraphType = sourceNode.graphType;
+        const targetGraphType = targetNode.graphType;
+
+        switch (true) {
+            case sourceGraphType === "eventBased" &&
+                targetGraphType === "eventBased":
+                return "eventGraph";
+
+            default:
+                return undefined;
+        }
+    }
+
     createConnectCommand(connection: Connection): Command {
         if (!connection.source || !connection.target)
             throw new Error("Invalid connection");
@@ -311,12 +354,30 @@ export class CommandController {
             targetHandle: connection.targetHandle,
         });
 
+        const { nodes } = useStore.getState();
+        const sourceNode = nodes.find((n) => n.id === connection.source);
+        const targetNode = nodes.find((n) => n.id === connection.target);
+
+        const edgeType = this.determineEdgeType(sourceNode, targetNode);
+
+        let graphType: string | undefined = undefined;
+        if (edgeType === "eventGraph") {
+            graphType = "eventBased";
+        }
+
         const edge: BaseEdge = {
             id: nanoid(),
             source: connection.source,
             target: connection.target,
             sourceHandle: connection.sourceHandle,
             targetHandle: connection.targetHandle,
+            type: edgeType,
+            graphType,
+            markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+            },
             conditions: [],
         };
 

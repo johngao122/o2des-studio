@@ -19,6 +19,11 @@ This project is currently under active development. We're working on:
 -   [ ] Visual editor
 -   [ ] Documentation system
 
+## 🐛 Known Bugs
+
+-   Node dragging causes website crash when moved excessively (under investigation)
+-   Event graph edges are limited to straight lines due to rendering constraints (under investigation)
+
 ## 🚀 Getting Started
 
 ```bash

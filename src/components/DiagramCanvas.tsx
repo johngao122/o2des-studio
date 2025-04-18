@@ -13,9 +13,11 @@ import ReactFlow, {
     applyNodeChanges,
     useReactFlow,
     OnSelectionChangeParams,
+    SelectionMode,
 } from "reactflow";
 import { useStore } from "@/store";
 import { nodeTypes } from "@/components/nodes";
+import { edgeTypes } from "@/components/edges";
 import { NodeFactory } from "@/factories/NodeFactory";
 import { ViewController } from "@/controllers/ViewController";
 import { NodeController } from "@/controllers/NodeController";
@@ -31,6 +33,7 @@ const autosaveService = AutosaveService.getInstance();
 
 const flowOptions = {
     nodeTypes,
+    edgeTypes,
     nodesDraggable: true,
     nodesConnectable: true,
     elementsSelectable: true,
@@ -274,44 +277,43 @@ function FlowCanvas() {
     );
 
     return (
-        <ReactFlow
-            nodes={nodesWithData}
-            edges={edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={handleConnect}
-            onEdgeClick={handleEdgeClick}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onMoveEnd={onMoveEnd}
-            onSelectionChange={handleSelectionChange}
-            multiSelectionKeyCode="Shift"
-            selectionKeyCode={null}
-            {...flowOptions}
-            className="bg-zinc-50 dark:bg-zinc-900"
-            disableKeyboardA11y={true}
-        >
-            <Background />
-            <Controls />
-            <MiniMap />
-            <Panel
-                position="top-left"
-                className="bg-white dark:bg-zinc-800 p-2 rounded shadow-lg"
+        <div className="flex-1 h-full" onDrop={onDrop} onDragOver={onDragOver}>
+            <ReactFlow
+                nodes={nodesWithData}
+                edges={edges}
+                onNodesChange={handleNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={handleConnect}
+                onSelectionChange={handleSelectionChange}
+                onMoveEnd={onMoveEnd}
+                onEdgeClick={handleEdgeClick}
+                {...flowOptions}
+                deleteKeyCode={["Backspace", "Delete"]}
+                selectionMode={SelectionMode.Partial}
+                connectionRadius={25}
             >
-                <h1 className="text-xl font-bold">O²DES Studio</h1>
-            </Panel>
-            <Panel
-                position="bottom-right"
-                className="bg-white/80 dark:bg-zinc-800/80 p-2 rounded shadow-lg text-xs"
-            >
-                <div className="text-gray-500 dark:text-gray-400">
-                    <div>
-                        Drag to select • Right-click to pan • Shift+click for
-                        multi-select
+                <Background />
+                <Controls />
+                <MiniMap />
+                <Panel
+                    position="top-left"
+                    className="bg-white dark:bg-zinc-800 p-2 rounded shadow-lg"
+                >
+                    <h1 className="text-xl font-bold">O²DES Studio</h1>
+                </Panel>
+                <Panel
+                    position="bottom-right"
+                    className="bg-white/80 dark:bg-zinc-800/80 p-2 rounded shadow-lg text-xs"
+                >
+                    <div className="text-gray-500 dark:text-gray-400">
+                        <div>
+                            Drag to select • Right-click to pan • Shift+click
+                            for multi-select
+                        </div>
                     </div>
-                </div>
-            </Panel>
-        </ReactFlow>
+                </Panel>
+            </ReactFlow>
+        </div>
     );
 }
 
@@ -319,10 +321,8 @@ const MemoizedFlowCanvas = React.memo(FlowCanvas);
 
 export function DiagramCanvas() {
     return (
-        <div className="flex-1">
-            <ReactFlowProvider>
-                <MemoizedFlowCanvas />
-            </ReactFlowProvider>
-        </div>
+        <ReactFlowProvider>
+            <MemoizedFlowCanvas />
+        </ReactFlowProvider>
     );
 }

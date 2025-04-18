@@ -18,6 +18,13 @@ interface ExtendedNodeProps extends NodeProps<InitializationNodeData> {
     name?: string;
 }
 
+interface InitializationNodeComponent
+    extends React.NamedExoticComponent<ExtendedNodeProps> {
+    defaultData: InitializationNodeData;
+    displayName?: string;
+    getGraphType?: () => string;
+}
+
 interface InitializationNodeJSON {
     id: string;
     type: "initialization";
@@ -65,7 +72,6 @@ export const InitializationNodePreview = () => {
     );
 };
 
-// Static methods for the node
 export const getDefaultData = (): InitializationNodeData => ({
     initializations: [],
 });
@@ -73,7 +79,7 @@ export const getDefaultData = (): InitializationNodeData => ({
 const InitializationNode = memo(
     ({
         id,
-        data,
+        data = { initializations: [] } as InitializationNodeData,
         selected,
         isConnectable,
         dragging,
@@ -82,13 +88,13 @@ const InitializationNode = memo(
     }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState(
-            data.initializations.join("\n")
+            data?.initializations?.join("\n") || ""
         );
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditValue(data.initializations.join("\n"));
-        }, [data.initializations]);
+            setEditValue(data?.initializations?.join("\n") || "");
+        }, [data?.initializations]);
 
         const handleBlur = useCallback(() => {
             setIsEditing(false);
@@ -105,7 +111,6 @@ const InitializationNode = memo(
             commandController.execute(command);
         }, [editValue, id, data]);
 
-        //NOTE: This is something that will need to be looked into in the future
         const node = useStore
             .getState()
             .nodes.find((n: BaseNode) => n.id === id);
@@ -182,11 +187,11 @@ const InitializationNode = memo(
                             autoFocus
                         />
                     ) : (
-                        data.initializations.map((init, index) => (
+                        data?.initializations?.map((init, index) => (
                             <div key={index} className="my-1">
-                                <MathJax>{init}</MathJax>
+                                <MathJax>{init || ""}</MathJax>
                             </div>
-                        ))
+                        )) || null
                     )}
                 </div>
             </div>
@@ -197,7 +202,6 @@ const InitializationNode = memo(
             return true;
         }
 
-        //NOTE: This is something that will need to be looked into in the future
         const prevNode = useStore
             .getState()
             .nodes.find((n: BaseNode) => n.id === prev.id);
@@ -220,10 +224,11 @@ const InitializationNode = memo(
     }
 ) as any;
 
-// Add static methods
 InitializationNode.getDefaultData = (): InitializationNodeData => ({
     initializations: [],
 });
+
+InitializationNode.getGraphType = (): string => "eventBased";
 
 InitializationNode.displayName = "InitializationNode";
 
