@@ -38,17 +38,26 @@ const EventNode = memo(
             setEditParams(data.eventParameters || "");
         }, [data.stateUpdate, data.eventParameters]);
 
-        const handleBlur = useCallback(() => {
-            setIsEditing(false);
-            const command = commandController.createUpdateNodeCommand(id, {
-                data: {
-                    ...data,
-                    stateUpdate: editValue,
-                    eventParameters: editParams,
-                },
-            });
-            commandController.execute(command);
-        }, [editValue, editParams, id, data]);
+        const handleBlur = useCallback(
+            (e: React.FocusEvent) => {
+                // Check if the new focus target is one of our input fields
+                const relatedTarget = e.relatedTarget as HTMLElement;
+                if (relatedTarget?.classList.contains("event-node-input")) {
+                    return;
+                }
+
+                setIsEditing(false);
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...data,
+                        stateUpdate: editValue,
+                        eventParameters: editParams,
+                    },
+                });
+                commandController.execute(command);
+            },
+            [editValue, editParams, id, data]
+        );
 
         const node = useStore
             .getState()
@@ -119,8 +128,14 @@ const EventNode = memo(
                 onDoubleClick={handleDoubleClick}
             >
                 {/* Node Name/Title */}
-                <div className="font-medium text-sm text-center mb-2 pb-1">
-                    {nodeName}
+                <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
+                    <MathJax>
+                        {`${nodeName}${
+                            data.eventParameters
+                                ? ` (${data.eventParameters})`
+                                : ""
+                        }`}
+                    </MathJax>
                 </div>
 
                 {/* Content */}
@@ -132,7 +147,7 @@ const EventNode = memo(
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onBlur={handleBlur}
-                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white"
+                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input"
                                 placeholder="State Update"
                                 autoFocus
                             />
@@ -141,19 +156,14 @@ const EventNode = memo(
                                 value={editParams}
                                 onChange={(e) => setEditParams(e.target.value)}
                                 onBlur={handleBlur}
-                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white"
+                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input"
                                 placeholder="Event Parameters (optional)"
                             />
                         </div>
                     ) : (
                         <div className="space-y-1 flex flex-col items-center justify-center">
-                            <MathJax>{`\\[${
-                                data.stateUpdate || ""
-                            }\\]`}</MathJax>
-                            {data.eventParameters && (
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                    Parameters: {data.eventParameters}
-                                </div>
+                            {data.stateUpdate && (
+                                <MathJax>{data.stateUpdate}</MathJax>
                             )}
                         </div>
                     )}

@@ -127,7 +127,7 @@ const InitializationNode = memo(
                 onDoubleClick={handleDoubleClick}
             >
                 {/* Node Name/Title */}
-                <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1">
+                <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 dark:text-white text-black">
                     {nodeName}
                 </div>
 
