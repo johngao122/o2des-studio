@@ -65,6 +65,11 @@ export const InitializationNodePreview = () => {
     );
 };
 
+// Static methods for the node
+export const getDefaultData = (): InitializationNodeData => ({
+    initializations: [],
+});
+
 const InitializationNode = memo(
     ({
         id,
@@ -213,7 +218,12 @@ const InitializationNode = memo(
                 JSON.stringify(next.data.initializations)
         );
     }
-);
+) as any;
+
+// Add static methods
+InitializationNode.getDefaultData = (): InitializationNodeData => ({
+    initializations: [],
+});
 
 InitializationNode.displayName = "InitializationNode";
 
