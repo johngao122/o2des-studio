@@ -304,6 +304,13 @@ export class CommandController {
         if (!connection.source || !connection.target)
             throw new Error("Invalid connection");
 
+        console.log("Creating edge with connection:", {
+            source: connection.source,
+            sourceHandle: connection.sourceHandle,
+            target: connection.target,
+            targetHandle: connection.targetHandle,
+        });
+
         const edge: BaseEdge = {
             id: nanoid(),
             source: connection.source,
@@ -313,11 +320,16 @@ export class CommandController {
             conditions: [],
         };
 
+        console.log("Created edge:", edge);
+
         return {
             execute: () => {
-                useStore.setState((state) => ({
-                    edges: addEdge(edge, state.edges) as BaseEdge[],
-                }));
+                useStore.setState((state) => {
+                    console.log("Adding edge to store:", edge);
+                    return {
+                        edges: addEdge(edge, state.edges) as BaseEdge[],
+                    };
+                });
             },
             undo: () => {
                 useStore.setState((state) => ({

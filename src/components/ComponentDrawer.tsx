@@ -13,6 +13,7 @@ import {
 
 const NODE_DESCRIPTIONS = {
     initialization: "Initial state setup",
+    event: "Event node with state updates",
 } as const;
 
 // Move controllers outside component
@@ -49,34 +50,49 @@ const ComponentDrawer = () => {
     };
 
     const renderNodePreview = (NodeComponent: any, scale: number = 1) => {
+        const getPreviewData = (type: string) => {
+            switch (type) {
+                case NODE_TYPES.EVENT:
+                    return {
+                        stateUpdate: "s = s + 1",
+                        eventParameters: "",
+                    };
+                case NODE_TYPES.INITIALIZATION:
+                default:
+                    return { initializations: ["s = 0"] };
+            }
+        };
+
         const previewProps = {
             id: "preview",
-            data: { initializations: [] },
+            data: getPreviewData(
+                NodeComponent.displayName?.toLowerCase() || ""
+            ),
             selected: false,
             isConnectable: false,
-            className: `transform scale-${scale * 100}`,
+            className: "nodrag preview-node text-black dark:text-white",
         };
 
         return <NodeComponent {...previewProps} />;
     };
 
     return (
-        <div className="w-64 bg-white dark:bg-zinc-800 border-r border-gray-200 dark:border-zinc-700 p-4">
-            <h3 className="text-lg font-semibold mb-4 dark:text-white">
+        <div className="w-64 bg-white dark:bg-zinc-800 border-r border-gray-200 dark:border-zinc-700 p-4 overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-3 dark:text-white">
                 Components
             </h3>
 
-            <div className="space-y-4">
+            <div className="">
                 <div className="font-medium text-gray-700 dark:text-gray-300">
                     Event-Based
                 </div>
-                <div className="space-y-6">
+                <div className="flex flex-col gap-12 py-4">
                     {Object.entries(nodeTypes).map(([type, NodeComponent]) => (
                         <TooltipProvider key={type}>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div
-                                        className="cursor-pointer"
+                                        className="cursor-pointer transition-transform hover:scale-105 p-4"
                                         draggable
                                         onDragStart={(e) =>
                                             onDragStart(e, type)
@@ -84,17 +100,12 @@ const ComponentDrawer = () => {
                                         onClick={(e) => onClick(e, type)}
                                     >
                                         <div className="scale-75 origin-top">
-                                            <div className="react-flow__node">
+                                            <div className="react-flow__node transform scale-75">
                                                 {renderNodePreview(
                                                     NodeComponent,
                                                     0.75
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="text-sm text-gray-500 dark:text-gray-400 text-center mt-1">
-                                            {NODE_DESCRIPTIONS[
-                                                type as keyof typeof NODE_DESCRIPTIONS
-                                            ] || type}
                                         </div>
                                     </div>
                                 </TooltipTrigger>

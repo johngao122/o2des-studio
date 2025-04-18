@@ -65,6 +65,11 @@ export const InitializationNodePreview = () => {
     );
 };
 
+// Static methods for the node
+export const getDefaultData = (): InitializationNodeData => ({
+    initializations: [],
+});
+
 const InitializationNode = memo(
     ({
         id,
@@ -107,7 +112,7 @@ const InitializationNode = memo(
         const nodeName = node?.name || id;
 
         useEffect(() => {
-            // Placeholder for future debugging or monitoring logic if needed
+            console.log("Node:", node);
         }, [node]);
 
         return (
@@ -122,7 +127,7 @@ const InitializationNode = memo(
                 onDoubleClick={handleDoubleClick}
             >
                 {/* Node Name/Title */}
-                <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1">
+                <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 dark:text-white text-black">
                     {nodeName}
                 </div>
 
@@ -213,7 +218,12 @@ const InitializationNode = memo(
                 JSON.stringify(next.data.initializations)
         );
     }
-);
+) as any;
+
+// Add static methods
+InitializationNode.getDefaultData = (): InitializationNodeData => ({
+    initializations: [],
+});
 
 InitializationNode.displayName = "InitializationNode";
 

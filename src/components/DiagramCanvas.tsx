@@ -101,6 +101,15 @@ function FlowCanvas() {
 
     const handleConnect = useCallback(
         (params: any) => {
+            console.log("Connection attempt:", {
+                source: params.source,
+                sourceHandle: params.sourceHandle,
+                target: params.target,
+                targetHandle: params.targetHandle,
+                sourcePos: params.sourcePos,
+                targetPos: params.targetPos,
+            });
+
             const connection = {
                 source: params.source,
                 sourceHandle: params.sourceHandle,

@@ -213,3 +213,22 @@ body {
     transform: translateZ(0);
     will-change: transform;
 }
+
+/* Hide preview text in component drawer nodes */
+.preview-node {
+    position: relative;
+}
+
+.preview-node #preview,
+.preview-node .text-sm {
+    display: none;
+}
+
+.preview-node .nodrag {
+    pointer-events: none;
+}
+
+/* Hide node description text that appears behind nodes */
+.react-flow__node .text-sm.text-gray-500.dark\:text-gray-400.text-center {
+    display: none;
+}
