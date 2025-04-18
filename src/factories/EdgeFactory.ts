@@ -1,25 +1,35 @@
-import { BaseEdge, EdgeConditions } from '../types/base';
-import { nanoid } from 'nanoid';
-
-type EdgeCreator = (source: string, target: string, data?: any) => Omit<BaseEdge, 'id'>;
+import { BaseEdge } from "../types/base";
+import { nanoid } from "nanoid";
+import { EdgeRegistry, EdgeCreator } from "./EdgeRegistry";
 
 export class EdgeFactory {
-  private edgeTypes: Map<string, EdgeCreator> = new Map();
+    private registry: EdgeRegistry;
 
-  registerEdgeType(type: string, creator: EdgeCreator) {
-    this.edgeTypes.set(type, creator);
-  }
-
-  createEdge(type: string, source: string, target: string, data?: any): BaseEdge {
-    const creator = this.edgeTypes.get(type);
-    if (!creator) {
-      throw new Error(`Edge type ${type} is not registered`);
+    constructor() {
+        this.registry = EdgeRegistry.getInstance();
     }
 
-    const edge = creator(source, target, data);
-    return {
-      ...edge,
-      id: nanoid()
-    };
-  }
-} 
+    registerEdgeType(type: string, creator: EdgeCreator) {
+        this.registry.register(type, creator);
+    }
+
+    createEdge(
+        type: string,
+        source: string,
+        target: string,
+        sourceHandle?: string,
+        targetHandle?: string,
+        data?: any
+    ): BaseEdge {
+        const creator = this.registry.getCreator(type);
+        if (!creator) {
+            throw new Error(`Edge type ${type} is not registered`);
+        }
+
+        const edge = creator(source, target, sourceHandle, targetHandle, data);
+        return {
+            ...edge,
+            id: nanoid(),
+        };
+    }
+}

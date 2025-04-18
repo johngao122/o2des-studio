@@ -22,25 +22,30 @@ interface EventNodeComponent
     extends React.NamedExoticComponent<ExtendedNodeProps> {
     defaultData: EventNodeData;
     displayName?: string;
+    getGraphType?: () => string;
 }
 
 const EventNode = memo(
-    ({ id, data, selected, isConnectable }: ExtendedNodeProps) => {
+    ({
+        id,
+        data = {} as EventNodeData,
+        selected,
+        isConnectable,
+    }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
-        const [editValue, setEditValue] = useState(data.stateUpdate || "");
+        const [editValue, setEditValue] = useState(data?.stateUpdate || "");
         const [editParams, setEditParams] = useState(
-            data.eventParameters || ""
+            data?.eventParameters || ""
         );
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditValue(data.stateUpdate || "");
-            setEditParams(data.eventParameters || "");
-        }, [data.stateUpdate, data.eventParameters]);
+            setEditValue(data?.stateUpdate || "");
+            setEditParams(data?.eventParameters || "");
+        }, [data?.stateUpdate, data?.eventParameters]);
 
         const handleBlur = useCallback(
             (e: React.FocusEvent) => {
-                // Check if the new focus target is one of our input fields
                 const relatedTarget = e.relatedTarget as HTMLElement;
                 if (relatedTarget?.classList.contains("event-node-input")) {
                     return;
@@ -65,55 +70,52 @@ const EventNode = memo(
         const nodeName = node?.name || id;
 
         const handlePositions = [
-            // Top handles
             {
                 position: Position.Top,
                 style: { left: "50%", transform: "translateX(-50%)" },
-            }, // Top center
+            },
             {
                 position: Position.Top,
                 style: {
                     left: "15%",
                     transform: "translateX(-50%) rotate(-45deg)",
                 },
-            }, // Top left
+            },
             {
                 position: Position.Top,
                 style: {
                     left: "85%",
                     transform: "translateX(-50%) rotate(45deg)",
                 },
-            }, // Top right
+            },
 
-            // Side handles
             {
                 position: Position.Left,
                 style: { top: "50%", transform: "translateY(-50%)" },
-            }, // Left center
+            },
             {
                 position: Position.Right,
                 style: { top: "50%", transform: "translateY(-50%)" },
-            }, // Right center
+            },
 
-            // Bottom handles
             {
                 position: Position.Bottom,
                 style: { left: "50%", transform: "translateX(-50%)" },
-            }, // Bottom center
+            },
             {
                 position: Position.Bottom,
                 style: {
                     left: "15%",
                     transform: "translateX(-50%) rotate(45deg)",
                 },
-            }, // Bottom left
+            },
             {
                 position: Position.Bottom,
                 style: {
                     left: "85%",
                     transform: "translateX(-50%) rotate(-45deg)",
                 },
-            }, // Bottom right
+            },
         ];
 
         return (
@@ -131,8 +133,8 @@ const EventNode = memo(
                 <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
                     <MathJax>
                         {`${nodeName}${
-                            data.eventParameters
-                                ? ` (${data.eventParameters})`
+                            data?.eventParameters
+                                ? ` (${data?.eventParameters})`
                                 : ""
                         }`}
                     </MathJax>
@@ -162,8 +164,8 @@ const EventNode = memo(
                         </div>
                     ) : (
                         <div className="space-y-1 flex flex-col items-center justify-center">
-                            {data.stateUpdate && (
-                                <MathJax>{data.stateUpdate}</MathJax>
+                            {data?.stateUpdate && (
+                                <MathJax>{data.stateUpdate || ""}</MathJax>
                             )}
                         </div>
                     )}
@@ -211,11 +213,12 @@ const EventNode = memo(
     }
 ) as any;
 
-// Add static methods
 EventNode.getDefaultData = (): EventNodeData => ({
     stateUpdate: "",
     eventParameters: "",
 });
+
+EventNode.getGraphType = (): string => "eventBased";
 
 EventNode.displayName = "EventNode";
 

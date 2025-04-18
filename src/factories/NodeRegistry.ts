@@ -1,5 +1,6 @@
 import { BaseNode } from "../types/base";
 import { nodeTypes } from "@/components/nodes";
+import { NODE_TYPES } from "@/components/nodes";
 
 export type NodeCreator = (
     position: { x: number; y: number },
@@ -12,12 +13,17 @@ export class NodeRegistry {
 
     private constructor() {
         Object.entries(nodeTypes).forEach(([type, NodeComponent]) => {
-            this.register(type, (position) => ({
-                name: type.charAt(0).toUpperCase() + type.slice(1),
-                position,
-                // @ts-ignore - We know these modules export getDefaultData
-                data: NodeComponent.getDefaultData?.() || {},
-            }));
+            this.register(type, (position) => {
+                const graphType = (NodeComponent as any).getGraphType?.();
+
+                return {
+                    name: type.charAt(0).toUpperCase() + type.slice(1),
+                    position,
+                    graphType,
+
+                    data: NodeComponent.getDefaultData?.() || {},
+                };
+            });
         });
     }
 

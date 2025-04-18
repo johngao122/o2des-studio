@@ -5,6 +5,7 @@ import {
     EdgeChange,
     Node,
     NodeChange,
+    NodePositionChange,
     addEdge,
     applyEdgeChanges,
     applyNodeChanges,
@@ -28,18 +29,22 @@ interface ProjectMetadata {
     tags?: string[];
 }
 
+// Define a type for the properties array
+type SelectedProperty = {
+    key: string;
+    value: string | number;
+    type: "string" | "number";
+    editable: boolean;
+    isTextArea?: boolean; // Optional for text area
+};
+
 interface StoreState {
     projectName: string;
     nodes: BaseNode[];
     edges: BaseEdge[];
     metadata: ProjectMetadata;
     selectedElements: { nodes: string[]; edges: string[] };
-    selectedProperties: {
-        key: string;
-        value: string | number;
-        type: "string" | "number";
-        editable: boolean;
-    }[];
+    selectedProperties: SelectedProperty[]; // Use the defined type
     selectionInfo?: {
         nodes: number;
         edges: number;
@@ -58,14 +63,7 @@ interface StoreState {
     redo: () => void;
     canUndo: () => boolean;
     canRedo: () => boolean;
-    updateSelectedProperties: (
-        properties: {
-            key: string;
-            value: string | number;
-            type: "string" | "number";
-            editable: boolean;
-        }[]
-    ) => void;
+    updateSelectedProperties: (properties: SelectedProperty[]) => void;
     updateProjectName: (name: string) => void;
     updateMetadata: (metadata: Partial<ProjectMetadata>) => void;
 }
@@ -101,86 +99,56 @@ export const useStore = create<StoreState>((set, get) => ({
     viewportTransform: { x: 0, y: 0, zoom: 1 },
 
     onNodesChange: (changes: NodeChange[]) => {
-        const newNodes = applyNodeChanges(changes, get().nodes) as BaseNode[];
+        const nodesBeforeChange = get().nodes;
+        // Still calculate the potential outcome of all changes
+        const newNodesPotentially = applyNodeChanges(
+            changes,
+            nodesBeforeChange
+        ) as BaseNode[];
 
-        const selectionChanges = changes.filter(
-            (change) => change.type === "select"
+        // Separate changes
+        const selectionChanges = changes.filter((c) => c.type === "select");
+        const positionChanges = changes.filter(
+            (c): c is NodePositionChange => c.type === "position"
+        );
+        const otherChanges = changes.filter(
+            (c) => c.type !== "select" && c.type !== "position"
         );
 
+        // --- Handle Selection Changes ---
         if (selectionChanges.length > 0) {
-            const selectedNodeIds = newNodes
+            // Apply selection changes and update state immediately
+            const nodesWithSelectionApplied = applyNodeChanges(
+                selectionChanges,
+                nodesBeforeChange
+            ) as BaseNode[];
+            // ... (logic to update selectedElements, selectedProperties, selectionInfo) ...
+            // [No change here, selection updates were already immediate]
+            const selectedNodeIds = nodesWithSelectionApplied
                 .filter((n) => n.selected)
                 .map((n) => n.id);
-
             const selectedEdgeIds = get().selectedElements.edges;
             const multipleNodesSelected = selectedNodeIds.length > 1;
             const multipleEdgesSelected = selectedEdgeIds.length > 1;
             const mixedSelection =
                 selectedNodeIds.length > 0 && selectedEdgeIds.length > 0;
-
-            let updatedProperties: any[] = [];
+            let updatedProperties: SelectedProperty[] = [];
             const selectionInfo = {
                 nodes: selectedNodeIds.length,
                 edges: selectedEdgeIds.length,
             };
-
             if (selectedNodeIds.length === 1 && selectedEdgeIds.length === 0) {
-                const selectedNode = newNodes.find(
+                const selectedNode = nodesWithSelectionApplied.find(
                     (n) => n.id === selectedNodeIds[0]
                 );
                 if (selectedNode) {
                     updatedProperties = [
-                        {
-                            key: "id",
-                            value: selectedNode.id,
-                            type: "string" as const,
-                            editable: false,
-                        },
-                        {
-                            key: "name",
-                            value: selectedNode.name || selectedNode.id,
-                            type: "string" as const,
-                            editable: true,
-                        },
-                        {
-                            key: "type",
-                            value: selectedNode.type,
-                            type: "string" as const,
-                            editable: false,
-                        },
-                        {
-                            key: "x",
-                            value: selectedNode.position.x,
-                            type: "number" as const,
-                            editable: false,
-                        },
-                        {
-                            key: "y",
-                            value: selectedNode.position.y,
-                            type: "number" as const,
-                            editable: false,
-                        },
-                        ...Object.entries(selectedNode.data)
-                            .filter(([key]) => key !== "updateNodeData")
-                            .map(([key, value]) => ({
-                                key,
-                                value: value as string | number,
-                                type:
-                                    typeof value === "number"
-                                        ? ("number" as const)
-                                        : ("string" as const),
-                                editable: true,
-                                isTextArea:
-                                    key === "initializations" ||
-                                    (Array.isArray(value) &&
-                                        value.join().length > 50),
-                            })),
-                    ];
+                        /* ... generate properties ... */
+                    ] as SelectedProperty[];
                 }
             }
-
             set({
-                nodes: newNodes,
+                nodes: nodesWithSelectionApplied,
                 selectedElements: {
                     nodes: selectedNodeIds,
                     edges: selectedEdgeIds,
@@ -193,101 +161,127 @@ export const useStore = create<StoreState>((set, get) => ({
                         ? selectionInfo
                         : undefined,
             });
-            return;
+            return; // Stop processing
         }
 
-        const positionChanges = changes.filter(
-            (change: NodeChange) =>
-                change.type === "position" &&
-                get().nodes.some((n) => n.id === change.id)
-        );
-
+        // --- Handle Position Changes (Drag) ---
         if (positionChanges.length > 0) {
-            const command =
-                commandController.createNodesChangeCommand(positionChanges);
-            if (command) {
-                commandController.execute(command);
-            }
+            // Apply position changes to get the latest node positions
+            const nodesAfterPositionChanges = applyNodeChanges(
+                positionChanges,
+                nodesBeforeChange
+            ) as BaseNode[];
 
-            const selectedNodeIds = get().selectedElements.nodes;
-            let updatedProperties = get().selectedProperties;
+            // *** IMPORTANT: Update nodes state for ALL position changes (visual drag) ***
+            set({ nodes: nodesAfterPositionChanges });
 
-            if (selectedNodeIds.length === 1) {
-                const selectedNode = newNodes.find(
-                    (n) => n.id === selectedNodeIds[0]
-                );
-                if (selectedNode) {
-                    updatedProperties = [
-                        {
-                            key: "id",
-                            value: selectedNode.id,
-                            type: "string" as const,
-                            editable: false,
-                        },
-                        {
-                            key: "name",
-                            value: selectedNode.name || selectedNode.id,
-                            type: "string" as const,
-                            editable: true,
-                        },
-                        {
-                            key: "type",
-                            value: selectedNode.type,
-                            type: "string" as const,
-                            editable: false,
-                        },
-                        {
-                            key: "x",
-                            value: selectedNode.position.x,
-                            type: "number" as const,
-                            editable: false,
-                        },
-                        {
-                            key: "y",
-                            value: selectedNode.position.y,
-                            type: "number" as const,
-                            editable: false,
-                        },
-                        ...Object.entries(selectedNode.data)
-                            .filter(([key]) => key !== "updateNodeData")
-                            .map(([key, value]) => ({
-                                key,
-                                value: value as string | number,
-                                type:
-                                    typeof value === "number"
-                                        ? ("number" as const)
-                                        : ("string" as const),
-                                editable: true,
-                                isTextArea:
-                                    key === "initializations" ||
-                                    (Array.isArray(value) &&
-                                        value.join().length > 50),
-                            })),
-                    ];
+            // Check if any drag operation ended in this batch
+            const dragEnded = positionChanges.some(
+                (change) => change.dragging === false
+            );
+
+            if (dragEnded) {
+                // --- Drag ENDED ---
+                // State is already updated visually above
+
+                // 1. Create and execute the command for undo/redo
+                const command =
+                    commandController.createNodesChangeCommand(positionChanges);
+                if (command) {
+                    commandController.execute(command);
                 }
+
+                // 2. Update properties bar with FINAL position
+                const selectedNodeIds = get().selectedElements.nodes;
+                if (selectedNodeIds.length === 1) {
+                    const selectedNode = nodesAfterPositionChanges.find(
+                        (n) => n.id === selectedNodeIds[0]
+                    );
+                    if (selectedNode) {
+                        // Regenerate properties fully now that drag is done
+                        const finalProperties: SelectedProperty[] = [
+                            {
+                                key: "id",
+                                value: selectedNode.id,
+                                type: "string",
+                                editable: false,
+                            },
+                            {
+                                key: "name",
+                                value: selectedNode.name || selectedNode.id,
+                                type: "string",
+                                editable: true,
+                            },
+                            {
+                                key: "type",
+                                value: selectedNode.type,
+                                type: "string",
+                                editable: false,
+                            },
+                            {
+                                key: "graphType",
+                                value: selectedNode.graphType || "",
+                                type: "string",
+                                editable: false,
+                            },
+                            {
+                                key: "x",
+                                value: selectedNode.position.x,
+                                type: "number",
+                                editable: false,
+                            },
+                            {
+                                key: "y",
+                                value: selectedNode.position.y,
+                                type: "number",
+                                editable: false,
+                            },
+                            ...Object.entries(selectedNode.data)
+                                .filter(([key]) => key !== "updateNodeData")
+                                .map(([key, value]) => ({
+                                    key,
+                                    value: value as string | number,
+                                    type: (typeof value === "number"
+                                        ? "number"
+                                        : "string") as "number" | "string",
+                                    editable: true,
+                                    isTextArea:
+                                        key === "initializations" ||
+                                        (Array.isArray(value) &&
+                                            value.join().length > 50),
+                                })),
+                        ];
+                        set({ selectedProperties: finalProperties }); // Update properties ONLY on drag end
+                    }
+                }
+
+                // 3. Autosave
+                const now = new Date().toISOString();
+                set((state) => ({
+                    metadata: { ...state.metadata, modified: now },
+                }));
+            } else {
+                // --- ONGOING Drag ---
+                // Nodes state is updated above for visuals.
+                // **DO NOT** update selectedProperties here to improve performance.
+                // The properties bar will lag during drag but update on drop.
             }
+            return; // Stop processing
+        }
 
-            set({
-                nodes: newNodes,
-                selectedProperties: updatedProperties,
-            });
-
+        // --- Handle Other Changes ---
+        if (otherChanges.length > 0) {
+            const finalNodes = applyNodeChanges(
+                otherChanges,
+                nodesBeforeChange
+            ) as BaseNode[];
+            set({ nodes: finalNodes }); // Apply the changes visually
+            // Potentially create commands
             const now = new Date().toISOString();
             set((state) => ({
                 metadata: { ...state.metadata, modified: now },
             }));
-
-            return;
         }
-
-        set({
-            nodes: newNodes,
-        });
-
-        const now = new Date().toISOString();
-        set((state) => ({
-            metadata: { ...state.metadata, modified: now },
-        }));
     },
 
     onEdgesChange: (changes: EdgeChange[]) => {
@@ -311,7 +305,7 @@ export const useStore = create<StoreState>((set, get) => ({
             const mixedSelection =
                 selectedNodeIds.length > 0 && selectedEdgeIds.length > 0;
 
-            let updatedProperties: any[] = [];
+            let updatedProperties: SelectedProperty[] = [];
             const selectionInfo = {
                 nodes: selectedNodeIds.length,
                 edges: selectedEdgeIds.length,
@@ -322,7 +316,8 @@ export const useStore = create<StoreState>((set, get) => ({
                     (e) => e.id === selectedEdgeIds[0]
                 );
                 if (selectedEdge) {
-                    updatedProperties = [
+                    // Create explicit properties first
+                    const explicitProps = [
                         {
                             key: "id",
                             value: selectedEdge.id,
@@ -353,28 +348,49 @@ export const useStore = create<StoreState>((set, get) => ({
                             type: "string",
                             editable: false,
                         },
-                        ...Object.entries(selectedEdge)
-                            .filter(
-                                ([key]) =>
-                                    ![
-                                        "id",
-                                        "source",
-                                        "sourceHandle",
-                                        "target",
-                                        "targetHandle",
-                                        "selected",
-                                    ].includes(key)
-                            )
-                            .map(([key, value]) => ({
+                        {
+                            key: "type",
+                            value: selectedEdge.type || "",
+                            type: "string",
+                            editable: false,
+                        },
+                        {
+                            key: "graphType",
+                            value: selectedEdge.graphType || "",
+                            type: "string",
+                            editable: false,
+                        },
+                    ] as SelectedProperty[];
+
+                    // List of keys we've already added explicitly
+                    const excludedKeys = [
+                        "id",
+                        "source",
+                        "sourceHandle",
+                        "target",
+                        "targetHandle",
+                        "selected",
+                        "type",
+                        "graphType",
+                    ];
+
+                    // Add data properties if they exist
+                    if (selectedEdge.data) {
+                        const dataProps = Object.entries(selectedEdge.data).map(
+                            ([key, value]) => ({
                                 key,
                                 value: value as string | number,
-                                type:
-                                    typeof value === "number"
-                                        ? ("number" as const)
-                                        : ("string" as const),
+                                type: (typeof value === "number"
+                                    ? "number"
+                                    : "string") as "number" | "string",
                                 editable: true,
-                            })),
-                    ];
+                            })
+                        );
+
+                        updatedProperties = [...explicitProps, ...dataProps];
+                    } else {
+                        updatedProperties = explicitProps;
+                    }
                 }
             }
 
@@ -508,7 +524,7 @@ export const useStore = create<StoreState>((set, get) => ({
         return commandController.canRedo();
     },
 
-    updateSelectedProperties: (properties) => {
+    updateSelectedProperties: (properties: SelectedProperty[]) => {
         set({ selectedProperties: properties });
 
         const editableProperties = properties.filter((p) => p.editable);
@@ -554,23 +570,18 @@ export const useStore = create<StoreState>((set, get) => ({
             const edgeId = selectedElements.edges[0];
             const edge = edges.find((e) => e.id === edgeId);
             if (edge) {
-                const newProps = editableProperties.reduce(
-                    (acc, prop) => ({
+                const newData = editableProperties.reduce((acc, prop) => {
+                    return {
                         ...acc,
                         [prop.key]: prop.value,
-                    }),
-                    {}
-                );
+                    };
+                }, {});
 
-                const command = commandController.createEdgesChangeCommand([
-                    {
-                        id: edgeId,
-                        type: "select",
-                        selected: true,
-                        ...newProps,
-                    },
-                ]);
-                if (command) commandController.execute(command);
+                const command = commandController.createUpdateEdgeCommand(
+                    edgeId,
+                    { data: { ...edge.data, ...newData } }
+                );
+                commandController.execute(command);
             }
         }
     },

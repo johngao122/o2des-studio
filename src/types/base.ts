@@ -11,6 +11,7 @@ export const BaseNodeSchema = z.object({
     type: z.string(),
     name: z.string().optional().default(""),
     position: PositionSchema,
+    graphType: z.string().optional(),
     data: z.record(z.any()).optional(),
     style: z.record(z.any()).optional(),
 });
@@ -26,6 +27,7 @@ export const BaseEdgeSchema = z.object({
     source: z.string(),
     target: z.string(),
     conditions: z.array(EdgeConditionsSchema),
+    graphType: z.string().optional(),
     label: z.string().optional(),
     data: z.record(z.any()).optional(),
     style: z.record(z.any()).optional(),

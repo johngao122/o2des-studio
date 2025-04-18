@@ -29,13 +29,6 @@ export function PropertiesBar({
     className,
     selectionInfo,
 }: PropertiesBarProps) {
-    console.log("PropertiesBar Render:", {
-        receivedProperties: properties,
-        propertyKeys: properties.map((p) => p.key),
-        propertyTypes: properties.map((p) => p.type),
-        selectionInfo,
-    });
-
     const renderMultiSelectionMessage = () => {
         if (!selectionInfo) return null;
 
@@ -85,7 +78,6 @@ export function PropertiesBar({
 
             <div className="space-y-4">
                 {properties.map((property) => {
-                    console.log("Rendering property:", property);
                     return (
                         <div key={property.key}>
                             <Label className="text-sm font-medium flex items-center gap-2">
@@ -132,12 +124,6 @@ export function PropertiesBar({
                                                 ? parseFloat(e.target.value) ||
                                                   0
                                                 : e.target.value;
-                                        console.log("Property change:", {
-                                            key: property.key,
-                                            oldValue: property.value,
-                                            newValue,
-                                            type: property.type,
-                                        });
                                         onPropertyChange(
                                             property.key,
                                             newValue
