@@ -107,7 +107,7 @@ const InitializationNode = memo(
         const nodeName = node?.name || id;
 
         useEffect(() => {
-            // Placeholder for future debugging or monitoring logic if needed
+            console.log("Node:", node);
         }, [node]);
 
         return (

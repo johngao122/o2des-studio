@@ -13,6 +13,7 @@ import {
 
 const NODE_DESCRIPTIONS = {
     initialization: "Initial state setup",
+    event: "Event node with state updates",
 } as const;
 
 // Move controllers outside component
@@ -49,9 +50,24 @@ const ComponentDrawer = () => {
     };
 
     const renderNodePreview = (NodeComponent: any, scale: number = 1) => {
+        const getPreviewData = (type: string) => {
+            switch (type) {
+                case NODE_TYPES.EVENT:
+                    return {
+                        stateUpdate: "S = S + 1",
+                        eventParameters: "i",
+                    };
+                case NODE_TYPES.INITIALIZATION:
+                default:
+                    return { initializations: [] };
+            }
+        };
+
         const previewProps = {
             id: "preview",
-            data: { initializations: [] },
+            data: getPreviewData(
+                NodeComponent.displayName?.toLowerCase() || ""
+            ),
             selected: false,
             isConnectable: false,
             className: `transform scale-${scale * 100}`,
