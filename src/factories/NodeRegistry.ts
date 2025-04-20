@@ -5,7 +5,7 @@ import { NODE_TYPES } from "@/components/nodes";
 export type NodeCreator = (
     position: { x: number; y: number },
     data?: any
-) => Omit<BaseNode, "id" | "type">;
+) => Omit<BaseNode, "id" | "type" | "name">;
 
 export class NodeRegistry {
     private static instance: NodeRegistry;
@@ -17,10 +17,8 @@ export class NodeRegistry {
                 const graphType = (NodeComponent as any).getGraphType?.();
 
                 return {
-                    name: type.charAt(0).toUpperCase() + type.slice(1),
                     position,
                     graphType,
-
                     data: NodeComponent.getDefaultData?.() || {},
                 };
             });

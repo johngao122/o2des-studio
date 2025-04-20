@@ -65,7 +65,7 @@ export const InitializationNodePreview = () => {
             </div>
             <div className="mt-2 min-h-[40px] text-center dark:text-gray-300">
                 <div className="my-1">
-                    <MathJax>{""}</MathJax>
+                    <span>s = 0</span>
                 </div>
             </div>
         </div>
@@ -115,10 +115,6 @@ const InitializationNode = memo(
             .getState()
             .nodes.find((n: BaseNode) => n.id === id);
         const nodeName = node?.name || id;
-
-        useEffect(() => {
-            console.log("Node:", node);
-        }, [node]);
 
         return (
             <div
@@ -186,12 +182,17 @@ const InitializationNode = memo(
                             className="w-full min-h-[100px] p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-blue-500 dark:text-white"
                             autoFocus
                         />
-                    ) : (
-                        data?.initializations?.map((init, index) => (
+                    ) : Array.isArray(data?.initializations) &&
+                      data.initializations.length > 0 ? (
+                        data.initializations.map((init, index) => (
                             <div key={index} className="my-1">
-                                <MathJax>{init || ""}</MathJax>
+                                <MathJax>{init}</MathJax>
                             </div>
-                        )) || null
+                        ))
+                    ) : (
+                        <div className="text-gray-400 dark:text-gray-500">
+                            No initializations
+                        </div>
                     )}
                 </div>
             </div>
