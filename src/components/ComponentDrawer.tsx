@@ -28,7 +28,6 @@ const PREVIEW_COMPONENTS = {
     [NODE_TYPES.MODULE_FRAME]: ModuleFramePreview,
 } as const;
 
-// Move controllers outside component
 const nodeFactory = new NodeFactory();
 const viewController = new ViewController();
 const commandController = CommandController.getInstance();
@@ -55,7 +54,6 @@ const ComponentDrawer = () => {
     const addNode = (nodeType: string) => {
         const viewport = viewController.getViewport();
 
-        // Calculate center of current viewport
         const position = {
             x: (-viewport.x + window.innerWidth / 2) / viewport.zoom - 100,
             y: (-viewport.y + window.innerHeight / 2) / viewport.zoom - 50,
@@ -99,7 +97,7 @@ const ComponentDrawer = () => {
                         const scaleY =
                             containerSize.height / content.scrollHeight;
                         const scale = Math.min(scaleX, scaleY, 1);
-                        setScale(scale * 0.9); // 0.9 to add some padding
+                        setScale(scale * 0.9);
                     }
                 }
             }, []);
