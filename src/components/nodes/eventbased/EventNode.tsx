@@ -132,11 +132,10 @@ const EventNode = memo(
                 {/* Node Name/Title */}
                 <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
                     <MathJax>
-                        {`${nodeName}${
-                            data?.eventParameters
-                                ? ` (${data?.eventParameters})`
-                                : ""
-                        }`}
+                        {nodeName +
+                            (data?.eventParameters
+                                ? ` (${data.eventParameters})`
+                                : "")}
                     </MathJax>
                 </div>
 
@@ -164,8 +163,12 @@ const EventNode = memo(
                         </div>
                     ) : (
                         <div className="space-y-1 flex flex-col items-center justify-center">
-                            {data?.stateUpdate && (
-                                <MathJax>{data.stateUpdate || ""}</MathJax>
+                            {data?.stateUpdate ? (
+                                <MathJax>{data.stateUpdate}</MathJax>
+                            ) : (
+                                <div className="text-gray-400 dark:text-gray-500">
+                                    No state update
+                                </div>
                             )}
                         </div>
                     )}
@@ -221,5 +224,20 @@ EventNode.getDefaultData = (): EventNodeData => ({
 EventNode.getGraphType = (): string => "eventBased";
 
 EventNode.displayName = "EventNode";
+
+export const EventNodePreview = () => {
+    return (
+        <div className="relative px-4 py-2 border-2 rounded-[40px] border-black dark:border-white bg-white dark:bg-zinc-800 min-w-[200px] aspect-[2/1]">
+            <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
+                <span>Event</span>
+            </div>
+            <div className="space-y-2">
+                <div className="space-y-1 flex flex-col items-center justify-center">
+                    <span>s = s + 1</span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default EventNode;
