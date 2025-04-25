@@ -5,6 +5,7 @@ import { NodeProps, XYPosition } from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode, BaseEdge } from "@/types/base";
+import { GripIcon } from "lucide-react";
 
 const commandController = CommandController.getInstance();
 
@@ -220,23 +221,15 @@ const ModuleFrameBase = memo(
             >
                 {/* Resize handle */}
                 <div
-                    className="absolute bottom-right w-4 h-4 cursor-se-resize nodrag"
-                    style={{ right: -8, bottom: -8 }}
+                    className="absolute w-4 h-4 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
+                    style={{ right: -10, bottom: -10 }}
                     onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleMouseDown(e);
                     }}
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        className="w-full h-full text-gray-500 nodrag"
-                    >
-                        <path
-                            fill="currentColor"
-                            d="M22 22H20V20H22V22ZM22 20H20V18H22V20ZM20 22H18V20H20V22ZM18 22H16V20H18V22Z"
-                        />
-                    </svg>
+                    <GripIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 nodrag" />
                 </div>
 
                 {/* Module name */}
