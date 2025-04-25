@@ -14,18 +14,21 @@ import React from "react";
 import { InitializationNodePreview } from "./nodes/eventbased/InitializationNode";
 import { EventNodePreview } from "./nodes/eventbased/EventNode";
 import { ModuleFramePreview } from "./nodes/eventbased/ModuleFrame";
+import { TableauNodePreview } from "./nodes/eventbased/TableauNode";
 import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
     initialization: "Initial state setup",
     event: "Event node with state updates",
     moduleFrame: "Container for encapsulating event graphs",
+    tableau: "Event transition table with conditions and parameters",
 } as const;
 
 const PREVIEW_COMPONENTS = {
     [NODE_TYPES.INITIALIZATION]: InitializationNodePreview,
     [NODE_TYPES.EVENT]: EventNodePreview,
     [NODE_TYPES.MODULE_FRAME]: ModuleFramePreview,
+    [NODE_TYPES.TABLEAU]: TableauNodePreview,
 } as const;
 
 const nodeFactory = new NodeFactory();

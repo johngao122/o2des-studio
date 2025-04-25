@@ -13,8 +13,9 @@ import {
 import { BaseNode, BaseEdge } from "../types/base";
 import { nanoid } from "nanoid";
 import superjson from "superjson";
-import { CommandController } from "../controllers/CommandController";
+import { CommandController } from "@/controllers/CommandController";
 import { SerializationService } from "../services/SerializationService";
+import { nodeTypes } from "@/components/nodes";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
@@ -237,7 +238,26 @@ export const useStore = create<StoreState>((set, get) => ({
                                 editable: false,
                             },
                             ...Object.entries(selectedNode.data)
-                                .filter(([key]) => key !== "updateNodeData")
+                                .filter(([key]) => {
+                                    // Skip updateNodeData and hiddenProperties
+                                    if (key === "updateNodeData") return false;
+
+                                    // Check if the component defines hidden properties
+                                    const nodeComponent =
+                                        nodeTypes[
+                                            selectedNode.type as keyof typeof nodeTypes
+                                        ];
+                                    if (
+                                        nodeComponent &&
+                                        (nodeComponent as any).hiddenProperties
+                                    ) {
+                                        return !(
+                                            nodeComponent as any
+                                        ).hiddenProperties.includes(key);
+                                    }
+
+                                    return true;
+                                })
                                 .map(([key, value]) => ({
                                     key,
                                     value: value as string | number,
