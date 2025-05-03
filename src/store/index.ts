@@ -36,6 +36,7 @@ type SelectedProperty = {
     type: "string" | "number";
     editable: boolean;
     isTextArea?: boolean;
+    options?: string[];
 };
 
 interface StoreState {
@@ -409,17 +410,31 @@ export const useStore = create<StoreState>((set, get) => ({
 
                     if (selectedEdge.data) {
                         const dataProps = Object.entries(selectedEdge.data).map(
-                            ([key, value]) => ({
-                                key,
-                                value: value as string | number,
-                                type: (typeof value === "number"
-                                    ? "number"
-                                    : "string") as "number" | "string",
-                                editable: true,
-                            })
+                            ([key, value]) => {
+                                if (key === "edgeType") {
+                                    return {
+                                        key: "EdgeType",
+                                        value: value as string,
+                                        type: "string" as const,
+                                        editable: true,
+                                        options: ["straight", "bezier"],
+                                    };
+                                }
+                                return {
+                                    key,
+                                    value: value as string | number,
+                                    type: (typeof value === "number"
+                                        ? "number"
+                                        : "string") as "number" | "string",
+                                    editable: true,
+                                };
+                            }
                         );
 
-                        updatedProperties = [...explicitProps, ...dataProps];
+                        updatedProperties = [
+                            ...explicitProps,
+                            ...dataProps,
+                        ] as SelectedProperty[];
                     } else {
                         updatedProperties = explicitProps;
                     }
@@ -645,9 +660,10 @@ export const useStore = create<StoreState>((set, get) => ({
             const edge = edges.find((e) => e.id === edgeId);
             if (edge) {
                 const newData = editableProperties.reduce((acc, prop) => {
+                    const key = prop.key === "EdgeType" ? "edgeType" : prop.key;
                     return {
                         ...acc,
-                        [prop.key]: prop.value,
+                        [key]: prop.value,
                     };
                 }, {});
 

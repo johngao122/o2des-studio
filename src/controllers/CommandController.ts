@@ -360,6 +360,14 @@ export class CommandController {
 
         const edgeType = this.determineEdgeType(sourceNode, targetNode);
 
+        let defaultData = {};
+        if (edgeType === "eventGraph") {
+            defaultData = {
+                condition: "True",
+                edgeType: "straight",
+            };
+        }
+
         let graphType: string | undefined = undefined;
         if (edgeType === "eventGraph") {
             graphType = "eventBased";
@@ -379,6 +387,7 @@ export class CommandController {
                 height: 20,
             },
             conditions: [],
+            data: defaultData,
         };
 
         console.log("Created edge:", edge);

@@ -232,3 +232,34 @@ body {
 .react-flow__node .text-sm.text-gray-500.dark\:text-gray-400.text-center {
     display: none;
 }
+
+/* Styles for draggable bezier edge control points */
+.edge-label.draggable-bezier {
+    cursor: move;
+    transition: transform 0.1s ease;
+}
+
+.edge-label.draggable-bezier:hover {
+    transform: scale(1.1);
+    background-color: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.dark .edge-label.draggable-bezier:hover {
+    background-color: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.7);
+}
+
+/* Add a handle indicator to show it's draggable */
+.edge-label.draggable-bezier::before {
+    content: "↔";
+    position: absolute;
+    top: -14px;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.edge-label.draggable-bezier:hover::before {
+    opacity: 0.7;
+}
