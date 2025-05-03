@@ -88,6 +88,23 @@ function throttle<T extends (...args: any[]) => any>(
     };
 }
 
+function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+): (...args: Parameters<T>) => void {
+    let timeout: NodeJS.Timeout | null = null;
+
+    return function (...args: Parameters<T>) {
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(() => {
+            func(...args);
+        }, wait);
+    };
+}
+
 const EventGraphEdge = memo(
     ({
         id,
@@ -146,6 +163,116 @@ const EventGraphEdge = memo(
             x: number;
             y: number;
         } | null>(null);
+
+        const prevPositions = useRef({
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            initialized: false,
+            lastUpdateTime: 0,
+        });
+
+        const debouncedControlPointUpdate = useCallback(
+            debounce(
+                (
+                    newSourceX: number,
+                    newSourceY: number,
+                    newTargetX: number,
+                    newTargetY: number,
+                    controlPoint: { x: number; y: number }
+                ) => {
+                    const sourceDeltaX =
+                        newSourceX - prevPositions.current.sourceX;
+                    const sourceDeltaY =
+                        newSourceY - prevPositions.current.sourceY;
+                    const targetDeltaX =
+                        newTargetX - prevPositions.current.targetX;
+                    const targetDeltaY =
+                        newTargetY - prevPositions.current.targetY;
+
+                    const tWeight = 0.5;
+                    const deltaX =
+                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                    const deltaY =
+                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+
+                    const newControlPoint = {
+                        x: controlPoint.x + deltaX,
+                        y: controlPoint.y + deltaY,
+                    };
+
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                controlPoint: newControlPoint,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
+
+                    prevPositions.current = {
+                        sourceX: newSourceX,
+                        sourceY: newSourceY,
+                        targetX: newTargetX,
+                        targetY: newTargetY,
+                        initialized: true,
+                        lastUpdateTime: Date.now(),
+                    };
+                },
+                50
+            ),
+            [id, data]
+        );
+
+        useEffect(() => {
+            if (isDragging || isEditing) {
+                return;
+            }
+
+            if (data?.edgeType === "bezier" && data?.controlPoint) {
+                if (!prevPositions.current.initialized) {
+                    prevPositions.current = {
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                        initialized: true,
+                        lastUpdateTime: Date.now(),
+                    };
+                    return;
+                }
+
+                if (
+                    prevPositions.current.sourceX === sourceX &&
+                    prevPositions.current.sourceY === sourceY &&
+                    prevPositions.current.targetX === targetX &&
+                    prevPositions.current.targetY === targetY
+                ) {
+                    return;
+                }
+
+                debouncedControlPointUpdate(
+                    sourceX,
+                    sourceY,
+                    targetX,
+                    targetY,
+                    data.controlPoint
+                );
+            }
+        }, [
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            isDragging,
+            isEditing,
+            data?.edgeType,
+            data?.controlPoint,
+            debouncedControlPointUpdate,
+        ]);
 
         const edgeStyle = {
             strokeWidth: selected ? 3 : 2,
