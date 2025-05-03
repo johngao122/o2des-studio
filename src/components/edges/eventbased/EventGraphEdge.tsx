@@ -74,6 +74,20 @@ interface EventGraphEdgeComponent
     displayName?: string;
 }
 
+function throttle<T extends (...args: any[]) => any>(
+    func: T,
+    limit: number
+): (...args: Parameters<T>) => void {
+    let lastCall = 0;
+    return function (...args: Parameters<T>) {
+        const now = Date.now();
+        if (now - lastCall >= limit) {
+            lastCall = now;
+            return func(...args);
+        }
+    };
+}
+
 const EventGraphEdge = memo(
     ({
         id,
@@ -729,7 +743,7 @@ const EventGraphEdge = memo(
         };
 
         const handleDrag = useCallback(
-            (e: MouseEvent) => {
+            throttle((e: MouseEvent) => {
                 if (
                     !isDragging ||
                     isEditing ||
@@ -763,7 +777,7 @@ const EventGraphEdge = memo(
 
                     setTempControlPoint({ x, y });
                 }
-            },
+            }, 16),
             [isDragging, isEditing, data, tempControlPoint, dragOffset]
         );
 
@@ -806,7 +820,7 @@ const EventGraphEdge = memo(
         };
 
         const handleDelayDrag = useCallback(
-            (e: MouseEvent) => {
+            throttle((e: MouseEvent) => {
                 if (!isDelayDragging || isEditing) return;
 
                 e.preventDefault();
@@ -828,26 +842,43 @@ const EventGraphEdge = memo(
                         transformMatrix
                     );
 
-                    const projection = projectPointOntoBezierCurve(
-                        mousePosition,
-                        sourceX,
-                        sourceY,
-                        data?.controlPoint ||
-                            calculateDefaultControlPoint(
-                                sourceX,
-                                sourceY,
-                                targetX,
-                                targetY
-                            ),
-                        targetX,
-                        targetY,
-                        0.05,
-                        0.45
-                    );
+                    if (data?.edgeType === "bezier") {
+                        const projection = projectPointOntoBezierCurve(
+                            mousePosition,
+                            sourceX,
+                            sourceY,
+                            data?.controlPoint ||
+                                calculateDefaultControlPoint(
+                                    sourceX,
+                                    sourceY,
+                                    targetX,
+                                    targetY
+                                ),
+                            targetX,
+                            targetY,
+                            0.05,
+                            0.45
+                        );
 
-                    setTempDelayPosition(projection.t);
+                        setTempDelayPosition(projection.t);
+                    } else {
+                        const lineLength = Math.sqrt(
+                            Math.pow(targetX - sourceX, 2) +
+                                Math.pow(targetY - sourceY, 2)
+                        );
+
+                        const dx = targetX - sourceX;
+                        const dy = targetY - sourceY;
+                        const t =
+                            ((mousePosition.x - sourceX) * dx +
+                                (mousePosition.y - sourceY) * dy) /
+                            (lineLength * lineLength);
+
+                        const constrainedT = Math.max(0.05, Math.min(0.45, t));
+                        setTempDelayPosition(constrainedT);
+                    }
                 }
-            },
+            }, 16),
             [
                 isDelayDragging,
                 isEditing,
@@ -893,7 +924,7 @@ const EventGraphEdge = memo(
         };
 
         const handleParamDrag = useCallback(
-            (e: MouseEvent) => {
+            throttle((e: MouseEvent) => {
                 if (!isParamDragging || isEditing) return;
 
                 e.preventDefault();
@@ -915,26 +946,43 @@ const EventGraphEdge = memo(
                         transformMatrix
                     );
 
-                    const projection = projectPointOntoBezierCurve(
-                        mousePosition,
-                        sourceX,
-                        sourceY,
-                        data?.controlPoint ||
-                            calculateDefaultControlPoint(
-                                sourceX,
-                                sourceY,
-                                targetX,
-                                targetY
-                            ),
-                        targetX,
-                        targetY,
-                        0.55,
-                        0.95
-                    );
+                    if (data?.edgeType === "bezier") {
+                        const projection = projectPointOntoBezierCurve(
+                            mousePosition,
+                            sourceX,
+                            sourceY,
+                            data?.controlPoint ||
+                                calculateDefaultControlPoint(
+                                    sourceX,
+                                    sourceY,
+                                    targetX,
+                                    targetY
+                                ),
+                            targetX,
+                            targetY,
+                            0.55,
+                            0.95
+                        );
 
-                    setTempParamPosition(projection.t);
+                        setTempParamPosition(projection.t);
+                    } else {
+                        const lineLength = Math.sqrt(
+                            Math.pow(targetX - sourceX, 2) +
+                                Math.pow(targetY - sourceY, 2)
+                        );
+
+                        const dx = targetX - sourceX;
+                        const dy = targetY - sourceY;
+                        const t =
+                            ((mousePosition.x - sourceX) * dx +
+                                (mousePosition.y - sourceY) * dy) /
+                            (lineLength * lineLength);
+
+                        const constrainedT = Math.max(0.55, Math.min(0.95, t));
+                        setTempParamPosition(constrainedT);
+                    }
                 }
-            },
+            }, 16),
             [
                 isParamDragging,
                 isEditing,
@@ -1208,7 +1256,7 @@ const EventGraphEdge = memo(
                             <div
                                 ref={delayLabelRef}
                                 onMouseDown={
-                                    !isEditing && data?.edgeType === "bezier"
+                                    !isEditing
                                         ? handleDelayDragStart
                                         : undefined
                                 }
@@ -1220,24 +1268,18 @@ const EventGraphEdge = memo(
                                     selected
                                         ? "shadow-md border border-blue-300 dark:border-blue-600"
                                         : "shadow"
-                                } ${
-                                    data?.edgeType === "bezier" && !isEditing
-                                        ? "cursor-grab active:cursor-grabbing"
-                                        : ""
-                                } ${isDelayDragging ? "opacity-70" : ""}`}
+                                } ${!isEditing ? "cursor-ew-resize" : ""} ${
+                                    isDelayDragging ? "opacity-70" : ""
+                                }`}
                                 style={{
                                     boxShadow: selected
                                         ? "0 2px 4px rgba(59, 130, 246, 0.3)"
                                         : "0 1px 3px rgba(0, 0, 0, 0.1)",
                                     minWidth: "20px",
                                     backdropFilter: "blur(4px)",
-                                    cursor:
-                                        data?.edgeType === "bezier" &&
-                                        !isEditing
-                                            ? isDelayDragging
-                                                ? "grabbing"
-                                                : "grab"
-                                            : "default",
+                                    cursor: !isEditing
+                                        ? "ew-resize"
+                                        : "default",
                                 }}
                             >
                                 <MathJax>
@@ -1363,7 +1405,7 @@ const EventGraphEdge = memo(
                             <div
                                 ref={paramLabelRef}
                                 onMouseDown={
-                                    !isEditing && data?.edgeType === "bezier"
+                                    !isEditing
                                         ? handleParamDragStart
                                         : undefined
                                 }
@@ -1375,24 +1417,18 @@ const EventGraphEdge = memo(
                                     selected
                                         ? "shadow-md border border-blue-300 dark:border-blue-600"
                                         : "shadow"
-                                } ${
-                                    data?.edgeType === "bezier" && !isEditing
-                                        ? "cursor-grab active:cursor-grabbing"
-                                        : ""
-                                } ${isParamDragging ? "opacity-70" : ""}`}
+                                } ${!isEditing ? "cursor-ew-resize" : ""} ${
+                                    isParamDragging ? "opacity-70" : ""
+                                }`}
                                 style={{
                                     boxShadow: selected
                                         ? "0 2px 4px rgba(59, 130, 246, 0.3)"
                                         : "0 1px 3px rgba(0, 0, 0, 0.1)",
                                     minWidth: "20px",
                                     backdropFilter: "blur(4px)",
-                                    cursor:
-                                        data?.edgeType === "bezier" &&
-                                        !isEditing
-                                            ? isParamDragging
-                                                ? "grabbing"
-                                                : "grab"
-                                            : "default",
+                                    cursor: !isEditing
+                                        ? "ew-resize"
+                                        : "default",
                                 }}
                             >
                                 {typeof data.parameter === "string" && (
