@@ -1359,7 +1359,9 @@ const EventGraphEdge = memo(
                                     {/* Condition */}
                                     <div className="condition">
                                         <MathJax>
-                                            {typeof data?.condition === "string"
+                                            {typeof data?.condition ===
+                                                "string" &&
+                                            data.condition.trim() !== ""
                                                 ? data.condition
                                                 : "True"}
                                         </MathJax>
@@ -1410,7 +1412,8 @@ const EventGraphEdge = memo(
                                 }}
                             >
                                 <MathJax>
-                                    {typeof data?.delay === "string"
+                                    {typeof data?.delay === "string" &&
+                                    data.delay.trim() !== ""
                                         ? `{${data.delay}}`
                                         : "{}"}
                                 </MathJax>
@@ -1558,9 +1561,10 @@ const EventGraphEdge = memo(
                                         : "default",
                                 }}
                             >
-                                {typeof data.parameter === "string" && (
+                                {typeof data.parameter === "string" &&
+                                data.parameter.trim() !== "" ? (
                                     <MathJax>{data.parameter}</MathJax>
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     )}

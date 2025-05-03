@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useEffect } from "react";
+import { memo, useState, useCallback, useEffect, useMemo } from "react";
 import { Handle, Position, NodeProps, XYPosition } from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
@@ -38,17 +38,32 @@ interface InitializationNodeJSON {
 export const createJSON = (
     props: NodeProps<InitializationNodeData>
 ): InitializationNodeJSON => {
+    const inputData = props.data?.initializations || [];
+
+    const processedInitializations = Array.isArray(inputData)
+        ? inputData.flatMap((init: any) => {
+              if (!init || init.trim() === "") {
+                  return [];
+              }
+
+              const parts = init
+                  .split("$")
+                  .filter((part: any) => part.trim() !== "");
+
+              if (parts.length === 0) {
+                  return [];
+              }
+
+              return parts.map((part: any) => `$${part.trim()}$`);
+          })
+        : [];
+
     return {
         id: props.id,
         type: "initialization",
         name: (props as any).name,
         data: {
-            initializations: props.data.initializations.flatMap((init) => {
-                const parts = init
-                    .split("$")
-                    .filter((part) => part.trim() !== "");
-                return parts.map((part) => `$${part.trim()}$`);
-            }),
+            initializations: processedInitializations,
         },
         position: {
             x: props.xPos,
@@ -86,34 +101,64 @@ const InitializationNode = memo(
         xPos,
         yPos,
     }: ExtendedNodeProps) => {
+        const node = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === id);
         const [isEditing, setIsEditing] = useState(false);
-        const [editValue, setEditValue] = useState(
-            data?.initializations?.join("\n") || ""
-        );
+        const [editValue, setEditValue] = useState("");
+
+        useEffect(() => {
+            if (
+                node?.data?.initializations &&
+                Array.isArray(node.data.initializations)
+            ) {
+                const initialText = node.data.initializations
+                    .filter(
+                        (init: any) =>
+                            init &&
+                            typeof init === "string" &&
+                            init.trim() !== ""
+                    )
+                    .join("\n");
+                setEditValue(initialText);
+            } else {
+                setEditValue("");
+            }
+        }, [node?.data?.initializations]);
+
+        const validItems = useMemo(() => {
+            if (
+                !node?.data?.initializations ||
+                !Array.isArray(node.data.initializations)
+            ) {
+                return [];
+            }
+            return node.data.initializations.filter(
+                (init: any) =>
+                    init && typeof init === "string" && init.trim() !== ""
+            );
+        }, [node?.data?.initializations]);
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditValue(data?.initializations?.join("\n") || "");
-        }, [data?.initializations]);
+        }, []);
 
         const handleBlur = useCallback(() => {
             setIsEditing(false);
+
             const newInitializations = editValue
                 .split("\n")
-                .filter((line) => line.trim() !== "");
+                .map((line: any) => line.trim())
+                .filter((line: any) => line !== "");
 
             const command = commandController.createUpdateNodeCommand(id, {
                 data: {
-                    ...data,
                     initializations: newInitializations,
                 },
             });
             commandController.execute(command);
-        }, [editValue, id, data]);
+        }, [editValue, id]);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
         const nodeName = node?.name || id;
 
         return (
@@ -182,11 +227,17 @@ const InitializationNode = memo(
                             className="w-full min-h-[100px] p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-blue-500 dark:text-white"
                             autoFocus
                         />
-                    ) : Array.isArray(data?.initializations) &&
-                      data.initializations.length > 0 ? (
-                        data.initializations.map((init, index) => (
+                    ) : validItems.length > 0 ? (
+                        validItems.map((init: any, index: number) => (
                             <div key={index} className="my-1">
-                                <MathJax>{init}</MathJax>
+                                <div className="mathjax-content">
+                                    {typeof init === "string" &&
+                                    init.trim() !== "" ? (
+                                        <MathJax>{init}</MathJax>
+                                    ) : (
+                                        <span> </span>
+                                    )}
+                                </div>
                             </div>
                         ))
                     ) : (
@@ -219,8 +270,8 @@ const InitializationNode = memo(
             prev.xPos === next.xPos &&
             prev.yPos === next.yPos &&
             prevName === nextName &&
-            JSON.stringify(prev.data.initializations) ===
-                JSON.stringify(next.data.initializations)
+            JSON.stringify(prevNode?.data?.initializations) ===
+                JSON.stringify(nextNode?.data?.initializations)
         );
     }
 ) as any;

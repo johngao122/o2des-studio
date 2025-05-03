@@ -434,7 +434,11 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                             ) : (
                                                 <div className="h-full flex items-center justify-center">
                                                     <MathJax>
-                                                        {row.stateChange}
+                                                        {row.stateChange &&
+                                                        row.stateChange.trim() !==
+                                                            ""
+                                                            ? row.stateChange
+                                                            : " "}
                                                     </MathJax>
                                                 </div>
                                             )}
@@ -497,7 +501,11 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                     ) : (
                                                         <div className="text-center">
                                                             <MathJax>
-                                                                {edge.condition}
+                                                                {edge.condition &&
+                                                                edge.condition.trim() !==
+                                                                    ""
+                                                                    ? edge.condition
+                                                                    : "True"}
                                                             </MathJax>
                                                         </div>
                                                     )}
@@ -523,7 +531,11 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                     ) : (
                                                         <div className="text-center">
                                                             <MathJax>
-                                                                {edge.delay}
+                                                                {edge.delay &&
+                                                                edge.delay.trim() !==
+                                                                    ""
+                                                                    ? edge.delay
+                                                                    : "0"}
                                                             </MathJax>
                                                         </div>
                                                     )}
@@ -551,7 +563,11 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                     ) : (
                                                         <div className="text-center">
                                                             <MathJax>
-                                                                {edge.parameter}
+                                                                {edge.parameter &&
+                                                                edge.parameter.trim() !==
+                                                                    ""
+                                                                    ? edge.parameter
+                                                                    : "-"}
                                                             </MathJax>
                                                         </div>
                                                     )}

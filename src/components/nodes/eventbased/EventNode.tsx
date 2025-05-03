@@ -133,7 +133,8 @@ const EventNode = memo(
                 <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
                     <MathJax>
                         {nodeName +
-                            (data?.eventParameters
+                            (data?.eventParameters &&
+                            data.eventParameters.trim() !== ""
                                 ? ` (${data.eventParameters})`
                                 : "")}
                     </MathJax>
@@ -163,7 +164,8 @@ const EventNode = memo(
                         </div>
                     ) : (
                         <div className="space-y-1 flex flex-col items-center justify-center">
-                            {data?.stateUpdate ? (
+                            {data?.stateUpdate &&
+                            data.stateUpdate.trim() !== "" ? (
                                 <MathJax>{data.stateUpdate}</MathJax>
                             ) : (
                                 <div className="text-gray-400 dark:text-gray-500">
