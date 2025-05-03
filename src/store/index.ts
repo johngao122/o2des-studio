@@ -36,6 +36,7 @@ type SelectedProperty = {
     type: "string" | "number";
     editable: boolean;
     isTextArea?: boolean;
+    options?: string[];
 };
 
 interface StoreState {
@@ -44,7 +45,7 @@ interface StoreState {
     edges: BaseEdge[];
     metadata: ProjectMetadata;
     selectedElements: { nodes: string[]; edges: string[] };
-    selectedProperties: SelectedProperty[]; // Use the defined type
+    selectedProperties: SelectedProperty[];
     selectionInfo?: {
         nodes: number;
         edges: number;
@@ -246,6 +247,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                     editable: true,
                                     isTextArea:
                                         key === "initializations" ||
+                                        key === "stateUpdate" ||
                                         (Array.isArray(value) &&
                                             value.join().length > 50),
                                 })),
@@ -259,10 +261,6 @@ export const useStore = create<StoreState>((set, get) => ({
                     metadata: { ...state.metadata, modified: now },
                 }));
             } else {
-                // --- ONGOING Drag ---
-                // Nodes state is updated above for visuals.
-                // **DO NOT** update selectedProperties here to improve performance.
-                // The properties bar will lag during drag but update on drop.
             }
             return;
         }
@@ -409,17 +407,31 @@ export const useStore = create<StoreState>((set, get) => ({
 
                     if (selectedEdge.data) {
                         const dataProps = Object.entries(selectedEdge.data).map(
-                            ([key, value]) => ({
-                                key,
-                                value: value as string | number,
-                                type: (typeof value === "number"
-                                    ? "number"
-                                    : "string") as "number" | "string",
-                                editable: true,
-                            })
+                            ([key, value]) => {
+                                if (key === "edgeType") {
+                                    return {
+                                        key: "edgeType",
+                                        value: value as string,
+                                        type: "string" as const,
+                                        editable: true,
+                                        options: ["straight", "bezier"],
+                                    };
+                                }
+                                return {
+                                    key,
+                                    value: value as string | number,
+                                    type: (typeof value === "number"
+                                        ? "number"
+                                        : "string") as "number" | "string",
+                                    editable: true,
+                                };
+                            }
                         );
 
-                        updatedProperties = [...explicitProps, ...dataProps];
+                        updatedProperties = [
+                            ...explicitProps,
+                            ...dataProps,
+                        ] as SelectedProperty[];
                     } else {
                         updatedProperties = explicitProps;
                     }
@@ -651,9 +663,11 @@ export const useStore = create<StoreState>((set, get) => ({
                     };
                 }, {});
 
+                const updateData: any = { data: { ...edge.data, ...newData } };
+
                 const command = commandController.createUpdateEdgeCommand(
                     edgeId,
-                    { data: { ...edge.data, ...newData } }
+                    updateData
                 );
                 commandController.execute(command);
             }

@@ -291,6 +291,7 @@ function FlowCanvas() {
                 deleteKeyCode={["Backspace", "Delete"]}
                 selectionMode={SelectionMode.Partial}
                 connectionRadius={25}
+                zoomOnDoubleClick={false}
             >
                 <Background />
                 <Controls />

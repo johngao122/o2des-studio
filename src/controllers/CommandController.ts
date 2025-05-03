@@ -332,10 +332,16 @@ export class CommandController {
 
         const sourceGraphType = sourceNode.graphType;
         const targetGraphType = targetNode.graphType;
+        const sourceType = sourceNode.type;
+        const targetType = targetNode.type;
 
         switch (true) {
             case sourceGraphType === "eventBased" &&
                 targetGraphType === "eventBased":
+                // Check if source is an initialization node
+                if (sourceType === "initialization") {
+                    return "initialization";
+                }
                 return "eventGraph";
 
             default:
@@ -360,8 +366,21 @@ export class CommandController {
 
         const edgeType = this.determineEdgeType(sourceNode, targetNode);
 
-        let graphType: string | undefined = undefined;
+        let defaultData = {};
         if (edgeType === "eventGraph") {
+            defaultData = {
+                condition: "True",
+                edgeType: "straight",
+            };
+        } else if (edgeType === "initialization") {
+            defaultData = {
+                parameter: "1",
+                edgeType: "straight",
+            };
+        }
+
+        let graphType: string | undefined = undefined;
+        if (edgeType === "eventGraph" || edgeType === "initialization") {
             graphType = "eventBased";
         }
 
@@ -379,6 +398,7 @@ export class CommandController {
                 height: 20,
             },
             conditions: [],
+            data: defaultData,
         };
 
         console.log("Created edge:", edge);

@@ -122,7 +122,6 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
             typeof node?.style?.height === "number" ? node.style.height : 300,
     });
 
-    // Update dimensions based on node style
     useEffect(() => {
         if (!isResizing && node?.style) {
             const width =
@@ -398,7 +397,7 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                             e.target.value
                                                         )
                                                     }
-                                                    className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                    className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                 />
                                             ) : (
                                                 <div className="h-full flex items-center justify-center">
@@ -429,12 +428,16 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                             e.target.value
                                                         )
                                                     }
-                                                    className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                    className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                 />
                                             ) : (
                                                 <div className="h-full flex items-center justify-center">
                                                     <MathJax>
-                                                        {row.stateChange}
+                                                        {row.stateChange &&
+                                                        row.stateChange.trim() !==
+                                                            ""
+                                                            ? row.stateChange
+                                                            : " "}
                                                     </MathJax>
                                                 </div>
                                             )}
@@ -466,7 +469,7 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                                     )
                                                                 )
                                                             }
-                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                         />
                                                     ) : (
                                                         <div className="text-center">
@@ -492,12 +495,16 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                                         .value
                                                                 )
                                                             }
-                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                         />
                                                     ) : (
                                                         <div className="text-center">
                                                             <MathJax>
-                                                                {edge.condition}
+                                                                {edge.condition &&
+                                                                edge.condition.trim() !==
+                                                                    ""
+                                                                    ? edge.condition
+                                                                    : "True"}
                                                             </MathJax>
                                                         </div>
                                                     )}
@@ -518,12 +525,16 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                                         .value
                                                                 )
                                                             }
-                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                         />
                                                     ) : (
                                                         <div className="text-center">
                                                             <MathJax>
-                                                                {edge.delay}
+                                                                {edge.delay &&
+                                                                edge.delay.trim() !==
+                                                                    ""
+                                                                    ? edge.delay
+                                                                    : "0"}
                                                             </MathJax>
                                                         </div>
                                                     )}
@@ -546,12 +557,16 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                                         .value
                                                                 )
                                                             }
-                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                         />
                                                     ) : (
                                                         <div className="text-center">
                                                             <MathJax>
-                                                                {edge.parameter}
+                                                                {edge.parameter &&
+                                                                edge.parameter.trim() !==
+                                                                    ""
+                                                                    ? edge.parameter
+                                                                    : "-"}
                                                             </MathJax>
                                                         </div>
                                                     )}
@@ -574,7 +589,7 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                                         .value
                                                                 )
                                                             }
-                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs"
+                                                            className="w-full p-0.5 border rounded dark:bg-zinc-700 dark:text-white text-center text-xs nodrag"
                                                         />
                                                     ) : (
                                                         <div className="text-center">

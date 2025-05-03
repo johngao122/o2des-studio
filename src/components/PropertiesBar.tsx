@@ -4,6 +4,13 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface Property {
     key: string;
@@ -11,6 +18,7 @@ interface Property {
     type: "string" | "number";
     editable: boolean;
     isTextArea?: boolean;
+    options?: string[];
 }
 
 interface PropertiesBarProps {
@@ -89,7 +97,29 @@ export function PropertiesBar({
                                     </span>
                                 )}
                             </Label>
-                            {property.isTextArea ? (
+                            {property.options ? (
+                                <Select
+                                    value={String(property.value)}
+                                    onValueChange={(value) => {
+                                        if (!property.editable) return;
+                                        onPropertyChange(property.key, value);
+                                    }}
+                                >
+                                    <SelectTrigger className="nodrag text-xs h-6 dark:bg-zinc-700 mt-1">
+                                        <SelectValue
+                                            placeholder={property.key}
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {property.options.map((opt) => (
+                                            <SelectItem key={opt} value={opt}>
+                                                {opt.charAt(0).toUpperCase() +
+                                                    opt.slice(1)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : property.isTextArea ? (
                                 <Textarea
                                     value={String(property.value)}
                                     readOnly={!property.editable}
