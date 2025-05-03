@@ -224,7 +224,7 @@ const InitializationNode = memo(
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={handleBlur}
-                            className="w-full min-h-[100px] p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-blue-500 dark:text-white"
+                            className="w-full min-h-[100px] p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-blue-500 dark:text-white nodrag"
                             autoFocus
                         />
                     ) : validItems.length > 0 ? (

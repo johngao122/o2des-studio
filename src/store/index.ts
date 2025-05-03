@@ -45,7 +45,7 @@ interface StoreState {
     edges: BaseEdge[];
     metadata: ProjectMetadata;
     selectedElements: { nodes: string[]; edges: string[] };
-    selectedProperties: SelectedProperty[]; // Use the defined type
+    selectedProperties: SelectedProperty[];
     selectionInfo?: {
         nodes: number;
         edges: number;
@@ -247,6 +247,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                     editable: true,
                                     isTextArea:
                                         key === "initializations" ||
+                                        key === "stateUpdate" ||
                                         (Array.isArray(value) &&
                                             value.join().length > 50),
                                 })),
@@ -260,10 +261,6 @@ export const useStore = create<StoreState>((set, get) => ({
                     metadata: { ...state.metadata, modified: now },
                 }));
             } else {
-                // --- ONGOING Drag ---
-                // Nodes state is updated above for visuals.
-                // **DO NOT** update selectedProperties here to improve performance.
-                // The properties bar will lag during drag but update on drop.
             }
             return;
         }

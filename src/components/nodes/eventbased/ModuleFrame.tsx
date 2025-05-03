@@ -240,7 +240,7 @@ const ModuleFrameBase = memo(
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             onBlur={handleBlur}
-                            className="p-1 text-sm border rounded bg-white dark:bg-zinc-700 dark:text-white"
+                            className="p-1 text-sm border rounded bg-white dark:bg-zinc-700 dark:text-white nodrag"
                             autoFocus
                         />
                     ) : (

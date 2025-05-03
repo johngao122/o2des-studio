@@ -144,12 +144,11 @@ const EventNode = memo(
                 <div className="space-y-2">
                     {isEditing ? (
                         <div className="space-y-2">
-                            <input
-                                type="text"
+                            <textarea
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onBlur={handleBlur}
-                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input"
+                                className="w-full min-h-[80px] p-2 border rounded dark:bg-zinc-700 dark:text-white event-node-input focus:outline-none focus:border-blue-500 nodrag"
                                 placeholder="State Update"
                                 autoFocus
                             />
@@ -158,7 +157,7 @@ const EventNode = memo(
                                 value={editParams}
                                 onChange={(e) => setEditParams(e.target.value)}
                                 onBlur={handleBlur}
-                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input"
+                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input nodrag"
                                 placeholder="Event Parameters (optional)"
                             />
                         </div>
@@ -166,7 +165,19 @@ const EventNode = memo(
                         <div className="space-y-1 flex flex-col items-center justify-center">
                             {data?.stateUpdate &&
                             data.stateUpdate.trim() !== "" ? (
-                                <MathJax>{data.stateUpdate}</MathJax>
+                                data.stateUpdate
+                                    .split("\n")
+                                    .map((line, index) => (
+                                        <div key={index} className="my-1">
+                                            <div className="mathjax-content">
+                                                {line.trim() !== "" ? (
+                                                    <MathJax>{line}</MathJax>
+                                                ) : (
+                                                    <span> </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
                             ) : (
                                 <div className="text-gray-400 dark:text-gray-500">
                                     No state update
