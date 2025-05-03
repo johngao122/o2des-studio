@@ -38,7 +38,9 @@ import {
     getPerpendicularPoint,
     getAngleBetweenPoints,
     createBezierPathString,
+    projectPointOntoBezierCurve,
 } from "@/lib/utils/math";
+import { calculateOffsetPointForEdge } from "@/lib/utils/edge";
 
 const commandController = CommandController.getInstance();
 
@@ -57,6 +59,8 @@ interface EventGraphEdgeData {
     parameter?: string;
     edgeType?: EdgeTypeOption;
     controlPoint?: { x: number; y: number };
+    delayPosition?: number;
+    parameterPosition?: number;
 }
 
 interface ExtendedEdgeProps extends EdgeProps<EventGraphEdgeData> {
@@ -106,12 +110,23 @@ const EventGraphEdge = memo(
         );
 
         const [isDragging, setIsDragging] = useState(false);
+        const [isDelayDragging, setIsDelayDragging] = useState(false);
+        const [isParamDragging, setIsParamDragging] = useState(false);
         const labelRef = useRef<HTMLDivElement>(null);
+        const delayLabelRef = useRef<HTMLDivElement>(null);
+        const paramLabelRef = useRef<HTMLDivElement>(null);
 
         const [tempControlPoint, setTempControlPoint] = useState<{
             x: number;
             y: number;
         } | null>(null);
+
+        const [tempDelayPosition, setTempDelayPosition] = useState<
+            number | null
+        >(null);
+        const [tempParamPosition, setTempParamPosition] = useState<
+            number | null
+        >(null);
 
         const [dragOffset, setDragOffset] = useState<{
             x: number;
@@ -122,51 +137,6 @@ const EventGraphEdge = memo(
             strokeWidth: selected ? 3 : 2,
             stroke: selected ? "#3b82f6" : "#555",
             ...style,
-        };
-
-        const calculateOffsetPointForEdge = (
-            x: number,
-            y: number,
-            angle: number,
-            baseOffset: number,
-            sourceX: number,
-            sourceY: number,
-            targetX: number,
-            targetY: number
-        ) => {
-            const flipOffset =
-                data?.edgeType === "bezier" && data?.controlPoint
-                    ? isCurveFlipped(
-                          sourceX,
-                          sourceY,
-                          targetX,
-                          targetY,
-                          data.controlPoint.x,
-                          data.controlPoint.y
-                      )
-                    : false;
-
-            const offsetDirection = flipOffset ? -1 : 1;
-
-            const dynamicOffset = calculateDynamicOffset(
-                baseOffset,
-                sourceX,
-                sourceY,
-                targetX,
-                targetY,
-                DELAY_LABEL_CONFIG.minScaleFactor,
-                DELAY_LABEL_CONFIG.maxScaleFactor
-            );
-
-            const offsetAngle = angle + 90 * offsetDirection;
-            const offsetPoint = getOffsetPoint(
-                x,
-                y,
-                offsetAngle,
-                dynamicOffset
-            );
-
-            return { x: offsetPoint.x, y: offsetPoint.y, flipped: flipOffset };
         };
 
         const getEdgePath = () => {
@@ -191,9 +161,15 @@ const EventGraphEdge = memo(
                             targetY
                         );
 
-                        const t1 = 0.25;
-                        const quarterPoint = getBezierPoint(
-                            t1,
+                        const delayPosition =
+                            isDelayDragging && tempDelayPosition !== null
+                                ? tempDelayPosition
+                                : data?.delayPosition !== undefined
+                                ? data.delayPosition
+                                : 0.25;
+
+                        const delayPoint = getBezierPoint(
+                            delayPosition,
                             sourceX,
                             sourceY,
                             cpx,
@@ -201,11 +177,11 @@ const EventGraphEdge = memo(
                             targetX,
                             targetY
                         );
-                        const quarterPointX = quarterPoint.x;
-                        const quarterPointY = quarterPoint.y;
+                        const delayPointX = delayPoint.x;
+                        const delayPointY = delayPoint.y;
 
                         const delayTangent = getBezierTangent(
-                            t1,
+                            delayPosition,
                             sourceX,
                             sourceY,
                             cpx,
@@ -217,14 +193,61 @@ const EventGraphEdge = memo(
 
                         const baseOffset = DELAY_LABEL_CONFIG.baseOffset;
                         const offsetDelayPoint = calculateOffsetPointForEdge(
-                            quarterPointX,
-                            quarterPointY,
+                            delayPointX,
+                            delayPointY,
                             delayTangentAngle,
                             baseOffset,
                             sourceX,
                             sourceY,
                             targetX,
+                            targetY,
+                            controlPoint,
+                            DELAY_LABEL_CONFIG.minScaleFactor,
+                            DELAY_LABEL_CONFIG.maxScaleFactor
+                        );
+
+                        const paramPosition =
+                            isParamDragging && tempParamPosition !== null
+                                ? tempParamPosition
+                                : data?.parameterPosition !== undefined
+                                ? data.parameterPosition
+                                : 0.75;
+
+                        const paramPoint = getBezierPoint(
+                            paramPosition,
+                            sourceX,
+                            sourceY,
+                            cpx,
+                            cpy,
+                            targetX,
                             targetY
+                        );
+                        const paramPointX = paramPoint.x;
+                        const paramPointY = paramPoint.y;
+
+                        const paramTangent = getBezierTangent(
+                            paramPosition,
+                            sourceX,
+                            sourceY,
+                            cpx,
+                            cpy,
+                            targetX,
+                            targetY
+                        );
+                        const paramTangentAngle = paramTangent.angle;
+
+                        const offsetParamPoint = calculateOffsetPointForEdge(
+                            paramPointX,
+                            paramPointY,
+                            paramTangentAngle,
+                            baseOffset,
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                            controlPoint,
+                            DELAY_LABEL_CONFIG.minScaleFactor,
+                            DELAY_LABEL_CONFIG.maxScaleFactor
                         );
 
                         const t2 = 0.5;
@@ -251,33 +274,23 @@ const EventGraphEdge = memo(
                         );
                         const tangentAngle = tangent.angle;
 
-                        const t3 = 0.75;
-                        const threeQuarterPoint = getBezierPoint(
-                            t3,
-                            sourceX,
-                            sourceY,
-                            cpx,
-                            cpy,
-                            targetX,
-                            targetY
-                        );
-                        const threeQuarterPointX = threeQuarterPoint.x;
-                        const threeQuarterPointY = threeQuarterPoint.y;
-
                         return {
                             path,
                             labelX: cpx,
                             labelY: cpy,
-                            quarterPointX,
-                            quarterPointY,
+                            quarterPointX: delayPointX,
+                            quarterPointY: delayPointY,
                             delayTangentAngle,
                             delayOffsetX: offsetDelayPoint.x,
                             delayOffsetY: offsetDelayPoint.y,
                             midPointX,
                             midPointY,
                             tangentAngle,
-                            threeQuarterPointX,
-                            threeQuarterPointY,
+                            threeQuarterPointX: paramPointX,
+                            threeQuarterPointY: paramPointY,
+                            paramTangentAngle,
+                            paramOffsetX: offsetParamPoint.x,
+                            paramOffsetY: offsetParamPoint.y,
                         };
                     } else {
                         const controlPoint = calculateDefaultControlPoint(
@@ -298,9 +311,15 @@ const EventGraphEdge = memo(
                             targetY
                         );
 
-                        const t1 = 0.25;
-                        const quarterPoint = getBezierPoint(
-                            t1,
+                        const delayPosition =
+                            isDelayDragging && tempDelayPosition !== null
+                                ? tempDelayPosition
+                                : data?.delayPosition !== undefined
+                                ? data.delayPosition
+                                : 0.25;
+
+                        const delayPoint = getBezierPoint(
+                            delayPosition,
                             sourceX,
                             sourceY,
                             controlPointX,
@@ -308,11 +327,11 @@ const EventGraphEdge = memo(
                             targetX,
                             targetY
                         );
-                        const quarterPointX = quarterPoint.x;
-                        const quarterPointY = quarterPoint.y;
+                        const delayPointX = delayPoint.x;
+                        const delayPointY = delayPoint.y;
 
                         const delayTangent = getBezierTangent(
-                            t1,
+                            delayPosition,
                             sourceX,
                             sourceY,
                             controlPointX,
@@ -324,14 +343,61 @@ const EventGraphEdge = memo(
 
                         const baseOffset = DELAY_LABEL_CONFIG.baseOffset;
                         const offsetDelayPoint = calculateOffsetPointForEdge(
-                            quarterPointX,
-                            quarterPointY,
+                            delayPointX,
+                            delayPointY,
                             delayTangentAngle,
                             baseOffset,
                             sourceX,
                             sourceY,
                             targetX,
+                            targetY,
+                            undefined,
+                            DELAY_LABEL_CONFIG.minScaleFactor,
+                            DELAY_LABEL_CONFIG.maxScaleFactor
+                        );
+
+                        const paramPosition =
+                            isParamDragging && tempParamPosition !== null
+                                ? tempParamPosition
+                                : data?.parameterPosition !== undefined
+                                ? data.parameterPosition
+                                : 0.75;
+
+                        const paramPoint = getBezierPoint(
+                            paramPosition,
+                            sourceX,
+                            sourceY,
+                            controlPointX,
+                            controlPointY,
+                            targetX,
                             targetY
+                        );
+                        const paramPointX = paramPoint.x;
+                        const paramPointY = paramPoint.y;
+
+                        const paramTangent = getBezierTangent(
+                            paramPosition,
+                            sourceX,
+                            sourceY,
+                            controlPointX,
+                            controlPointY,
+                            targetX,
+                            targetY
+                        );
+                        const paramTangentAngle = paramTangent.angle;
+
+                        const offsetParamPoint = calculateOffsetPointForEdge(
+                            paramPointX,
+                            paramPointY,
+                            paramTangentAngle,
+                            baseOffset,
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                            undefined,
+                            DELAY_LABEL_CONFIG.minScaleFactor,
+                            DELAY_LABEL_CONFIG.maxScaleFactor
                         );
 
                         const t2 = 0.5;
@@ -358,33 +424,23 @@ const EventGraphEdge = memo(
                         );
                         const tangentAngle = tangent.angle;
 
-                        const t3 = 0.75;
-                        const threeQuarterPoint = getBezierPoint(
-                            t3,
-                            sourceX,
-                            sourceY,
-                            controlPointX,
-                            controlPointY,
-                            targetX,
-                            targetY
-                        );
-                        const threeQuarterPointX = threeQuarterPoint.x;
-                        const threeQuarterPointY = threeQuarterPoint.y;
-
                         return {
                             path,
                             labelX: controlPointX,
                             labelY: controlPointY,
-                            quarterPointX,
-                            quarterPointY,
+                            quarterPointX: delayPointX,
+                            quarterPointY: delayPointY,
                             delayTangentAngle,
                             delayOffsetX: offsetDelayPoint.x,
                             delayOffsetY: offsetDelayPoint.y,
                             midPointX,
                             midPointY,
                             tangentAngle,
-                            threeQuarterPointX,
-                            threeQuarterPointY,
+                            threeQuarterPointX: paramPointX,
+                            threeQuarterPointY: paramPointY,
+                            paramTangentAngle,
+                            paramOffsetX: offsetParamPoint.x,
+                            paramOffsetY: offsetParamPoint.y,
                         };
                     }
                 case "straight":
@@ -423,7 +479,10 @@ const EventGraphEdge = memo(
                         sourceX,
                         sourceY,
                         targetX,
-                        targetY
+                        targetY,
+                        undefined,
+                        DELAY_LABEL_CONFIG.minScaleFactor,
+                        DELAY_LABEL_CONFIG.maxScaleFactor
                     );
 
                     const parameterMarkerPoint = {
@@ -459,6 +518,8 @@ const EventGraphEdge = memo(
         let conditionMarkerX: number, conditionMarkerY: number;
         let conditionMarkerAngle: number;
         let parameterMarkerX: number, parameterMarkerY: number;
+        let parameterLabelX: number, parameterLabelY: number;
+        let parameterMarkerAngle: number;
 
         if (data?.edgeType === "bezier") {
             const result = getEdgePath();
@@ -475,6 +536,24 @@ const EventGraphEdge = memo(
             conditionMarkerAngle = result.tangentAngle;
             parameterMarkerX = result.threeQuarterPointX;
             parameterMarkerY = result.threeQuarterPointY;
+            parameterMarkerAngle = result.paramTangentAngle || 0;
+
+            const baseOffset = DELAY_LABEL_CONFIG.baseOffset;
+            const offsetParamPoint = calculateOffsetPointForEdge(
+                parameterMarkerX,
+                parameterMarkerY,
+                parameterMarkerAngle,
+                baseOffset,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                undefined,
+                DELAY_LABEL_CONFIG.minScaleFactor,
+                DELAY_LABEL_CONFIG.maxScaleFactor
+            );
+            parameterLabelX = offsetParamPoint.x;
+            parameterLabelY = offsetParamPoint.y;
         } else {
             const markerX = sourceX * 0.75 + targetX * 0.25;
             const markerY = sourceY * 0.75 + targetY * 0.25;
@@ -500,7 +579,10 @@ const EventGraphEdge = memo(
                 sourceX,
                 sourceY,
                 targetX,
-                targetY
+                targetY,
+                undefined,
+                DELAY_LABEL_CONFIG.minScaleFactor,
+                DELAY_LABEL_CONFIG.maxScaleFactor
             );
             delayLabelX = offsetDelayPoint.x;
             delayLabelY = offsetDelayPoint.y;
@@ -512,6 +594,23 @@ const EventGraphEdge = memo(
                 (180 / Math.PI);
             parameterMarkerX = sourceX + (targetX - sourceX) * 0.75;
             parameterMarkerY = sourceY + (targetY - sourceY) * 0.75;
+            parameterMarkerAngle = delayMarkerAngle;
+
+            const offsetParamPoint = calculateOffsetPointForEdge(
+                parameterMarkerX,
+                parameterMarkerY,
+                parameterMarkerAngle,
+                baseOffset,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                undefined,
+                DELAY_LABEL_CONFIG.minScaleFactor,
+                DELAY_LABEL_CONFIG.maxScaleFactor
+            );
+            parameterLabelX = offsetParamPoint.x;
+            parameterLabelY = offsetParamPoint.y;
         }
 
         const showConditionMarker =
@@ -541,6 +640,8 @@ const EventGraphEdge = memo(
                         condition: editCondition || "True",
                         edgeType: editEdgeType,
                         controlPoint: data?.controlPoint,
+                        delayPosition: data?.delayPosition,
+                        parameterPosition: data?.parameterPosition,
                     };
 
                     const trimmedDelay = editDelay.trim();
@@ -564,6 +665,8 @@ const EventGraphEdge = memo(
                     const currentParameter = data?.parameter || "";
                     const currentEdgeType = data?.edgeType || "straight";
                     const currentControlPoint = data?.controlPoint;
+                    const currentDelayPosition = data?.delayPosition;
+                    const currentParamPosition = data?.parameterPosition;
 
                     const hasChanged =
                         updatedData.condition !== currentCondition ||
@@ -571,7 +674,9 @@ const EventGraphEdge = memo(
                         (updatedData.parameter || "") !== currentParameter ||
                         updatedData.edgeType !== currentEdgeType ||
                         JSON.stringify(updatedData.controlPoint) !==
-                            JSON.stringify(currentControlPoint);
+                            JSON.stringify(currentControlPoint) ||
+                        updatedData.delayPosition !== currentDelayPosition ||
+                        updatedData.parameterPosition !== currentParamPosition;
 
                     if (hasChanged) {
                         const command =
@@ -690,6 +795,181 @@ const EventGraphEdge = memo(
             document.body.style.cursor = "";
         }, [isDragging, tempControlPoint, data, id]);
 
+        const handleDelayDragStart = (e: MouseEvent) => {
+            if (isEditing) return;
+
+            e.stopPropagation();
+            e.preventDefault();
+
+            setIsDelayDragging(true);
+            document.body.style.cursor = "grabbing";
+        };
+
+        const handleDelayDrag = useCallback(
+            (e: MouseEvent) => {
+                if (!isDelayDragging || isEditing) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const flowPane = document.querySelector(
+                    ".react-flow__viewport"
+                );
+
+                if (flowPane) {
+                    const transformStyle =
+                        window.getComputedStyle(flowPane).transform;
+                    const transformMatrix =
+                        parseTransformMatrix(transformStyle);
+
+                    const mousePosition = clientToFlowPosition(
+                        e.clientX,
+                        e.clientY,
+                        transformMatrix
+                    );
+
+                    const projection = projectPointOntoBezierCurve(
+                        mousePosition,
+                        sourceX,
+                        sourceY,
+                        data?.controlPoint ||
+                            calculateDefaultControlPoint(
+                                sourceX,
+                                sourceY,
+                                targetX,
+                                targetY
+                            ),
+                        targetX,
+                        targetY,
+                        0.05,
+                        0.45
+                    );
+
+                    setTempDelayPosition(projection.t);
+                }
+            },
+            [
+                isDelayDragging,
+                isEditing,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                data,
+            ]
+        );
+
+        const handleDelayDragEnd = useCallback(() => {
+            if (isDelayDragging && tempDelayPosition !== null) {
+                const hasChanged = data?.delayPosition !== tempDelayPosition;
+
+                if (hasChanged) {
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                delayPosition: tempDelayPosition,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
+                }
+            }
+
+            setIsDelayDragging(false);
+            setTempDelayPosition(null);
+            document.body.style.cursor = "";
+        }, [isDelayDragging, tempDelayPosition, data, id]);
+
+        const handleParamDragStart = (e: MouseEvent) => {
+            if (isEditing) return;
+
+            e.stopPropagation();
+            e.preventDefault();
+
+            setIsParamDragging(true);
+            document.body.style.cursor = "grabbing";
+        };
+
+        const handleParamDrag = useCallback(
+            (e: MouseEvent) => {
+                if (!isParamDragging || isEditing) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const flowPane = document.querySelector(
+                    ".react-flow__viewport"
+                );
+
+                if (flowPane) {
+                    const transformStyle =
+                        window.getComputedStyle(flowPane).transform;
+                    const transformMatrix =
+                        parseTransformMatrix(transformStyle);
+
+                    const mousePosition = clientToFlowPosition(
+                        e.clientX,
+                        e.clientY,
+                        transformMatrix
+                    );
+
+                    const projection = projectPointOntoBezierCurve(
+                        mousePosition,
+                        sourceX,
+                        sourceY,
+                        data?.controlPoint ||
+                            calculateDefaultControlPoint(
+                                sourceX,
+                                sourceY,
+                                targetX,
+                                targetY
+                            ),
+                        targetX,
+                        targetY,
+                        0.55,
+                        0.95
+                    );
+
+                    setTempParamPosition(projection.t);
+                }
+            },
+            [
+                isParamDragging,
+                isEditing,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                data,
+            ]
+        );
+
+        const handleParamDragEnd = useCallback(() => {
+            if (isParamDragging && tempParamPosition !== null) {
+                const hasChanged =
+                    data?.parameterPosition !== tempParamPosition;
+
+                if (hasChanged) {
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                parameterPosition: tempParamPosition,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
+                }
+            }
+
+            setIsParamDragging(false);
+            setTempParamPosition(null);
+            document.body.style.cursor = "";
+        }, [isParamDragging, tempParamPosition, data, id]);
+
         useEffect(() => {
             if (isDragging) {
                 window.addEventListener("mousemove", handleDrag as any);
@@ -701,6 +981,36 @@ const EventGraphEdge = memo(
                 };
             }
         }, [isDragging, handleDrag, handleDragEnd]);
+
+        useEffect(() => {
+            if (isDelayDragging) {
+                window.addEventListener("mousemove", handleDelayDrag as any);
+                window.addEventListener("mouseup", handleDelayDragEnd);
+
+                return () => {
+                    window.removeEventListener(
+                        "mousemove",
+                        handleDelayDrag as any
+                    );
+                    window.removeEventListener("mouseup", handleDelayDragEnd);
+                };
+            }
+        }, [isDelayDragging, handleDelayDrag, handleDelayDragEnd]);
+
+        useEffect(() => {
+            if (isParamDragging) {
+                window.addEventListener("mousemove", handleParamDrag as any);
+                window.addEventListener("mouseup", handleParamDragEnd);
+
+                return () => {
+                    window.removeEventListener(
+                        "mousemove",
+                        handleParamDrag as any
+                    );
+                    window.removeEventListener("mouseup", handleParamDragEnd);
+                };
+            }
+        }, [isParamDragging, handleParamDrag, handleParamDragEnd]);
 
         return (
             <>
@@ -896,6 +1206,12 @@ const EventGraphEdge = memo(
                             className="nodrag nopan"
                         >
                             <div
+                                ref={delayLabelRef}
+                                onMouseDown={
+                                    !isEditing && data?.edgeType === "bezier"
+                                        ? handleDelayDragStart
+                                        : undefined
+                                }
                                 className={`edge-label-delay flex justify-center items-center ${
                                     selected
                                         ? "bg-blue-50 dark:bg-blue-900/50"
@@ -904,13 +1220,24 @@ const EventGraphEdge = memo(
                                     selected
                                         ? "shadow-md border border-blue-300 dark:border-blue-600"
                                         : "shadow"
-                                }`}
+                                } ${
+                                    data?.edgeType === "bezier" && !isEditing
+                                        ? "cursor-grab active:cursor-grabbing"
+                                        : ""
+                                } ${isDelayDragging ? "opacity-70" : ""}`}
                                 style={{
                                     boxShadow: selected
                                         ? "0 2px 4px rgba(59, 130, 246, 0.3)"
                                         : "0 1px 3px rgba(0, 0, 0, 0.1)",
                                     minWidth: "20px",
                                     backdropFilter: "blur(4px)",
+                                    cursor:
+                                        data?.edgeType === "bezier" &&
+                                        !isEditing
+                                            ? isDelayDragging
+                                                ? "grabbing"
+                                                : "grab"
+                                            : "default",
                                 }}
                             >
                                 <MathJax>
@@ -1028,12 +1355,18 @@ const EventGraphEdge = memo(
                         <div
                             style={{
                                 position: "absolute",
-                                transform: `translate(-50%, -50%) translate(${parameterMarkerX}px,${parameterMarkerY}px)`,
+                                transform: `translate(-50%, -50%) translate(${parameterLabelX}px,${parameterLabelY}px)`,
                                 pointerEvents: "all",
                             }}
                             className="nodrag nopan"
                         >
                             <div
+                                ref={paramLabelRef}
+                                onMouseDown={
+                                    !isEditing && data?.edgeType === "bezier"
+                                        ? handleParamDragStart
+                                        : undefined
+                                }
                                 className={`edge-label-param flex justify-center items-center ${
                                     selected
                                         ? "bg-blue-50 dark:bg-blue-900/50"
@@ -1042,12 +1375,68 @@ const EventGraphEdge = memo(
                                     selected
                                         ? "shadow-md border border-blue-300 dark:border-blue-600"
                                         : "shadow"
-                                }`}
+                                } ${
+                                    data?.edgeType === "bezier" && !isEditing
+                                        ? "cursor-grab active:cursor-grabbing"
+                                        : ""
+                                } ${isParamDragging ? "opacity-70" : ""}`}
+                                style={{
+                                    boxShadow: selected
+                                        ? "0 2px 4px rgba(59, 130, 246, 0.3)"
+                                        : "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                    minWidth: "20px",
+                                    backdropFilter: "blur(4px)",
+                                    cursor:
+                                        data?.edgeType === "bezier" &&
+                                        !isEditing
+                                            ? isParamDragging
+                                                ? "grabbing"
+                                                : "grab"
+                                            : "default",
+                                }}
                             >
                                 {typeof data.parameter === "string" && (
                                     <MathJax>{data.parameter}</MathJax>
                                 )}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Connector line for parameter label */}
+                    {!isEditing && hasParameter && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                pointerEvents: "none",
+                                width: "100%",
+                                height: "100%",
+                            }}
+                            className="nodrag nopan"
+                        >
+                            <svg
+                                width="100%"
+                                height="100%"
+                                style={{
+                                    position: "absolute",
+                                    top: 0,
+                                    left: 0,
+                                    pointerEvents: "none",
+                                    overflow: "visible",
+                                }}
+                            >
+                                <path
+                                    d={`M ${parameterMarkerX} ${parameterMarkerY} L ${parameterLabelX} ${parameterLabelY}`}
+                                    stroke={selected ? "#3b82f6" : "#6b7280"}
+                                    strokeWidth={selected ? 1.5 : 1}
+                                    strokeDasharray={
+                                        DELAY_LABEL_CONFIG.connectorDashArray
+                                    }
+                                    fill="none"
+                                    strokeOpacity={selected ? 0.8 : 0.6}
+                                />
+                            </svg>
                         </div>
                     )}
                 </EdgeLabelRenderer>
@@ -1062,6 +1451,8 @@ EventGraphEdge.getDefaultData = (): EventGraphEdgeData => ({
     parameter: undefined,
     edgeType: "straight",
     controlPoint: undefined,
+    delayPosition: 0.25,
+    parameterPosition: 0.75,
 });
 
 EventGraphEdge.getGraphType = (): string => "eventBased";

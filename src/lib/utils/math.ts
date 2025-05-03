@@ -260,3 +260,95 @@ export function createBezierPathString(
 ): string {
     return `M ${sourceX},${sourceY} C ${controlX},${controlY} ${controlX},${controlY} ${targetX},${targetY}`;
 }
+
+/**
+ * Project a point onto a bezier curve and find the closest point
+ */
+export function projectPointOntoBezierCurve(
+    point: { x: number; y: number },
+    startX: number,
+    startY: number,
+    controlPoint: { x: number; y: number },
+    endX: number,
+    endY: number,
+    minT: number,
+    maxT: number
+): { t: number; x: number; y: number } {
+    let closestT = 0;
+    let minDistance = Infinity;
+
+    // First do a coarse search for better initial guess
+    for (let t = minT; t <= maxT; t += 0.05) {
+        const curvePoint = getBezierPoint(
+            t,
+            startX,
+            startY,
+            controlPoint.x,
+            controlPoint.y,
+            endX,
+            endY
+        );
+        const distance = Math.sqrt(
+            Math.pow(curvePoint.x - point.x, 2) +
+                Math.pow(curvePoint.y - point.y, 2)
+        );
+
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestT = t;
+        }
+    }
+
+    // Refine with binary search in a smaller range
+    const refinementRange = 0.05;
+    let lowerT = Math.max(minT, closestT - refinementRange);
+    let upperT = Math.min(maxT, closestT + refinementRange);
+
+    for (let i = 0; i < 10; i++) {
+        const step = (upperT - lowerT) / 10;
+        let refinedT = lowerT;
+        let refinedMinDistance = Infinity;
+
+        for (let j = 0; j <= 10; j++) {
+            const t = lowerT + j * step;
+            const curvePoint = getBezierPoint(
+                t,
+                startX,
+                startY,
+                controlPoint.x,
+                controlPoint.y,
+                endX,
+                endY
+            );
+            const distance = Math.sqrt(
+                Math.pow(curvePoint.x - point.x, 2) +
+                    Math.pow(curvePoint.y - point.y, 2)
+            );
+
+            if (distance < refinedMinDistance) {
+                refinedMinDistance = distance;
+                refinedT = t;
+            }
+        }
+
+        lowerT = Math.max(minT, refinedT - step);
+        upperT = Math.min(maxT, refinedT + step);
+        closestT = refinedT;
+    }
+
+    const closestPoint = getBezierPoint(
+        closestT,
+        startX,
+        startY,
+        controlPoint.x,
+        controlPoint.y,
+        endX,
+        endY
+    );
+
+    return {
+        t: closestT,
+        x: closestPoint.x,
+        y: closestPoint.y,
+    };
+}
