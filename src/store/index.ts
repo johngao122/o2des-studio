@@ -413,7 +413,7 @@ export const useStore = create<StoreState>((set, get) => ({
                             ([key, value]) => {
                                 if (key === "edgeType") {
                                     return {
-                                        key: "EdgeType",
+                                        key: "edgeType",
                                         value: value as string,
                                         type: "string" as const,
                                         editable: true,
@@ -660,16 +660,17 @@ export const useStore = create<StoreState>((set, get) => ({
             const edge = edges.find((e) => e.id === edgeId);
             if (edge) {
                 const newData = editableProperties.reduce((acc, prop) => {
-                    const key = prop.key === "EdgeType" ? "edgeType" : prop.key;
                     return {
                         ...acc,
-                        [key]: prop.value,
+                        [prop.key]: prop.value,
                     };
                 }, {});
 
+                const updateData: any = { data: { ...edge.data, ...newData } };
+
                 const command = commandController.createUpdateEdgeCommand(
                     edgeId,
-                    { data: { ...edge.data, ...newData } }
+                    updateData
                 );
                 commandController.execute(command);
             }
