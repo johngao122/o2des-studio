@@ -16,9 +16,27 @@ import superjson from "superjson";
 import { CommandController } from "@/controllers/CommandController";
 import { SerializationService } from "../services/SerializationService";
 import { nodeTypes } from "@/components/nodes";
+import {
+    BoundingBox,
+    Position,
+    getBoundingBoxCenter,
+    getBoundingBoxFromPositions,
+} from "@/lib/utils/coordinates";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
+
+const DRAG_PROXY_THRESHOLD = 3;
+
+interface DragProxyState {
+    isActive: boolean;
+    startPosition: Position | null;
+    currentPosition: Position | null;
+    nodesSnapshot: BaseNode[] | null;
+    edgesSnapshot: BaseEdge[] | null;
+    boundingBox: BoundingBox | null;
+    centerOffset: Position | null;
+}
 
 interface ProjectMetadata {
     version: string;
@@ -55,6 +73,7 @@ interface StoreState {
         y: number;
         zoom: number;
     };
+    dragProxy: DragProxyState;
     onNodesChange: (changes: NodeChange[]) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
@@ -67,6 +86,12 @@ interface StoreState {
     updateSelectedProperties: (properties: SelectedProperty[]) => void;
     updateProjectName: (name: string) => void;
     updateMetadata: (metadata: Partial<ProjectMetadata>) => void;
+    startDragProxy: (nodes: BaseNode[], edges: BaseEdge[]) => void;
+    updateDragProxy: (
+        position: { x: number; y: number },
+        zoom?: number
+    ) => void;
+    endDragProxy: (applyChanges: boolean) => void;
 }
 
 interface SerializedState {
@@ -98,6 +123,15 @@ export const useStore = create<StoreState>((set, get) => ({
     selectedProperties: [],
     selectionInfo: undefined,
     viewportTransform: { x: 0, y: 0, zoom: 1 },
+    dragProxy: {
+        isActive: false,
+        startPosition: null,
+        currentPosition: null,
+        nodesSnapshot: null,
+        edgesSnapshot: null,
+        boundingBox: null,
+        centerOffset: null,
+    },
 
     onNodesChange: (changes: NodeChange[]) => {
         const nodesBeforeChange = get().nodes;
@@ -693,5 +727,157 @@ export const useStore = create<StoreState>((set, get) => ({
                 modified: new Date().toISOString(),
             },
         }));
+    },
+
+    startDragProxy: (nodes: BaseNode[], edges: BaseEdge[]) => {
+        if (nodes.length === 0) return;
+
+        const originalNodes = [...nodes];
+
+        const nodePositions = nodes
+            .map((n) => {
+                const width =
+                    typeof n.style?.width === "number" ? n.style.width : 200;
+                const height =
+                    typeof n.style?.height === "number" ? n.style.height : 100;
+
+                return [
+                    { x: n.position.x, y: n.position.y },
+                    { x: n.position.x + width, y: n.position.y },
+                    { x: n.position.x, y: n.position.y + height },
+                    { x: n.position.x + width, y: n.position.y + height },
+                ];
+            })
+            .flat();
+
+        const boundingBox = getBoundingBoxFromPositions(nodePositions);
+
+        if (!boundingBox) {
+            console.warn("Could not calculate bounding box for drag proxy");
+            return;
+        }
+
+        const centerPosition = getBoundingBoxCenter(boundingBox);
+
+        console.log(
+            "Start drag proxy with bounding box:",
+            boundingBox,
+            "center:",
+            centerPosition
+        );
+
+        const storeNodes = get().nodes;
+        const resetNodes = storeNodes.map((node) => {
+            const originalNode = originalNodes.find((n) => n.id === node.id);
+            if (originalNode) {
+                return {
+                    ...node,
+                    position: { ...originalNode.position },
+                };
+            }
+            return node;
+        });
+
+        const startPosition = centerPosition;
+
+        set({
+            nodes: resetNodes,
+            dragProxy: {
+                isActive: true,
+                startPosition,
+                currentPosition: startPosition,
+                nodesSnapshot: originalNodes,
+                edgesSnapshot: [...edges],
+                boundingBox,
+                centerOffset: {
+                    x: 0,
+                    y: 0,
+                },
+            },
+        });
+    },
+
+    updateDragProxy: (position: { x: number; y: number }, zoom?: number) => {
+        const dragProxy = get().dragProxy;
+        if (!dragProxy.isActive || !dragProxy.startPosition) return;
+
+        console.log("Update drag proxy:", {
+            from: dragProxy.currentPosition,
+            to: position,
+            delta: {
+                x: position.x - (dragProxy.currentPosition?.x || 0),
+                y: position.y - (dragProxy.currentPosition?.y || 0),
+            },
+            zoom,
+        });
+
+        set({
+            dragProxy: {
+                ...dragProxy,
+                currentPosition: position,
+            },
+        });
+    },
+
+    endDragProxy: (applyChanges: boolean = true) => {
+        const dragProxy = get().dragProxy;
+        if (
+            !dragProxy.isActive ||
+            !dragProxy.startPosition ||
+            !dragProxy.currentPosition ||
+            !dragProxy.nodesSnapshot
+        ) {
+            set({ dragProxy: { ...dragProxy, isActive: false } });
+            return;
+        }
+
+        if (applyChanges) {
+            const deltaX =
+                dragProxy.currentPosition.x - dragProxy.startPosition.x;
+            const deltaY =
+                dragProxy.currentPosition.y - dragProxy.startPosition.y;
+
+            console.log("End drag proxy with delta:", { deltaX, deltaY });
+            console.log("Start position:", dragProxy.startPosition);
+            console.log("End position:", dragProxy.currentPosition);
+
+            const batchOperations = dragProxy.nodesSnapshot.map((node) => {
+                const newPosition = {
+                    x: node.position.x + deltaX,
+                    y: node.position.y + deltaY,
+                };
+
+                console.log(
+                    `Node ${node.id} moved from`,
+                    node.position,
+                    "to",
+                    newPosition
+                );
+
+                return {
+                    type: "node",
+                    id: node.id,
+                    changes: {
+                        position: newPosition,
+                    },
+                };
+            });
+
+            const command =
+                commandController.createBatchCommand(batchOperations);
+            commandController.execute(command);
+        }
+
+        set({
+            dragProxy: {
+                isActive: false,
+                startPosition: null,
+                currentPosition: null,
+                nodesSnapshot: null,
+                edgesSnapshot: null,
+                boundingBox: null,
+                centerOffset: null,
+            },
+        });
     },
 }));

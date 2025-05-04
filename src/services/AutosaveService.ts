@@ -54,7 +54,6 @@ export class AutosaveService {
                 const store = useStore.getState();
 
                 if (!store.nodes.length && !store.edges.length) {
-                    console.log("Skipping autosave - project is empty");
                     return;
                 }
 
@@ -70,14 +69,7 @@ export class AutosaveService {
                     },
                 });
 
-                console.log("Project data for autosave:", {
-                    projectName: parsedState.projectName,
-                    nodesCount: parsedState.nodes?.length || 0,
-                    edgesCount: parsedState.edges?.length || 0,
-                });
-
                 sessionStorage.setItem(this.STORAGE_KEY, wrappedState);
-                console.log("Project autosaved to session storage");
 
                 this.showAutosaveNotification();
             } catch (error) {
@@ -134,22 +126,13 @@ export class AutosaveService {
             const savedState = sessionStorage.getItem(this.STORAGE_KEY);
             if (!savedState) return;
 
-            console.log("Loading autosaved state...");
-
             const parsed = JSON.parse(savedState);
 
             const projectData = parsed.json || parsed;
 
             const superJsonData = superjson.stringify(projectData);
 
-            console.log("Parsed autosaved state:", {
-                projectName: projectData.projectName,
-                nodesCount: projectData.nodes?.length || 0,
-                edgesCount: projectData.edges?.length || 0,
-            });
-
             useStore.getState().loadSerializedState(superJsonData);
-            console.log("Autosaved project loaded from session storage");
         } catch (error) {
             console.error("Error loading autosaved project:", error);
             toast.error("Could not load autosaved project", {
@@ -168,6 +151,5 @@ export class AutosaveService {
      */
     public clearSavedState(): void {
         sessionStorage.removeItem(this.STORAGE_KEY);
-        console.log("Autosaved project state cleared");
     }
 }

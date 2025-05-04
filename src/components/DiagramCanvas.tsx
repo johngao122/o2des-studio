@@ -1,4 +1,10 @@
-import React, { useCallback, DragEvent, useMemo, useEffect } from "react";
+import React, {
+    useCallback,
+    DragEvent,
+    useMemo,
+    useEffect,
+    useRef,
+} from "react";
 import ReactFlow, {
     Background,
     Controls,
@@ -24,6 +30,13 @@ import { NodeController } from "@/controllers/NodeController";
 import { CommandController } from "@/controllers/CommandController";
 import { BaseNode } from "@/types/base";
 import { AutosaveService } from "@/services/AutosaveService";
+import { DragProxy } from "./DragProxy";
+import {
+    Position,
+    ViewportTransform,
+    screenToFlowPosition,
+} from "@/lib/utils/coordinates";
+import "./diagram-canvas.css";
 
 const viewController = new ViewController();
 const nodeFactory = new NodeFactory();
@@ -62,6 +75,10 @@ function FlowCanvas() {
     const { nodes, edges, onEdgesChange, onConnect, viewportTransform } =
         useStore();
     const reactFlowInstance = useReactFlow();
+    const { startDragProxy, updateDragProxy, endDragProxy, dragProxy } =
+        useStore();
+    const dragTimeoutRef = useRef<number | null>(null);
+    const viewportRef = useRef<HTMLDivElement | null>(null);
 
     const updateViewport = useCallback(
         (x: number, y: number, zoom: number) => {
@@ -102,26 +119,28 @@ function FlowCanvas() {
             return 0;
         });
 
-        return sortedNodes.map((node) => ({
-            ...node,
-            data: {
-                ...node.data,
-                updateNodeData: handleNodeDataUpdate,
-            },
-        }));
-    }, [nodes, handleNodeDataUpdate]);
+        return sortedNodes.map((node) => {
+            const isSelected = useStore
+                .getState()
+                .selectedElements.nodes.includes(node.id);
+            const isDragProxyActive = useStore.getState().dragProxy.isActive;
+
+            const nodeProps =
+                isDragProxyActive && isSelected ? { draggable: false } : {};
+
+            return {
+                ...node,
+                ...nodeProps,
+                data: {
+                    ...node.data,
+                    updateNodeData: handleNodeDataUpdate,
+                },
+            };
+        });
+    }, [nodes, handleNodeDataUpdate, dragProxy.isActive]);
 
     const handleConnect = useCallback(
         (params: any) => {
-            console.log("Connection attempt:", {
-                source: params.source,
-                sourceHandle: params.sourceHandle,
-                target: params.target,
-                targetHandle: params.targetHandle,
-                sourcePos: params.sourcePos,
-                targetPos: params.targetPos,
-            });
-
             const connection = {
                 source: params.source,
                 sourceHandle: params.sourceHandle,
@@ -134,7 +153,6 @@ function FlowCanvas() {
                 return;
             }
 
-            console.log("Creating connection:", connection);
             onConnect(connection);
         },
         [onConnect]
@@ -215,82 +233,180 @@ function FlowCanvas() {
         []
     );
 
-    const handleNodesChange = useCallback((changes: NodeChange[]) => {
-        const { onNodesChange } = useStore.getState();
+    const handleNodesChange = useCallback(
+        (changes: NodeChange[]) => {
+            const { onNodesChange } = useStore.getState();
 
-        const selectionChanges = changes.filter(
-            (change) => change.type === "select"
-        );
-
-        const positionChanges = changes.filter(
-            (change) => change.type === "position"
-        );
-
-        if (positionChanges.length > 0) {
-            const { nodes, edges } = useStore.getState();
-            const selectedNodeIds = useStore.getState().selectedElements.nodes;
-            const selectedEdgeIds = useStore.getState().selectedElements.edges;
-
-            const connectedEdges = edges.filter(
-                (edge) =>
-                    selectedNodeIds.includes(edge.source) ||
-                    selectedNodeIds.includes(edge.target)
+            const selectionChanges = changes.filter(
+                (change) => change.type === "select"
             );
 
-            const edgesToSelect = connectedEdges
-                .filter((edge) => !selectedEdgeIds.includes(edge.id))
-                .map((edge) => edge.id);
+            const positionChanges = changes.filter(
+                (change) => change.type === "position"
+            );
 
-            if (edgesToSelect.length > 0) {
-                const { onEdgesChange } = useStore.getState();
-                requestAnimationFrame(() => {
-                    onEdgesChange(
-                        edgesToSelect.map((id) => ({
-                            id,
-                            type: "select" as const,
-                            selected: true,
-                        }))
-                    );
-                });
-            }
-        }
-
-        if (selectionChanges.length > 0) {
-            const isDragOperation = changes.some(
+            const otherChanges = changes.filter(
                 (change) =>
-                    change.type === "position" ||
-                    (change.type === "select" && changes.length > 5)
+                    change.type !== "select" && change.type !== "position"
             );
 
-            if (!isDragOperation) {
-                const { onEdgesChange } = useStore.getState();
-                const selectedEdges =
+            if (selectionChanges.length > 0) {
+                const isDragOperation = changes.some(
+                    (change) =>
+                        change.type === "position" ||
+                        (change.type === "select" && changes.length > 5)
+                );
+
+                if (!isDragOperation) {
+                    const { onEdgesChange } = useStore.getState();
+                    const selectedEdges =
+                        useStore.getState().selectedElements.edges;
+
+                    if (selectedEdges.length > 0) {
+                        requestAnimationFrame(() => {
+                            onEdgesChange(
+                                selectedEdges.map((edgeId) => ({
+                                    id: edgeId,
+                                    type: "select" as const,
+                                    selected: false,
+                                }))
+                            );
+                        });
+                    }
+                }
+
+                onNodesChange(selectionChanges);
+            }
+
+            if (positionChanges.length > 0) {
+                const { nodes, edges } = useStore.getState();
+                const selectedNodeIds =
+                    useStore.getState().selectedElements.nodes;
+                const selectedEdgeIds =
                     useStore.getState().selectedElements.edges;
 
-                if (selectedEdges.length > 0) {
+                const connectedEdges = edges.filter(
+                    (edge) =>
+                        selectedNodeIds.includes(edge.source) ||
+                        selectedNodeIds.includes(edge.target)
+                );
+
+                const edgesToSelect = connectedEdges
+                    .filter((edge) => !selectedEdgeIds.includes(edge.id))
+                    .map((edge) => edge.id);
+
+                if (edgesToSelect.length > 0) {
+                    const { onEdgesChange } = useStore.getState();
                     requestAnimationFrame(() => {
                         onEdgesChange(
-                            selectedEdges.map((edgeId) => ({
-                                id: edgeId,
+                            edgesToSelect.map((id) => ({
+                                id,
                                 type: "select" as const,
-                                selected: false,
+                                selected: true,
                             }))
                         );
                     });
                 }
+
+                const DRAG_PROXY_THRESHOLD = 3;
+                const selectedNodes = nodes.filter((node) =>
+                    selectedNodeIds.includes(node.id)
+                );
+                const selectedEdgesCount = selectedEdgeIds.length;
+                const totalSelectedComponents =
+                    selectedNodes.length + selectedEdgesCount;
+                const shouldUseDragProxy =
+                    totalSelectedComponents >= DRAG_PROXY_THRESHOLD;
+
+                const startingDrag = positionChanges.some(
+                    (change) => change.dragging === true
+                );
+                const endingDrag = positionChanges.some(
+                    (change) => change.dragging === false
+                );
+
+                const isDragProxyActive = dragProxy.isActive;
+
+                if (isDragProxyActive) {
+                    const firstChange = positionChanges[0];
+                    if (
+                        firstChange &&
+                        "position" in firstChange &&
+                        firstChange.position
+                    ) {
+                        const viewport = reactFlowInstance.getViewport();
+                        const viewportTransform: ViewportTransform = viewport;
+
+                        const mousePosition = firstChange.position;
+
+                        console.log("ReactFlow position change:", {
+                            position: mousePosition,
+                            viewport,
+                        });
+
+                        updateDragProxy(mousePosition, viewport.zoom);
+                    }
+
+                    if (endingDrag) {
+                        if (dragTimeoutRef.current !== null) {
+                            clearTimeout(dragTimeoutRef.current);
+                            dragTimeoutRef.current = null;
+                        }
+
+                        console.log(
+                            "Ending drag proxy, final position changes:",
+                            positionChanges
+                        );
+                        endDragProxy(true);
+                    }
+
+                    return;
+                } else if (
+                    startingDrag &&
+                    shouldUseDragProxy &&
+                    !isDragProxyActive
+                ) {
+                    console.log(
+                        "Starting drag proxy with nodes:",
+                        selectedNodes.length,
+                        "edges:",
+                        edges.filter((edge) =>
+                            selectedEdgeIds.includes(edge.id)
+                        ).length
+                    );
+
+                    startDragProxy(
+                        selectedNodes,
+                        edges.filter((edge) =>
+                            selectedEdgeIds.includes(edge.id)
+                        )
+                    );
+
+                    return;
+                } else {
+                    onNodesChange(positionChanges);
+
+                    if (dragTimeoutRef.current !== null) {
+                        clearTimeout(dragTimeoutRef.current);
+                        dragTimeoutRef.current = null;
+                    }
+                }
             }
-        }
 
-        onNodesChange(changes);
+            if (otherChanges.length > 0) {
+                onNodesChange(otherChanges);
+            }
 
-        const isExplicitSelectionChange =
-            selectionChanges.length > 0 &&
-            !changes.some((change) => change.type === "position");
+            const isExplicitSelectionChange =
+                selectionChanges.length > 0 &&
+                !changes.some((change) => change.type === "position");
 
-        if (isExplicitSelectionChange) {
-            autosaveService.autosave();
-        }
-    }, []);
+            if (isExplicitSelectionChange) {
+                autosaveService.autosave();
+            }
+        },
+        [startDragProxy, updateDragProxy, endDragProxy, dragProxy.isActive]
+    );
 
     const handleSelectionChange = useCallback(
         ({ nodes, edges }: OnSelectionChangeParams) => {
@@ -318,8 +434,42 @@ function FlowCanvas() {
         []
     );
 
+    useEffect(() => {
+        return () => {
+            if (dragTimeoutRef.current !== null) {
+                clearTimeout(dragTimeoutRef.current);
+                dragTimeoutRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && dragProxy.isActive) {
+                endDragProxy(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [dragProxy.isActive, endDragProxy]);
+
+    useEffect(() => {
+        if (dragProxy.isActive && viewportRef.current) {
+            console.log("ReactFlow viewport ref:", viewportRef.current);
+        }
+    }, [dragProxy.isActive, viewportRef.current]);
+
     return (
-        <div className="flex-1 h-full" onDrop={onDrop} onDragOver={onDragOver}>
+        <div
+            className={`flex-1 h-full ${
+                dragProxy.isActive ? "nodes-locked" : ""
+            }`}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+        >
             <ReactFlow
                 nodes={nodesWithData}
                 edges={edges}
@@ -330,6 +480,7 @@ function FlowCanvas() {
                 onMoveEnd={onMoveEnd}
                 onEdgeClick={handleEdgeClick}
                 {...flowOptions}
+                nodesDraggable={!dragProxy.isActive}
                 deleteKeyCode={["Backspace", "Delete"]}
                 selectionMode={SelectionMode.Partial}
                 connectionRadius={25}
@@ -340,6 +491,7 @@ function FlowCanvas() {
                 <Background />
                 <Controls />
                 <MiniMap />
+                <DragProxy />
                 <Panel
                     position="top-left"
                     className="bg-white dark:bg-zinc-800 p-2 rounded shadow-lg"

@@ -103,43 +103,21 @@ const ModuleFrameBase = memo(
         useEffect(() => {
             if (selected) {
                 const zIndexValue = nodeRef.current?.style.zIndex || "-100";
-                console.log(
-                    `ModuleFrame selected - ID: ${id}, z-index: ${zIndexValue}`
-                );
-
-                if (data.model?.nodes?.length) {
-                    console.log(
-                        `Module contains ${data.model.nodes.length} nodes:`,
-                        data.model.nodes.map((n) => n.id)
-                    );
-                }
 
                 const allNodes = useStore.getState().nodes;
                 const moduleIndex = allNodes.findIndex((n) => n.id === id);
                 if (moduleIndex !== -1) {
-                    console.log(
-                        `ModuleFrame position in nodes array: ${moduleIndex} of ${allNodes.length}`
-                    );
-
                     const moduleFramesBefore = allNodes
                         .slice(0, moduleIndex)
                         .filter((n) => n.type === "moduleFrame").length;
                     const otherNodesBefore = moduleIndex - moduleFramesBefore;
 
-                    console.log(
-                        `Nodes before this ModuleFrame: ${moduleIndex} (${moduleFramesBefore} frames, ${otherNodesBefore} other nodes)`
-                    );
-
                     if (nodeRef.current) {
                         const computedStyle = window.getComputedStyle(
                             nodeRef.current
                         );
-                        console.log(
-                            `ModuleFrame computed z-index: ${computedStyle.zIndex}`
-                        );
 
                         const edges = useStore.getState().edges;
-                        console.log(`Total edges: ${edges.length}`);
 
                         setTimeout(() => {
                             const edgeElements =
@@ -147,9 +125,6 @@ const ModuleFrameBase = memo(
                             if (edgeElements.length) {
                                 const edgeStyle = window.getComputedStyle(
                                     edgeElements[0]
-                                );
-                                console.log(
-                                    `Edge computed z-index: ${edgeStyle.zIndex}`
                                 );
                             }
                         }, 100);
