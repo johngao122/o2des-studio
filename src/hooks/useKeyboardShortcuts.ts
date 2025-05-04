@@ -41,10 +41,10 @@ export function useKeyboardShortcuts({
                         undo();
                     }
                     break;
-                case "s":
-                    event.preventDefault();
-                    onSave?.();
-                    break;
+                // case "s":
+                //     event.preventDefault();
+                //     onSave?.();
+                //     break;
                 case "o":
                     event.preventDefault();
                     onLoad?.();
