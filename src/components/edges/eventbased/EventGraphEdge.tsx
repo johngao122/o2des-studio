@@ -774,7 +774,25 @@ const EventGraphEdge = memo(
                 const currentTarget = event.currentTarget;
                 const relatedTarget = event.relatedTarget as HTMLElement | null;
 
-                if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+                const isSelectDropdown =
+                    relatedTarget &&
+                    (relatedTarget.closest('[role="listbox"]') ||
+                        relatedTarget.hasAttribute(
+                            "data-radix-select-viewport"
+                        ) ||
+                        relatedTarget.classList.contains("select-content") ||
+                        relatedTarget.classList.contains("select-item") ||
+                        relatedTarget.classList.contains("select-trigger") ||
+                        (relatedTarget.className &&
+                            typeof relatedTarget.className === "string" &&
+                            (relatedTarget.className.includes("radix") ||
+                                relatedTarget.className.includes("select"))));
+
+                if (
+                    !relatedTarget ||
+                    (!currentTarget.contains(relatedTarget) &&
+                        !isSelectDropdown)
+                ) {
                     setIsEditing(false);
 
                     const updatedData: EventGraphEdgeData = {
