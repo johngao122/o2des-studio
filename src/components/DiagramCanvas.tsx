@@ -90,17 +90,28 @@ function FlowCanvas() {
         }
     }, []);
 
-    const nodesWithData = useMemo(
-        () =>
-            nodes.map((node) => ({
-                ...node,
-                data: {
-                    ...node.data,
-                    updateNodeData: handleNodeDataUpdate,
-                },
-            })),
-        [nodes, handleNodeDataUpdate]
-    );
+    const nodesWithData = useMemo(() => {
+        // Sort nodes to put ModuleFrame nodes first (so they render behind other nodes)
+        const sortedNodes = [...nodes].sort((a, b) => {
+            // ModuleFrame nodes should come first
+            if (a.type === "moduleFrame" && b.type !== "moduleFrame") {
+                return -1;
+            }
+            if (a.type !== "moduleFrame" && b.type === "moduleFrame") {
+                return 1;
+            }
+            // If both are moduleFrames or both are not, preserve original order
+            return 0;
+        });
+
+        return sortedNodes.map((node) => ({
+            ...node,
+            data: {
+                ...node.data,
+                updateNodeData: handleNodeDataUpdate,
+            },
+        }));
+    }, [nodes, handleNodeDataUpdate]);
 
     const handleConnect = useCallback(
         (params: any) => {
@@ -292,6 +303,8 @@ function FlowCanvas() {
                 selectionMode={SelectionMode.Partial}
                 connectionRadius={25}
                 zoomOnDoubleClick={false}
+                edgesFocusable={true}
+                noDragClassName="nodrag"
             >
                 <Background />
                 <Controls />

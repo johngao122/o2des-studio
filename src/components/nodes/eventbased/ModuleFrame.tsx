@@ -5,7 +5,7 @@ import { NodeProps, XYPosition } from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode, BaseEdge } from "@/types/base";
-import { GripIcon } from "lucide-react";
+import { GripIcon, MoveIcon } from "lucide-react";
 
 const commandController = CommandController.getInstance();
 
@@ -64,7 +64,7 @@ export const ModuleFramePreview = () => {
                 height: 80,
                 minWidth: 160,
                 minHeight: 80,
-                zIndex: -1,
+                zIndex: -10,
             }}
         >
             <div className="absolute bottom-1 left-2">
@@ -101,6 +101,64 @@ const ModuleFrameBase = memo(
         });
 
         useEffect(() => {
+            if (selected) {
+                const zIndexValue = nodeRef.current?.style.zIndex || "-100";
+                console.log(
+                    `ModuleFrame selected - ID: ${id}, z-index: ${zIndexValue}`
+                );
+
+                if (data.model?.nodes?.length) {
+                    console.log(
+                        `Module contains ${data.model.nodes.length} nodes:`,
+                        data.model.nodes.map((n) => n.id)
+                    );
+                }
+
+                const allNodes = useStore.getState().nodes;
+                const moduleIndex = allNodes.findIndex((n) => n.id === id);
+                if (moduleIndex !== -1) {
+                    console.log(
+                        `ModuleFrame position in nodes array: ${moduleIndex} of ${allNodes.length}`
+                    );
+
+                    const moduleFramesBefore = allNodes
+                        .slice(0, moduleIndex)
+                        .filter((n) => n.type === "moduleFrame").length;
+                    const otherNodesBefore = moduleIndex - moduleFramesBefore;
+
+                    console.log(
+                        `Nodes before this ModuleFrame: ${moduleIndex} (${moduleFramesBefore} frames, ${otherNodesBefore} other nodes)`
+                    );
+
+                    if (nodeRef.current) {
+                        const computedStyle = window.getComputedStyle(
+                            nodeRef.current
+                        );
+                        console.log(
+                            `ModuleFrame computed z-index: ${computedStyle.zIndex}`
+                        );
+
+                        const edges = useStore.getState().edges;
+                        console.log(`Total edges: ${edges.length}`);
+
+                        setTimeout(() => {
+                            const edgeElements =
+                                document.querySelectorAll(".react-flow__edge");
+                            if (edgeElements.length) {
+                                const edgeStyle = window.getComputedStyle(
+                                    edgeElements[0]
+                                );
+                                console.log(
+                                    `Edge computed z-index: ${edgeStyle.zIndex}`
+                                );
+                            }
+                        }, 100);
+                    }
+                }
+            }
+        }, [selected, id, data.model?.nodes]);
+
+        useEffect(() => {
             if (!isResizing && node?.style) {
                 const width =
                     typeof node.style.width === "number"
@@ -131,9 +189,6 @@ const ModuleFrameBase = memo(
 
         const handleMouseDown = useCallback(
             (e: React.MouseEvent) => {
-                console.log("Mouse down event triggered", {
-                    isResizing: false,
-                });
                 e.stopPropagation();
                 setIsResizing(true);
                 initialMousePos.current = { x: e.clientX, y: e.clientY };
@@ -141,14 +196,12 @@ const ModuleFrameBase = memo(
                     width: dimensions.width,
                     height: dimensions.height,
                 };
-                console.log("isResizing set to true");
             },
             [dimensions]
         );
 
         const handleMouseMove = useCallback(
             (e: MouseEvent) => {
-                console.log("Mouse move", { isResizing });
                 if (
                     !isResizing ||
                     !initialMousePos.current ||
@@ -168,16 +221,13 @@ const ModuleFrameBase = memo(
                     initialDimensions.current.height + deltaY
                 );
 
-                console.log("New dimensions:", { newWidth, newHeight });
                 setDimensions({ width: newWidth, height: newHeight });
             },
             [isResizing]
         );
 
         const handleMouseUp = useCallback(() => {
-            console.log("Mouse up event triggered", { isResizing: true });
             setIsResizing(false);
-            console.log("isResizing set to false");
 
             const command = commandController.createUpdateNodeCommand(id, {
                 style: {
@@ -202,27 +252,68 @@ const ModuleFrameBase = memo(
             };
         }, [isResizing, handleMouseMove, handleMouseUp]);
 
+        const handleFrameClick = useCallback((e: React.MouseEvent) => {
+            e.stopPropagation();
+        }, []);
+
         return (
             <div
                 ref={nodeRef}
-                className={`relative border-2 border-dashed ${
-                    selected
-                        ? "border-blue-500"
-                        : "border-black/50 dark:border-white/50"
-                } bg-transparent rounded-lg`}
+                className="relative module-frame-node"
                 style={{
                     width: `${dimensions.width}px`,
                     height: `${dimensions.height}px`,
                     minWidth: 200,
                     minHeight: 150,
-                    zIndex: -1,
+                    zIndex: -100,
+
+                    pointerEvents: "none",
                 }}
                 onDoubleClick={handleDoubleClick}
             >
+                {/* Completely transparent center */}
+                <div
+                    className="absolute inset-[5px]"
+                    style={{
+                        pointerEvents: "none",
+                    }}
+                />
+
+                {/* Visual outline - only part that receives clicks for selection */}
+                <div
+                    className={`absolute inset-0 outline-2 outline-dashed rounded-lg ${
+                        selected
+                            ? "outline-blue-500"
+                            : "outline-black/50 dark:outline-white/50"
+                    }`}
+                    style={{
+                        pointerEvents: "auto",
+                        cursor: "pointer",
+                    }}
+                    onClick={handleFrameClick}
+                />
+
+                {/* Move handle - the only element that can be dragged to move the frame */}
+                <div
+                    className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-white dark:bg-zinc-800 rounded-full border border-gray-300 dark:border-gray-600 shadow-sm nodrag"
+                    style={{
+                        pointerEvents: "auto",
+                        cursor: "move",
+                        zIndex: 2,
+                    }}
+                >
+                    <MoveIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                </div>
+
                 {/* Resize handle */}
                 <div
-                    className="absolute w-4 h-4 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
-                    style={{ right: -10, bottom: -10 }}
+                    className="absolute w-6 h-6 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
+                    style={{
+                        right: -3,
+                        bottom: -3,
+                        zIndex: 1,
+                        pointerEvents: "auto",
+                    }}
                     onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -233,7 +324,10 @@ const ModuleFrameBase = memo(
                 </div>
 
                 {/* Module name */}
-                <div className="absolute bottom-2 left-2">
+                <div
+                    className="absolute bottom-2 left-2 px-1 py-0.5 bg-white/80 dark:bg-zinc-800/80 rounded"
+                    style={{ zIndex: 1, pointerEvents: "auto" }}
+                >
                     {isEditing ? (
                         <input
                             type="text"

@@ -13,7 +13,10 @@ export class NodeController {
         }
 
         useStore.setState((state) => ({
-            nodes: [...state.nodes, node],
+            nodes:
+                node.type === "moduleFrame"
+                    ? [node, ...state.nodes]
+                    : [...state.nodes, node],
         }));
     }
 
