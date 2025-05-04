@@ -154,7 +154,7 @@ export default function DiagramEditor() {
     });
 
     return (
-        <div className="w-screen h-screen flex flex-col">
+        <div className="w-screen h-screen flex flex-col overflow-hidden">
             <Toolbar
                 onSave={handleSave}
                 onLoad={handleLoad}
@@ -166,7 +166,7 @@ export default function DiagramEditor() {
                 lastAction={lastAction}
                 onShowShortcuts={handleShowShortcuts}
             />
-            <div className="flex-1 flex">
+            <div className="flex-1 flex overflow-hidden">
                 <ComponentDrawer />
                 <DiagramCanvas />
                 {selectedProperties.length > 0 || selectionInfo ? (

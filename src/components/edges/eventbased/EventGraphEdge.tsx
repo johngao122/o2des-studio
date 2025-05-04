@@ -679,22 +679,8 @@ const EventGraphEdge = memo(
             parameterMarkerY = result.threeQuarterPointY;
             parameterMarkerAngle = result.paramTangentAngle || 0;
 
-            const baseOffset = DELAY_LABEL_CONFIG.baseOffset;
-            const offsetParamPoint = calculateOffsetPointForEdge(
-                parameterMarkerX,
-                parameterMarkerY,
-                parameterMarkerAngle,
-                baseOffset,
-                sourceX,
-                sourceY,
-                targetX,
-                targetY,
-                undefined,
-                DELAY_LABEL_CONFIG.minScaleFactor,
-                DELAY_LABEL_CONFIG.maxScaleFactor
-            );
-            parameterLabelX = offsetParamPoint.x;
-            parameterLabelY = offsetParamPoint.y;
+            parameterLabelX = parameterMarkerX;
+            parameterLabelY = parameterMarkerY;
         } else {
             const markerX = sourceX * 0.75 + targetX * 0.25;
             const markerY = sourceY * 0.75 + targetY * 0.25;
@@ -750,8 +736,8 @@ const EventGraphEdge = memo(
                 DELAY_LABEL_CONFIG.minScaleFactor,
                 DELAY_LABEL_CONFIG.maxScaleFactor
             );
-            parameterLabelX = offsetParamPoint.x;
-            parameterLabelY = offsetParamPoint.y;
+            parameterLabelX = parameterMarkerX;
+            parameterLabelY = parameterMarkerY;
         }
 
         const showConditionMarker =
@@ -1540,13 +1526,19 @@ const EventGraphEdge = memo(
                         </>
                     )}
 
-                    {/* Parameter Label (Near Target) - Display only when not editing */}
+                    {/* Parameter Label on the edge */}
                     {!isEditing && hasParameter && (
                         <div
                             style={{
                                 position: "absolute",
-                                transform: `translate(-50%, -50%) translate(${parameterLabelX}px,${parameterLabelY}px)`,
+                                transform: `translate(-50%, -50%) translate(${parameterLabelX}px,${parameterLabelY}px) rotate(${
+                                    parameterMarkerAngle > 90 ||
+                                    parameterMarkerAngle < -90
+                                        ? parameterMarkerAngle + 180
+                                        : parameterMarkerAngle
+                                }deg)`,
                                 pointerEvents: "all",
+                                zIndex: 10,
                             }}
                             className="nodrag nopan"
                         >
@@ -1560,11 +1552,11 @@ const EventGraphEdge = memo(
                                 className={`edge-label-param flex justify-center items-center ${
                                     selected
                                         ? "bg-blue-50 dark:bg-blue-900/50"
-                                        : "bg-white/70 dark:bg-zinc-800/70"
-                                } p-1 rounded text-xs ${
+                                        : "bg-white/90 dark:bg-zinc-800/90"
+                                } px-2 py-1 rounded-full text-xs ${
                                     selected
                                         ? "shadow-md border border-blue-300 dark:border-blue-600"
-                                        : "shadow"
+                                        : "shadow border border-gray-200 dark:border-gray-700"
                                 } ${!isEditing ? "cursor-ew-resize" : ""} ${
                                     isParamDragging ? "opacity-70" : ""
                                 }`}
@@ -1584,44 +1576,6 @@ const EventGraphEdge = memo(
                                     <MathJax>{data.parameter}</MathJax>
                                 ) : null}
                             </div>
-                        </div>
-                    )}
-
-                    {/* Connector line for parameter label */}
-                    {!isEditing && hasParameter && (
-                        <div
-                            style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                pointerEvents: "none",
-                                width: "100%",
-                                height: "100%",
-                            }}
-                            className="nodrag nopan"
-                        >
-                            <svg
-                                width="100%"
-                                height="100%"
-                                style={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    pointerEvents: "none",
-                                    overflow: "visible",
-                                }}
-                            >
-                                <path
-                                    d={`M ${parameterMarkerX} ${parameterMarkerY} L ${parameterLabelX} ${parameterLabelY}`}
-                                    stroke={selected ? "#3b82f6" : "#6b7280"}
-                                    strokeWidth={selected ? 1.5 : 1}
-                                    strokeDasharray={
-                                        DELAY_LABEL_CONFIG.connectorDashArray
-                                    }
-                                    fill="none"
-                                    strokeOpacity={selected ? 0.8 : 0.6}
-                                />
-                            </svg>
                         </div>
                     )}
                 </EdgeLabelRenderer>
