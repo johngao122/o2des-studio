@@ -147,6 +147,13 @@ const EventGraphEdge = memo(
         const delayLabelRef = useRef<HTMLDivElement>(null);
         const paramLabelRef = useRef<HTMLDivElement>(null);
 
+        // Refs to prevent layout thrashing
+        const flowPaneRef = useRef<Element | null>(null);
+        const transformMatrixRef = useRef<ReturnType<
+            typeof parseTransformMatrix
+        > | null>(null);
+        const mousePosRef = useRef<{ x: number; y: number } | null>(null);
+
         const [tempControlPoint, setTempControlPoint] = useState<{
             x: number;
             y: number;
@@ -202,6 +209,10 @@ const EventGraphEdge = memo(
                         y: controlPoint.y + deltaY,
                     };
 
+                    if (selected) {
+                        setTempControlPoint(newControlPoint);
+                    }
+
                     const command = commandController.createUpdateEdgeCommand(
                         id,
                         {
@@ -222,9 +233,9 @@ const EventGraphEdge = memo(
                         lastUpdateTime: Date.now(),
                     };
                 },
-                50
+                selected ? 16 : 50
             ),
-            [id, data]
+            [id, data, selected]
         );
 
         useEffect(() => {
@@ -254,6 +265,28 @@ const EventGraphEdge = memo(
                     return;
                 }
 
+                if (selected) {
+                    const sourceDeltaX =
+                        sourceX - prevPositions.current.sourceX;
+                    const sourceDeltaY =
+                        sourceY - prevPositions.current.sourceY;
+                    const targetDeltaX =
+                        targetX - prevPositions.current.targetX;
+                    const targetDeltaY =
+                        targetY - prevPositions.current.targetY;
+
+                    const tWeight = 0.5;
+                    const deltaX =
+                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                    const deltaY =
+                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+
+                    setTempControlPoint({
+                        x: data.controlPoint.x + deltaX,
+                        y: data.controlPoint.y + deltaY,
+                    });
+                }
+
                 debouncedControlPointUpdate(
                     sourceX,
                     sourceY,
@@ -272,6 +305,7 @@ const EventGraphEdge = memo(
             data?.edgeType,
             data?.controlPoint,
             debouncedControlPointUpdate,
+            selected,
         ]);
 
         const edgeStyle = {
@@ -287,6 +321,8 @@ const EventGraphEdge = memo(
                 case "bezier":
                     const controlPoint =
                         isDragging && tempControlPoint
+                            ? tempControlPoint
+                            : tempControlPoint && selected
                             ? tempControlPoint
                             : data?.controlPoint;
 
@@ -840,12 +876,17 @@ const EventGraphEdge = memo(
 
             e.stopPropagation();
 
-            const flowPane = document.querySelector(".react-flow__viewport");
+            // Read DOM once at the start of the drag
+            flowPaneRef.current = document.querySelector(
+                ".react-flow__viewport"
+            );
 
-            if (flowPane) {
-                const transformStyle =
-                    window.getComputedStyle(flowPane).transform;
-                const transformMatrix = parseTransformMatrix(transformStyle);
+            if (flowPaneRef.current) {
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
 
                 const currentControlPoint =
                     data?.controlPoint ||
@@ -859,9 +900,10 @@ const EventGraphEdge = memo(
                 const mousePosition = clientToFlowPosition(
                     e.clientX,
                     e.clientY,
-                    transformMatrix
+                    transformMatrixRef.current
                 );
 
+                // Batch all writes
                 const offsetX = currentControlPoint.x - mousePosition.x;
                 const offsetY = currentControlPoint.y - mousePosition.y;
 
@@ -887,26 +929,35 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                const flowPane = document.querySelector(
-                    ".react-flow__viewport"
-                );
+                // Batch reads
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
 
-                if (flowPane) {
-                    const transformStyle =
-                        window.getComputedStyle(flowPane).transform;
-                    const transformMatrix =
-                        parseTransformMatrix(transformStyle);
+                if (flowPaneRef.current) {
+                    if (!transformMatrixRef.current) {
+                        const transformStyle = window.getComputedStyle(
+                            flowPaneRef.current
+                        ).transform;
+                        transformMatrixRef.current =
+                            parseTransformMatrix(transformStyle);
+                    }
 
-                    const mousePosition = clientToFlowPosition(
+                    // Read: compute mouse position once
+                    mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrix
+                        transformMatrixRef.current
                     );
 
-                    const x = mousePosition.x + dragOffset.x;
-                    const y = mousePosition.y + dragOffset.y;
-
-                    setTempControlPoint({ x, y });
+                    // Write: Update state in a single batch
+                    if (mousePosRef.current) {
+                        const x = mousePosRef.current.x + dragOffset.x;
+                        const y = mousePosRef.current.y + dragOffset.y;
+                        setTempControlPoint({ x, y });
+                    }
                 }
             }, 16),
             [isDragging, isEditing, data, tempControlPoint, dragOffset]
@@ -946,6 +997,19 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
+            // Read DOM once at the start of the drag
+            flowPaneRef.current = document.querySelector(
+                ".react-flow__viewport"
+            );
+
+            if (flowPaneRef.current) {
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
+            }
+
             setIsDelayDragging(true);
             document.body.style.cursor = "grabbing";
         };
@@ -957,56 +1021,69 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                const flowPane = document.querySelector(
-                    ".react-flow__viewport"
-                );
+                // Batch reads
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
 
-                if (flowPane) {
-                    const transformStyle =
-                        window.getComputedStyle(flowPane).transform;
-                    const transformMatrix =
-                        parseTransformMatrix(transformStyle);
+                if (flowPaneRef.current) {
+                    if (!transformMatrixRef.current) {
+                        const transformStyle = window.getComputedStyle(
+                            flowPaneRef.current
+                        ).transform;
+                        transformMatrixRef.current =
+                            parseTransformMatrix(transformStyle);
+                    }
 
-                    const mousePosition = clientToFlowPosition(
+                    // Read: compute mouse position once
+                    mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrix
+                        transformMatrixRef.current
                     );
 
-                    if (data?.edgeType === "bezier") {
-                        const projection = projectPointOntoBezierCurve(
-                            mousePosition,
-                            sourceX,
-                            sourceY,
-                            data?.controlPoint ||
-                                calculateDefaultControlPoint(
-                                    sourceX,
-                                    sourceY,
-                                    targetX,
-                                    targetY
-                                ),
-                            targetX,
-                            targetY,
-                            0.05,
-                            0.45
-                        );
+                    // Write: all calculations and state updates
+                    if (mousePosRef.current) {
+                        if (data?.edgeType === "bezier") {
+                            const projection = projectPointOntoBezierCurve(
+                                mousePosRef.current,
+                                sourceX,
+                                sourceY,
+                                data?.controlPoint ||
+                                    calculateDefaultControlPoint(
+                                        sourceX,
+                                        sourceY,
+                                        targetX,
+                                        targetY
+                                    ),
+                                targetX,
+                                targetY,
+                                0.05,
+                                0.45
+                            );
 
-                        setTempDelayPosition(projection.t);
-                    } else {
-                        const lineLength = Math.sqrt(
-                            Math.pow(targetX - sourceX, 2) +
-                                Math.pow(targetY - sourceY, 2)
-                        );
+                            setTempDelayPosition(projection.t);
+                        } else {
+                            const lineLength = Math.sqrt(
+                                Math.pow(targetX - sourceX, 2) +
+                                    Math.pow(targetY - sourceY, 2)
+                            );
 
-                        const dx = targetX - sourceX;
-                        const dy = targetY - sourceY;
-                        const t =
-                            ((mousePosition.x - sourceX) * dx +
-                                (mousePosition.y - sourceY) * dy) /
-                            (lineLength * lineLength);
+                            const dx = targetX - sourceX;
+                            const dy = targetY - sourceY;
+                            const t =
+                                ((mousePosRef.current.x - sourceX) * dx +
+                                    (mousePosRef.current.y - sourceY) * dy) /
+                                (lineLength * lineLength);
 
-                        const constrainedT = Math.max(0.05, Math.min(0.45, t));
-                        setTempDelayPosition(constrainedT);
+                            const constrainedT = Math.max(
+                                0.05,
+                                Math.min(0.45, t)
+                            );
+                            setTempDelayPosition(constrainedT);
+                        }
                     }
                 }
             }, 16),
@@ -1050,6 +1127,19 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
+            // Read DOM once at the start of the drag
+            flowPaneRef.current = document.querySelector(
+                ".react-flow__viewport"
+            );
+
+            if (flowPaneRef.current) {
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
+            }
+
             setIsParamDragging(true);
             document.body.style.cursor = "grabbing";
         };
@@ -1061,56 +1151,69 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                const flowPane = document.querySelector(
-                    ".react-flow__viewport"
-                );
+                // Batch reads
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
 
-                if (flowPane) {
-                    const transformStyle =
-                        window.getComputedStyle(flowPane).transform;
-                    const transformMatrix =
-                        parseTransformMatrix(transformStyle);
+                if (flowPaneRef.current) {
+                    if (!transformMatrixRef.current) {
+                        const transformStyle = window.getComputedStyle(
+                            flowPaneRef.current
+                        ).transform;
+                        transformMatrixRef.current =
+                            parseTransformMatrix(transformStyle);
+                    }
 
-                    const mousePosition = clientToFlowPosition(
+                    // Read: compute mouse position once
+                    mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrix
+                        transformMatrixRef.current
                     );
 
-                    if (data?.edgeType === "bezier") {
-                        const projection = projectPointOntoBezierCurve(
-                            mousePosition,
-                            sourceX,
-                            sourceY,
-                            data?.controlPoint ||
-                                calculateDefaultControlPoint(
-                                    sourceX,
-                                    sourceY,
-                                    targetX,
-                                    targetY
-                                ),
-                            targetX,
-                            targetY,
-                            0.55,
-                            0.95
-                        );
+                    // Write: all calculations and state updates
+                    if (mousePosRef.current) {
+                        if (data?.edgeType === "bezier") {
+                            const projection = projectPointOntoBezierCurve(
+                                mousePosRef.current,
+                                sourceX,
+                                sourceY,
+                                data?.controlPoint ||
+                                    calculateDefaultControlPoint(
+                                        sourceX,
+                                        sourceY,
+                                        targetX,
+                                        targetY
+                                    ),
+                                targetX,
+                                targetY,
+                                0.55,
+                                0.95
+                            );
 
-                        setTempParamPosition(projection.t);
-                    } else {
-                        const lineLength = Math.sqrt(
-                            Math.pow(targetX - sourceX, 2) +
-                                Math.pow(targetY - sourceY, 2)
-                        );
+                            setTempParamPosition(projection.t);
+                        } else {
+                            const lineLength = Math.sqrt(
+                                Math.pow(targetX - sourceX, 2) +
+                                    Math.pow(targetY - sourceY, 2)
+                            );
 
-                        const dx = targetX - sourceX;
-                        const dy = targetY - sourceY;
-                        const t =
-                            ((mousePosition.x - sourceX) * dx +
-                                (mousePosition.y - sourceY) * dy) /
-                            (lineLength * lineLength);
+                            const dx = targetX - sourceX;
+                            const dy = targetY - sourceY;
+                            const t =
+                                ((mousePosRef.current.x - sourceX) * dx +
+                                    (mousePosRef.current.y - sourceY) * dy) /
+                                (lineLength * lineLength);
 
-                        const constrainedT = Math.max(0.55, Math.min(0.95, t));
-                        setTempParamPosition(constrainedT);
+                            const constrainedT = Math.max(
+                                0.55,
+                                Math.min(0.95, t)
+                            );
+                            setTempParamPosition(constrainedT);
+                        }
                     }
                 }
             }, 16),
@@ -1149,6 +1252,20 @@ const EventGraphEdge = memo(
             document.body.style.cursor = "";
         }, [isParamDragging, tempParamPosition, data, id]);
 
+        // Reset the transformMatrix when the edge position changes significantly
+        useEffect(() => {
+            // Reset transform matrix when node positions change significantly
+            if (
+                Math.abs(sourceX - prevPositions.current.sourceX) > 5 ||
+                Math.abs(sourceY - prevPositions.current.sourceY) > 5 ||
+                Math.abs(targetX - prevPositions.current.targetX) > 5 ||
+                Math.abs(targetY - prevPositions.current.targetY) > 5
+            ) {
+                transformMatrixRef.current = null;
+            }
+        }, [sourceX, sourceY, targetX, targetY]);
+
+        // Add event listeners during active drag operations
         useEffect(() => {
             if (isDragging) {
                 window.addEventListener("mousemove", handleDrag as any);
@@ -1362,13 +1479,25 @@ const EventGraphEdge = memo(
                                 <>
                                     {/* Condition */}
                                     <div className="condition">
-                                        <MathJax>
-                                            {typeof data?.condition ===
-                                                "string" &&
-                                            data.condition.trim() !== ""
-                                                ? data.condition
-                                                : "True"}
-                                        </MathJax>
+                                        {isDragging ||
+                                        isDelayDragging ||
+                                        isParamDragging ? (
+                                            <span>
+                                                {typeof data?.condition ===
+                                                    "string" &&
+                                                data.condition.trim() !== ""
+                                                    ? data.condition
+                                                    : "True"}
+                                            </span>
+                                        ) : (
+                                            <MathJax>
+                                                {typeof data?.condition ===
+                                                    "string" &&
+                                                data.condition.trim() !== ""
+                                                    ? data.condition
+                                                    : "True"}
+                                            </MathJax>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -1415,12 +1544,21 @@ const EventGraphEdge = memo(
                                         : "default",
                                 }}
                             >
-                                <MathJax>
-                                    {typeof data?.delay === "string" &&
-                                    data.delay.trim() !== ""
-                                        ? `{${data.delay}}`
-                                        : "{}"}
-                                </MathJax>
+                                {isDelayDragging ? (
+                                    <span>
+                                        {typeof data?.delay === "string" &&
+                                        data.delay.trim() !== ""
+                                            ? `{${data.delay}}`
+                                            : "{}"}
+                                    </span>
+                                ) : (
+                                    <MathJax>
+                                        {typeof data?.delay === "string" &&
+                                        data.delay.trim() !== ""
+                                            ? `{${data.delay}}`
+                                            : "{}"}
+                                    </MathJax>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1571,10 +1709,21 @@ const EventGraphEdge = memo(
                                         : "default",
                                 }}
                             >
-                                {typeof data.parameter === "string" &&
-                                data.parameter.trim() !== "" ? (
-                                    <MathJax>{data.parameter}</MathJax>
-                                ) : null}
+                                {isParamDragging ? (
+                                    <span>
+                                        {typeof data.parameter === "string" &&
+                                        data.parameter.trim() !== ""
+                                            ? data.parameter
+                                            : ""}
+                                    </span>
+                                ) : (
+                                    <MathJax>
+                                        {typeof data.parameter === "string" &&
+                                        data.parameter.trim() !== ""
+                                            ? data.parameter
+                                            : ""}
+                                    </MathJax>
+                                )}
                             </div>
                         </div>
                     )}

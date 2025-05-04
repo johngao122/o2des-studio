@@ -91,16 +91,14 @@ function FlowCanvas() {
     }, []);
 
     const nodesWithData = useMemo(() => {
-        // Sort nodes to put ModuleFrame nodes first (so they render behind other nodes)
         const sortedNodes = [...nodes].sort((a, b) => {
-            // ModuleFrame nodes should come first
             if (a.type === "moduleFrame" && b.type !== "moduleFrame") {
                 return -1;
             }
             if (a.type !== "moduleFrame" && b.type === "moduleFrame") {
                 return 1;
             }
-            // If both are moduleFrames or both are not, preserve original order
+
             return 0;
         });
 
@@ -223,6 +221,39 @@ function FlowCanvas() {
         const selectionChanges = changes.filter(
             (change) => change.type === "select"
         );
+
+        const positionChanges = changes.filter(
+            (change) => change.type === "position"
+        );
+
+        if (positionChanges.length > 0) {
+            const { nodes, edges } = useStore.getState();
+            const selectedNodeIds = useStore.getState().selectedElements.nodes;
+            const selectedEdgeIds = useStore.getState().selectedElements.edges;
+
+            const connectedEdges = edges.filter(
+                (edge) =>
+                    selectedNodeIds.includes(edge.source) ||
+                    selectedNodeIds.includes(edge.target)
+            );
+
+            const edgesToSelect = connectedEdges
+                .filter((edge) => !selectedEdgeIds.includes(edge.id))
+                .map((edge) => edge.id);
+
+            if (edgesToSelect.length > 0) {
+                const { onEdgesChange } = useStore.getState();
+                requestAnimationFrame(() => {
+                    onEdgesChange(
+                        edgesToSelect.map((id) => ({
+                            id,
+                            type: "select" as const,
+                            selected: true,
+                        }))
+                    );
+                });
+            }
+        }
 
         if (selectionChanges.length > 0) {
             const isDragOperation = changes.some(
