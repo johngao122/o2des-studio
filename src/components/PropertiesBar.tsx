@@ -79,12 +79,17 @@ export function PropertiesBar({
     };
 
     return (
-        <div className={cn("w-64 bg-background p-4 border-l", className)}>
+        <div
+            className={cn(
+                "w-64 bg-background p-4 border-l flex flex-col h-full",
+                className
+            )}
+        >
             <h3 className="text-lg font-semibold mb-4">Properties</h3>
 
             {renderMultiSelectionMessage()}
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1">
                 {properties.map((property) => {
                     return (
                         <div key={property.key}>

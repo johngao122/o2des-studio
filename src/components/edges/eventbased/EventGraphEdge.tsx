@@ -147,6 +147,13 @@ const EventGraphEdge = memo(
         const delayLabelRef = useRef<HTMLDivElement>(null);
         const paramLabelRef = useRef<HTMLDivElement>(null);
 
+        // Refs to prevent layout thrashing
+        const flowPaneRef = useRef<Element | null>(null);
+        const transformMatrixRef = useRef<ReturnType<
+            typeof parseTransformMatrix
+        > | null>(null);
+        const mousePosRef = useRef<{ x: number; y: number } | null>(null);
+
         const [tempControlPoint, setTempControlPoint] = useState<{
             x: number;
             y: number;
@@ -202,6 +209,10 @@ const EventGraphEdge = memo(
                         y: controlPoint.y + deltaY,
                     };
 
+                    if (selected) {
+                        setTempControlPoint(newControlPoint);
+                    }
+
                     const command = commandController.createUpdateEdgeCommand(
                         id,
                         {
@@ -222,9 +233,9 @@ const EventGraphEdge = memo(
                         lastUpdateTime: Date.now(),
                     };
                 },
-                50
+                selected ? 16 : 50
             ),
-            [id, data]
+            [id, data, selected]
         );
 
         useEffect(() => {
@@ -254,6 +265,28 @@ const EventGraphEdge = memo(
                     return;
                 }
 
+                if (selected) {
+                    const sourceDeltaX =
+                        sourceX - prevPositions.current.sourceX;
+                    const sourceDeltaY =
+                        sourceY - prevPositions.current.sourceY;
+                    const targetDeltaX =
+                        targetX - prevPositions.current.targetX;
+                    const targetDeltaY =
+                        targetY - prevPositions.current.targetY;
+
+                    const tWeight = 0.5;
+                    const deltaX =
+                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                    const deltaY =
+                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+
+                    setTempControlPoint({
+                        x: data.controlPoint.x + deltaX,
+                        y: data.controlPoint.y + deltaY,
+                    });
+                }
+
                 debouncedControlPointUpdate(
                     sourceX,
                     sourceY,
@@ -272,6 +305,7 @@ const EventGraphEdge = memo(
             data?.edgeType,
             data?.controlPoint,
             debouncedControlPointUpdate,
+            selected,
         ]);
 
         const edgeStyle = {
@@ -287,6 +321,8 @@ const EventGraphEdge = memo(
                 case "bezier":
                     const controlPoint =
                         isDragging && tempControlPoint
+                            ? tempControlPoint
+                            : tempControlPoint && selected
                             ? tempControlPoint
                             : data?.controlPoint;
 
@@ -679,22 +715,8 @@ const EventGraphEdge = memo(
             parameterMarkerY = result.threeQuarterPointY;
             parameterMarkerAngle = result.paramTangentAngle || 0;
 
-            const baseOffset = DELAY_LABEL_CONFIG.baseOffset;
-            const offsetParamPoint = calculateOffsetPointForEdge(
-                parameterMarkerX,
-                parameterMarkerY,
-                parameterMarkerAngle,
-                baseOffset,
-                sourceX,
-                sourceY,
-                targetX,
-                targetY,
-                undefined,
-                DELAY_LABEL_CONFIG.minScaleFactor,
-                DELAY_LABEL_CONFIG.maxScaleFactor
-            );
-            parameterLabelX = offsetParamPoint.x;
-            parameterLabelY = offsetParamPoint.y;
+            parameterLabelX = parameterMarkerX;
+            parameterLabelY = parameterMarkerY;
         } else {
             const markerX = sourceX * 0.75 + targetX * 0.25;
             const markerY = sourceY * 0.75 + targetY * 0.25;
@@ -750,8 +772,8 @@ const EventGraphEdge = memo(
                 DELAY_LABEL_CONFIG.minScaleFactor,
                 DELAY_LABEL_CONFIG.maxScaleFactor
             );
-            parameterLabelX = offsetParamPoint.x;
-            parameterLabelY = offsetParamPoint.y;
+            parameterLabelX = parameterMarkerX;
+            parameterLabelY = parameterMarkerY;
         }
 
         const showConditionMarker =
@@ -774,7 +796,25 @@ const EventGraphEdge = memo(
                 const currentTarget = event.currentTarget;
                 const relatedTarget = event.relatedTarget as HTMLElement | null;
 
-                if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+                const isSelectDropdown =
+                    relatedTarget &&
+                    (relatedTarget.closest('[role="listbox"]') ||
+                        relatedTarget.hasAttribute(
+                            "data-radix-select-viewport"
+                        ) ||
+                        relatedTarget.classList.contains("select-content") ||
+                        relatedTarget.classList.contains("select-item") ||
+                        relatedTarget.classList.contains("select-trigger") ||
+                        (relatedTarget.className &&
+                            typeof relatedTarget.className === "string" &&
+                            (relatedTarget.className.includes("radix") ||
+                                relatedTarget.className.includes("select"))));
+
+                if (
+                    !relatedTarget ||
+                    (!currentTarget.contains(relatedTarget) &&
+                        !isSelectDropdown)
+                ) {
                     setIsEditing(false);
 
                     const updatedData: EventGraphEdgeData = {
@@ -836,12 +876,17 @@ const EventGraphEdge = memo(
 
             e.stopPropagation();
 
-            const flowPane = document.querySelector(".react-flow__viewport");
+            // Read DOM once at the start of the drag
+            flowPaneRef.current = document.querySelector(
+                ".react-flow__viewport"
+            );
 
-            if (flowPane) {
-                const transformStyle =
-                    window.getComputedStyle(flowPane).transform;
-                const transformMatrix = parseTransformMatrix(transformStyle);
+            if (flowPaneRef.current) {
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
 
                 const currentControlPoint =
                     data?.controlPoint ||
@@ -855,9 +900,10 @@ const EventGraphEdge = memo(
                 const mousePosition = clientToFlowPosition(
                     e.clientX,
                     e.clientY,
-                    transformMatrix
+                    transformMatrixRef.current
                 );
 
+                // Batch all writes
                 const offsetX = currentControlPoint.x - mousePosition.x;
                 const offsetY = currentControlPoint.y - mousePosition.y;
 
@@ -883,26 +929,35 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                const flowPane = document.querySelector(
-                    ".react-flow__viewport"
-                );
+                // Batch reads
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
 
-                if (flowPane) {
-                    const transformStyle =
-                        window.getComputedStyle(flowPane).transform;
-                    const transformMatrix =
-                        parseTransformMatrix(transformStyle);
+                if (flowPaneRef.current) {
+                    if (!transformMatrixRef.current) {
+                        const transformStyle = window.getComputedStyle(
+                            flowPaneRef.current
+                        ).transform;
+                        transformMatrixRef.current =
+                            parseTransformMatrix(transformStyle);
+                    }
 
-                    const mousePosition = clientToFlowPosition(
+                    // Read: compute mouse position once
+                    mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrix
+                        transformMatrixRef.current
                     );
 
-                    const x = mousePosition.x + dragOffset.x;
-                    const y = mousePosition.y + dragOffset.y;
-
-                    setTempControlPoint({ x, y });
+                    // Write: Update state in a single batch
+                    if (mousePosRef.current) {
+                        const x = mousePosRef.current.x + dragOffset.x;
+                        const y = mousePosRef.current.y + dragOffset.y;
+                        setTempControlPoint({ x, y });
+                    }
                 }
             }, 16),
             [isDragging, isEditing, data, tempControlPoint, dragOffset]
@@ -942,6 +997,19 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
+            // Read DOM once at the start of the drag
+            flowPaneRef.current = document.querySelector(
+                ".react-flow__viewport"
+            );
+
+            if (flowPaneRef.current) {
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
+            }
+
             setIsDelayDragging(true);
             document.body.style.cursor = "grabbing";
         };
@@ -953,56 +1021,69 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                const flowPane = document.querySelector(
-                    ".react-flow__viewport"
-                );
+                // Batch reads
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
 
-                if (flowPane) {
-                    const transformStyle =
-                        window.getComputedStyle(flowPane).transform;
-                    const transformMatrix =
-                        parseTransformMatrix(transformStyle);
+                if (flowPaneRef.current) {
+                    if (!transformMatrixRef.current) {
+                        const transformStyle = window.getComputedStyle(
+                            flowPaneRef.current
+                        ).transform;
+                        transformMatrixRef.current =
+                            parseTransformMatrix(transformStyle);
+                    }
 
-                    const mousePosition = clientToFlowPosition(
+                    // Read: compute mouse position once
+                    mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrix
+                        transformMatrixRef.current
                     );
 
-                    if (data?.edgeType === "bezier") {
-                        const projection = projectPointOntoBezierCurve(
-                            mousePosition,
-                            sourceX,
-                            sourceY,
-                            data?.controlPoint ||
-                                calculateDefaultControlPoint(
-                                    sourceX,
-                                    sourceY,
-                                    targetX,
-                                    targetY
-                                ),
-                            targetX,
-                            targetY,
-                            0.05,
-                            0.45
-                        );
+                    // Write: all calculations and state updates
+                    if (mousePosRef.current) {
+                        if (data?.edgeType === "bezier") {
+                            const projection = projectPointOntoBezierCurve(
+                                mousePosRef.current,
+                                sourceX,
+                                sourceY,
+                                data?.controlPoint ||
+                                    calculateDefaultControlPoint(
+                                        sourceX,
+                                        sourceY,
+                                        targetX,
+                                        targetY
+                                    ),
+                                targetX,
+                                targetY,
+                                0.05,
+                                0.45
+                            );
 
-                        setTempDelayPosition(projection.t);
-                    } else {
-                        const lineLength = Math.sqrt(
-                            Math.pow(targetX - sourceX, 2) +
-                                Math.pow(targetY - sourceY, 2)
-                        );
+                            setTempDelayPosition(projection.t);
+                        } else {
+                            const lineLength = Math.sqrt(
+                                Math.pow(targetX - sourceX, 2) +
+                                    Math.pow(targetY - sourceY, 2)
+                            );
 
-                        const dx = targetX - sourceX;
-                        const dy = targetY - sourceY;
-                        const t =
-                            ((mousePosition.x - sourceX) * dx +
-                                (mousePosition.y - sourceY) * dy) /
-                            (lineLength * lineLength);
+                            const dx = targetX - sourceX;
+                            const dy = targetY - sourceY;
+                            const t =
+                                ((mousePosRef.current.x - sourceX) * dx +
+                                    (mousePosRef.current.y - sourceY) * dy) /
+                                (lineLength * lineLength);
 
-                        const constrainedT = Math.max(0.05, Math.min(0.45, t));
-                        setTempDelayPosition(constrainedT);
+                            const constrainedT = Math.max(
+                                0.05,
+                                Math.min(0.45, t)
+                            );
+                            setTempDelayPosition(constrainedT);
+                        }
                     }
                 }
             }, 16),
@@ -1046,6 +1127,19 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
+            // Read DOM once at the start of the drag
+            flowPaneRef.current = document.querySelector(
+                ".react-flow__viewport"
+            );
+
+            if (flowPaneRef.current) {
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
+            }
+
             setIsParamDragging(true);
             document.body.style.cursor = "grabbing";
         };
@@ -1057,56 +1151,69 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                const flowPane = document.querySelector(
-                    ".react-flow__viewport"
-                );
+                // Batch reads
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
 
-                if (flowPane) {
-                    const transformStyle =
-                        window.getComputedStyle(flowPane).transform;
-                    const transformMatrix =
-                        parseTransformMatrix(transformStyle);
+                if (flowPaneRef.current) {
+                    if (!transformMatrixRef.current) {
+                        const transformStyle = window.getComputedStyle(
+                            flowPaneRef.current
+                        ).transform;
+                        transformMatrixRef.current =
+                            parseTransformMatrix(transformStyle);
+                    }
 
-                    const mousePosition = clientToFlowPosition(
+                    // Read: compute mouse position once
+                    mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrix
+                        transformMatrixRef.current
                     );
 
-                    if (data?.edgeType === "bezier") {
-                        const projection = projectPointOntoBezierCurve(
-                            mousePosition,
-                            sourceX,
-                            sourceY,
-                            data?.controlPoint ||
-                                calculateDefaultControlPoint(
-                                    sourceX,
-                                    sourceY,
-                                    targetX,
-                                    targetY
-                                ),
-                            targetX,
-                            targetY,
-                            0.55,
-                            0.95
-                        );
+                    // Write: all calculations and state updates
+                    if (mousePosRef.current) {
+                        if (data?.edgeType === "bezier") {
+                            const projection = projectPointOntoBezierCurve(
+                                mousePosRef.current,
+                                sourceX,
+                                sourceY,
+                                data?.controlPoint ||
+                                    calculateDefaultControlPoint(
+                                        sourceX,
+                                        sourceY,
+                                        targetX,
+                                        targetY
+                                    ),
+                                targetX,
+                                targetY,
+                                0.55,
+                                0.95
+                            );
 
-                        setTempParamPosition(projection.t);
-                    } else {
-                        const lineLength = Math.sqrt(
-                            Math.pow(targetX - sourceX, 2) +
-                                Math.pow(targetY - sourceY, 2)
-                        );
+                            setTempParamPosition(projection.t);
+                        } else {
+                            const lineLength = Math.sqrt(
+                                Math.pow(targetX - sourceX, 2) +
+                                    Math.pow(targetY - sourceY, 2)
+                            );
 
-                        const dx = targetX - sourceX;
-                        const dy = targetY - sourceY;
-                        const t =
-                            ((mousePosition.x - sourceX) * dx +
-                                (mousePosition.y - sourceY) * dy) /
-                            (lineLength * lineLength);
+                            const dx = targetX - sourceX;
+                            const dy = targetY - sourceY;
+                            const t =
+                                ((mousePosRef.current.x - sourceX) * dx +
+                                    (mousePosRef.current.y - sourceY) * dy) /
+                                (lineLength * lineLength);
 
-                        const constrainedT = Math.max(0.55, Math.min(0.95, t));
-                        setTempParamPosition(constrainedT);
+                            const constrainedT = Math.max(
+                                0.55,
+                                Math.min(0.95, t)
+                            );
+                            setTempParamPosition(constrainedT);
+                        }
                     }
                 }
             }, 16),
@@ -1145,6 +1252,20 @@ const EventGraphEdge = memo(
             document.body.style.cursor = "";
         }, [isParamDragging, tempParamPosition, data, id]);
 
+        // Reset the transformMatrix when the edge position changes significantly
+        useEffect(() => {
+            // Reset transform matrix when node positions change significantly
+            if (
+                Math.abs(sourceX - prevPositions.current.sourceX) > 5 ||
+                Math.abs(sourceY - prevPositions.current.sourceY) > 5 ||
+                Math.abs(targetX - prevPositions.current.targetX) > 5 ||
+                Math.abs(targetY - prevPositions.current.targetY) > 5
+            ) {
+                transformMatrixRef.current = null;
+            }
+        }, [sourceX, sourceY, targetX, targetY]);
+
+        // Add event listeners during active drag operations
         useEffect(() => {
             if (isDragging) {
                 window.addEventListener("mousemove", handleDrag as any);
@@ -1358,13 +1479,25 @@ const EventGraphEdge = memo(
                                 <>
                                     {/* Condition */}
                                     <div className="condition">
-                                        <MathJax>
-                                            {typeof data?.condition ===
-                                                "string" &&
-                                            data.condition.trim() !== ""
-                                                ? data.condition
-                                                : "True"}
-                                        </MathJax>
+                                        {isDragging ||
+                                        isDelayDragging ||
+                                        isParamDragging ? (
+                                            <span>
+                                                {typeof data?.condition ===
+                                                    "string" &&
+                                                data.condition.trim() !== ""
+                                                    ? data.condition
+                                                    : "True"}
+                                            </span>
+                                        ) : (
+                                            <MathJax>
+                                                {typeof data?.condition ===
+                                                    "string" &&
+                                                data.condition.trim() !== ""
+                                                    ? data.condition
+                                                    : "True"}
+                                            </MathJax>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -1411,12 +1544,21 @@ const EventGraphEdge = memo(
                                         : "default",
                                 }}
                             >
-                                <MathJax>
-                                    {typeof data?.delay === "string" &&
-                                    data.delay.trim() !== ""
-                                        ? `{${data.delay}}`
-                                        : "{}"}
-                                </MathJax>
+                                {isDelayDragging ? (
+                                    <span>
+                                        {typeof data?.delay === "string" &&
+                                        data.delay.trim() !== ""
+                                            ? `{${data.delay}}`
+                                            : "{}"}
+                                    </span>
+                                ) : (
+                                    <MathJax>
+                                        {typeof data?.delay === "string" &&
+                                        data.delay.trim() !== ""
+                                            ? `{${data.delay}}`
+                                            : "{}"}
+                                    </MathJax>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1522,13 +1664,19 @@ const EventGraphEdge = memo(
                         </>
                     )}
 
-                    {/* Parameter Label (Near Target) - Display only when not editing */}
+                    {/* Parameter Label on the edge */}
                     {!isEditing && hasParameter && (
                         <div
                             style={{
                                 position: "absolute",
-                                transform: `translate(-50%, -50%) translate(${parameterLabelX}px,${parameterLabelY}px)`,
+                                transform: `translate(-50%, -50%) translate(${parameterLabelX}px,${parameterLabelY}px) rotate(${
+                                    parameterMarkerAngle > 90 ||
+                                    parameterMarkerAngle < -90
+                                        ? parameterMarkerAngle + 180
+                                        : parameterMarkerAngle
+                                }deg)`,
                                 pointerEvents: "all",
+                                zIndex: 10,
                             }}
                             className="nodrag nopan"
                         >
@@ -1542,11 +1690,11 @@ const EventGraphEdge = memo(
                                 className={`edge-label-param flex justify-center items-center ${
                                     selected
                                         ? "bg-blue-50 dark:bg-blue-900/50"
-                                        : "bg-white/70 dark:bg-zinc-800/70"
-                                } p-1 rounded text-xs ${
+                                        : "bg-white/90 dark:bg-zinc-800/90"
+                                } px-2 py-1 rounded-full text-xs ${
                                     selected
                                         ? "shadow-md border border-blue-300 dark:border-blue-600"
-                                        : "shadow"
+                                        : "shadow border border-gray-200 dark:border-gray-700"
                                 } ${!isEditing ? "cursor-ew-resize" : ""} ${
                                     isParamDragging ? "opacity-70" : ""
                                 }`}
@@ -1561,49 +1709,22 @@ const EventGraphEdge = memo(
                                         : "default",
                                 }}
                             >
-                                {typeof data.parameter === "string" &&
-                                data.parameter.trim() !== "" ? (
-                                    <MathJax>{data.parameter}</MathJax>
-                                ) : null}
+                                {isParamDragging ? (
+                                    <span>
+                                        {typeof data.parameter === "string" &&
+                                        data.parameter.trim() !== ""
+                                            ? data.parameter
+                                            : ""}
+                                    </span>
+                                ) : (
+                                    <MathJax>
+                                        {typeof data.parameter === "string" &&
+                                        data.parameter.trim() !== ""
+                                            ? data.parameter
+                                            : ""}
+                                    </MathJax>
+                                )}
                             </div>
-                        </div>
-                    )}
-
-                    {/* Connector line for parameter label */}
-                    {!isEditing && hasParameter && (
-                        <div
-                            style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                pointerEvents: "none",
-                                width: "100%",
-                                height: "100%",
-                            }}
-                            className="nodrag nopan"
-                        >
-                            <svg
-                                width="100%"
-                                height="100%"
-                                style={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    pointerEvents: "none",
-                                    overflow: "visible",
-                                }}
-                            >
-                                <path
-                                    d={`M ${parameterMarkerX} ${parameterMarkerY} L ${parameterLabelX} ${parameterLabelY}`}
-                                    stroke={selected ? "#3b82f6" : "#6b7280"}
-                                    strokeWidth={selected ? 1.5 : 1}
-                                    strokeDasharray={
-                                        DELAY_LABEL_CONFIG.connectorDashArray
-                                    }
-                                    fill="none"
-                                    strokeOpacity={selected ? 0.8 : 0.6}
-                                />
-                            </svg>
                         </div>
                     )}
                 </EdgeLabelRenderer>

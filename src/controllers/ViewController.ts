@@ -21,14 +21,12 @@ export class ViewController {
     }
 
     zoomIn() {
-        console.log("Zooming in");
         const viewport = this.getViewport();
         const newZoom = viewport.zoom * 1.2;
         this.setViewport(viewport.x, viewport.y, newZoom);
     }
 
     zoomOut() {
-        console.log("Zooming out");
         const viewport = this.getViewport();
         const newZoom = viewport.zoom / 1.2;
         this.setViewport(viewport.x, viewport.y, newZoom);

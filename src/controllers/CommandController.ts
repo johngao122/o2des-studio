@@ -42,17 +42,10 @@ export class CommandController {
 
     execute(command: Command) {
         const commandDesc = command.execute.toString().slice(0, 150) + "...";
-        console.log("Executing command:", commandDesc);
 
         command.execute();
         this.undoStack.push(command);
         this.redoStack = [];
-        console.log(
-            "Command executed - Undo Stack:",
-            this.undoStack.length,
-            "Redo Stack:",
-            this.redoStack.length
-        );
 
         this.autosaveService.autosave();
     }
@@ -62,12 +55,6 @@ export class CommandController {
         if (command) {
             command.undo();
             this.redoStack.push(command);
-            console.log(
-                "Undo performed - Undo Stack:",
-                this.undoStack.length,
-                "Redo Stack:",
-                this.redoStack.length
-            );
 
             this.autosaveService.autosave();
         }
@@ -78,12 +65,6 @@ export class CommandController {
         if (command) {
             command.execute();
             this.undoStack.push(command);
-            console.log(
-                "Redo performed - Undo Stack:",
-                this.undoStack.length,
-                "Redo Stack:",
-                this.redoStack.length
-            );
 
             this.autosaveService.autosave();
         }
@@ -98,11 +79,6 @@ export class CommandController {
     }
 
     createAddNodeCommand(node: BaseNode): Command {
-        console.log("Creating add node command for node:", {
-            id: node.id,
-            type: node.type,
-            position: node.position,
-        });
         return {
             execute: () => {
                 useStore.setState((state) => ({
@@ -191,23 +167,6 @@ export class CommandController {
     }
 
     createNodesChangeCommand(changes: NodeChange[]): Command | null {
-        console.log(
-            "Creating nodes change command:",
-            changes.map((c) => {
-                const base = { type: c.type };
-                if ("id" in c) {
-                    return {
-                        ...base,
-                        id: c.id,
-                        ...(c.type === "position" && "position" in c
-                            ? { position: c.position }
-                            : {}),
-                    };
-                }
-                return base;
-            })
-        );
-
         const positionChanges = changes.filter(
             (change): change is NodePositionChange =>
                 change.type === "position" &&
@@ -338,7 +297,6 @@ export class CommandController {
         switch (true) {
             case sourceGraphType === "eventBased" &&
                 targetGraphType === "eventBased":
-                // Check if source is an initialization node
                 if (sourceType === "initialization") {
                     return "initialization";
                 }
@@ -352,13 +310,6 @@ export class CommandController {
     createConnectCommand(connection: Connection): Command {
         if (!connection.source || !connection.target)
             throw new Error("Invalid connection");
-
-        console.log("Creating edge with connection:", {
-            source: connection.source,
-            sourceHandle: connection.sourceHandle,
-            target: connection.target,
-            targetHandle: connection.targetHandle,
-        });
 
         const { nodes } = useStore.getState();
         const sourceNode = nodes.find((n) => n.id === connection.source);
@@ -401,12 +352,9 @@ export class CommandController {
             data: defaultData,
         };
 
-        console.log("Created edge:", edge);
-
         return {
             execute: () => {
                 useStore.setState((state) => {
-                    console.log("Adding edge to store:", edge);
                     return {
                         edges: addEdge(edge, state.edges) as BaseEdge[],
                     };
@@ -435,6 +383,83 @@ export class CommandController {
             },
             undo: () => {
                 useStore.setState({ viewportTransform: currentViewport });
+            },
+        };
+    }
+
+    createBatchCommand(
+        operations: { type: string; id: string; changes: any }[]
+    ): Command {
+        const state = useStore.getState();
+        const originalNodes = [...state.nodes];
+        const originalEdges = [...state.edges];
+
+        const nodeOperations = operations.filter((op) => op.type === "node");
+        const edgeOperations = operations.filter((op) => op.type === "edge");
+        const nodeIds = [...new Set(nodeOperations.map((op) => op.id))];
+        const edgeIds = [...new Set(edgeOperations.map((op) => op.id))];
+
+        const originalNodePositions = new Map<
+            string,
+            { x: number; y: number }
+        >();
+        nodeIds.forEach((id) => {
+            const node = originalNodes.find((n) => n.id === id);
+            if (node) {
+                originalNodePositions.set(id, { ...node.position });
+            }
+        });
+
+        return {
+            execute: () => {
+                if (nodeOperations.length > 0) {
+                    useStore.setState((state) => {
+                        const updatedNodes = state.nodes.map((node) => {
+                            const operation = nodeOperations.find(
+                                (op) => op.id === node.id
+                            );
+                            if (operation && operation.changes.position) {
+                                return {
+                                    ...node,
+                                    position: operation.changes.position,
+                                };
+                            }
+                            return node;
+                        });
+
+                        return { nodes: updatedNodes };
+                    });
+                }
+
+                if (edgeOperations.length > 0) {
+                }
+
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                if (nodeIds.length > 0) {
+                    useStore.setState((state) => {
+                        const restoredNodes = state.nodes.map((node) => {
+                            const originalPosition = originalNodePositions.get(
+                                node.id
+                            );
+                            if (originalPosition) {
+                                return {
+                                    ...node,
+                                    position: originalPosition,
+                                };
+                            }
+                            return node;
+                        });
+
+                        return { nodes: restoredNodes };
+                    });
+                }
+
+                if (edgeIds.length > 0) {
+                }
+
+                this.autosaveService.autosave();
             },
         };
     }
