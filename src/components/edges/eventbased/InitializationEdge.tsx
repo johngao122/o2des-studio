@@ -21,6 +21,7 @@ import {
     parseTransformMatrix,
     clientToFlowPosition,
 } from "@/lib/utils/math";
+import { useStore } from "@/store";
 
 const commandController = CommandController.getInstance();
 
@@ -114,147 +115,6 @@ const InitializationEdge = memo(
             lastUpdateTime: 0,
         });
 
-        const debouncedControlPointUpdate = useCallback(
-            debounce(
-                (
-                    newSourceX: number,
-                    newSourceY: number,
-                    newTargetX: number,
-                    newTargetY: number,
-                    controlPoint: { x: number; y: number }
-                ) => {
-                    const sourceDeltaX =
-                        newSourceX - prevPositions.current.sourceX;
-                    const sourceDeltaY =
-                        newSourceY - prevPositions.current.sourceY;
-                    const targetDeltaX =
-                        newTargetX - prevPositions.current.targetX;
-                    const targetDeltaY =
-                        newTargetY - prevPositions.current.targetY;
-
-                    const tWeight = 0.5;
-                    const deltaX =
-                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
-                    const deltaY =
-                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
-
-                    const newControlPoint = {
-                        x: controlPoint.x + deltaX,
-                        y: controlPoint.y + deltaY,
-                    };
-
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                controlPoint: newControlPoint,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
-
-                    prevPositions.current = {
-                        sourceX: newSourceX,
-                        sourceY: newSourceY,
-                        targetX: newTargetX,
-                        targetY: newTargetY,
-                        initialized: true,
-                        lastUpdateTime: Date.now(),
-                    };
-                },
-                50
-            ),
-            [id, data]
-        );
-
-        useEffect(() => {
-            if (isDragging || isEditing) {
-                return;
-            }
-
-            if (data?.edgeType === "bezier" && data?.controlPoint) {
-                if (!prevPositions.current.initialized) {
-                    prevPositions.current = {
-                        sourceX,
-                        sourceY,
-                        targetX,
-                        targetY,
-                        initialized: true,
-                        lastUpdateTime: Date.now(),
-                    };
-                    return;
-                }
-
-                if (
-                    prevPositions.current.sourceX === sourceX &&
-                    prevPositions.current.sourceY === sourceY &&
-                    prevPositions.current.targetX === targetX &&
-                    prevPositions.current.targetY === targetY
-                ) {
-                    return;
-                }
-
-                debouncedControlPointUpdate(
-                    sourceX,
-                    sourceY,
-                    targetX,
-                    targetY,
-                    data.controlPoint
-                );
-            }
-        }, [
-            sourceX,
-            sourceY,
-            targetX,
-            targetY,
-            isDragging,
-            isEditing,
-            data?.edgeType,
-            data?.controlPoint,
-            debouncedControlPointUpdate,
-        ]);
-
-        const edgeStyle = {
-            strokeWidth: selected ? 3 : 2,
-            stroke: selected ? "#3b82f6" : "#555",
-            ...style,
-        };
-
-        let path: string;
-        let labelX: number, labelY: number;
-
-        if (data?.edgeType === "bezier") {
-            const controlPoint =
-                isDragging && tempControlPoint
-                    ? tempControlPoint
-                    : data?.controlPoint ||
-                      calculateDefaultControlPoint(
-                          sourceX,
-                          sourceY,
-                          targetX,
-                          targetY
-                      );
-
-            path = createBezierPathString(
-                sourceX,
-                sourceY,
-                controlPoint.x,
-                controlPoint.y,
-                targetX,
-                targetY
-            );
-
-            labelX = controlPoint.x;
-            labelY = controlPoint.y;
-        } else {
-            path = `M ${sourceX},${sourceY} L ${targetX},${targetY}`;
-
-            const midPoint = getMidpoint(sourceX, sourceY, targetX, targetY);
-            labelX = midPoint.x;
-            labelY = midPoint.y;
-        }
-
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
             setEditParameter(data?.parameter || "");
@@ -335,6 +195,10 @@ const InitializationEdge = memo(
                 setTempControlPoint(currentControlPoint);
                 setIsDragging(true);
 
+                commandController.startEdgeDrag(id, {
+                    controlPoint: currentControlPoint,
+                });
+
                 document.body.style.cursor = "grabbing";
             }
         };
@@ -371,11 +235,19 @@ const InitializationEdge = memo(
 
                     const x = mousePosition.x + dragOffset.x;
                     const y = mousePosition.y + dragOffset.y;
+                    const newControlPoint = { x, y };
 
-                    setTempControlPoint({ x, y });
+                    setTempControlPoint(newControlPoint);
+
+                    commandController.updateEdgeDuringDrag(id, {
+                        data: {
+                            ...data,
+                            controlPoint: newControlPoint,
+                        },
+                    });
                 }
             }, 16),
-            [isDragging, isEditing, data, tempControlPoint, dragOffset]
+            [isDragging, isEditing, data, tempControlPoint, dragOffset, id]
         );
 
         const handleDragEnd = useCallback(() => {
@@ -387,16 +259,9 @@ const InitializationEdge = memo(
                     currentControlPoint.y !== tempControlPoint.y;
 
                 if (hasChanged) {
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                controlPoint: tempControlPoint,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
+                    commandController.endEdgeDrag(id, {
+                        controlPoint: tempControlPoint,
+                    });
                 }
             }
 
@@ -417,6 +282,111 @@ const InitializationEdge = memo(
                 };
             }
         }, [isDragging, handleDrag, handleDragEnd]);
+
+        useEffect(() => {
+            if (isDragging || isEditing) {
+                return;
+            }
+
+            if (data?.edgeType === "bezier" && data?.controlPoint) {
+                if (!prevPositions.current.initialized) {
+                    prevPositions.current = {
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                        initialized: true,
+                        lastUpdateTime: Date.now(),
+                    };
+                    return;
+                }
+
+                if (
+                    prevPositions.current.sourceX === sourceX &&
+                    prevPositions.current.sourceY === sourceY &&
+                    prevPositions.current.targetX === targetX &&
+                    prevPositions.current.targetY === targetY
+                ) {
+                    return;
+                }
+
+                const sourceDeltaX = sourceX - prevPositions.current.sourceX;
+                const sourceDeltaY = sourceY - prevPositions.current.sourceY;
+                const targetDeltaX = targetX - prevPositions.current.targetX;
+                const targetDeltaY = targetY - prevPositions.current.targetY;
+
+                const tWeight = 0.5;
+                const deltaX =
+                    sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                const deltaY =
+                    sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+
+                const newControlPoint = {
+                    x: data.controlPoint.x + deltaX,
+                    y: data.controlPoint.y + deltaY,
+                };
+
+                prevPositions.current = {
+                    sourceX,
+                    sourceY,
+                    targetX,
+                    targetY,
+                    initialized: true,
+                    lastUpdateTime: Date.now(),
+                };
+            }
+        }, [
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            isDragging,
+            isEditing,
+            data?.edgeType,
+            data?.controlPoint,
+            selected,
+            id,
+        ]);
+
+        const edgeStyle = {
+            strokeWidth: selected ? 3 : 2,
+            stroke: selected ? "#3b82f6" : "#555",
+            ...style,
+        };
+
+        let path: string;
+        let labelX: number, labelY: number;
+
+        if (data?.edgeType === "bezier") {
+            const controlPoint =
+                isDragging && tempControlPoint
+                    ? tempControlPoint
+                    : data?.controlPoint ||
+                      calculateDefaultControlPoint(
+                          sourceX,
+                          sourceY,
+                          targetX,
+                          targetY
+                      );
+
+            path = createBezierPathString(
+                sourceX,
+                sourceY,
+                controlPoint.x,
+                controlPoint.y,
+                targetX,
+                targetY
+            );
+
+            labelX = controlPoint.x;
+            labelY = controlPoint.y;
+        } else {
+            path = `M ${sourceX},${sourceY} L ${targetX},${targetY}`;
+
+            const midPoint = getMidpoint(sourceX, sourceY, targetX, targetY);
+            labelX = midPoint.x;
+            labelY = midPoint.y;
+        }
 
         return (
             <>

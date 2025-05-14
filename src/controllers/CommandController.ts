@@ -22,12 +22,25 @@ interface DragState {
     startPosition: { x: number; y: number };
 }
 
+interface EdgeUpdateBatch {
+    edgeId: string;
+    updates: Partial<BaseEdge>;
+    timestamp: number;
+}
+
 export class CommandController {
     private static instance: CommandController;
     private undoStack: Command[] = [];
     private redoStack: Command[] = [];
     private dragState: Map<string, DragState> = new Map();
     private autosaveService: AutosaveService;
+
+    private edgeUpdateBatches: Map<string, EdgeUpdateBatch> = new Map();
+    private edgeBatchTimer: NodeJS.Timeout | null = null;
+    private batchTimeWindow = 100;
+
+    private isBatching = false;
+    private batchedCommands: Command[] = [];
 
     private constructor() {
         this.autosaveService = AutosaveService.getInstance();
@@ -40,33 +53,136 @@ export class CommandController {
         return CommandController.instance;
     }
 
-    execute(command: Command) {
+    execute(command: Command, options?: { silent?: boolean }) {
         const commandDesc = command.execute.toString().slice(0, 150) + "...";
 
-        command.execute();
-        this.undoStack.push(command);
-        this.redoStack = [];
+        const stackTrace = new Error().stack || "";
+        const callerMatch =
+            stackTrace.split("\n")[2]?.trim() || "Unknown caller";
 
+        console.log(`Executing command from ${commandDesc}`);
+        console.log(`Called from: ${callerMatch}`);
+
+        command.execute();
+
+        if (!options?.silent) {
+            if (this.isBatching) {
+                console.log(
+                    `Adding command to batch (total: ${
+                        this.batchedCommands.length + 1
+                    })`
+                );
+
+                const commandCopy = {
+                    execute: command.execute,
+                    undo: command.undo,
+                };
+                this.batchedCommands.push(commandCopy);
+            } else {
+                console.log(
+                    `Adding command to undo stack (total: ${
+                        this.undoStack.length + 1
+                    })`
+                );
+                console.log("Command:", commandDesc);
+                this.undoStack.push(command);
+                this.redoStack = [];
+                this.autosaveService.autosave();
+            }
+        }
+    }
+
+    beginBatch() {
+        console.log("Beginning command batch");
+        this.isBatching = true;
+        this.batchedCommands = [];
+    }
+
+    endBatch() {
+        console.log(
+            `Ending command batch with ${this.batchedCommands.length} commands`
+        );
+        if (this.batchedCommands.length > 0) {
+            const batchedCommandsCopy = [...this.batchedCommands];
+
+            const compound: Command = {
+                execute: () => {
+                    console.log(
+                        `Executing batch of ${batchedCommandsCopy.length} commands`
+                    );
+                    batchedCommandsCopy.forEach((c) => c.execute());
+                },
+                undo: () => {
+                    console.log(
+                        `Undoing batch of ${batchedCommandsCopy.length} commands`
+                    );
+                    [...batchedCommandsCopy].reverse().forEach((c) => c.undo());
+                },
+            };
+
+            console.log(
+                `Adding compound command to undo stack (total: ${
+                    this.undoStack.length + 1
+                })`
+            );
+            this.undoStack.push(compound);
+            this.redoStack = [];
+        }
+        this.isBatching = false;
+        this.batchedCommands = [];
         this.autosaveService.autosave();
     }
 
     undo() {
         const command = this.undoStack.pop();
         if (command) {
-            command.undo();
-            this.redoStack.push(command);
+            console.log(
+                `Undoing command (${this.undoStack.length} commands remaining in undo stack)`
+            );
 
+            const isBatchCommand = command.execute
+                .toString()
+                .includes("batchedCommandsCopy");
+            if (isBatchCommand) {
+                console.log(
+                    "This is a batch command - undoing multiple operations"
+                );
+            }
+
+            console.log(
+                "Command:",
+                command.execute.toString().slice(0, 150) + "..."
+            );
+
+            try {
+                command.undo();
+                console.log("Undo operation completed successfully");
+            } catch (error) {
+                console.error("Error during undo operation:", error);
+            }
+
+            this.redoStack.push(command);
             this.autosaveService.autosave();
+        } else {
+            console.log("No commands to undo");
         }
     }
 
     redo() {
         const command = this.redoStack.pop();
         if (command) {
+            console.log(
+                `Redoing command (${this.redoStack.length} commands remaining in redo stack)`
+            );
+            console.log(
+                "Command:",
+                command.execute.toString().slice(0, 150) + "..."
+            );
             command.execute();
             this.undoStack.push(command);
-
             this.autosaveService.autosave();
+        } else {
+            console.log("No commands to redo");
         }
     }
 
@@ -76,6 +192,115 @@ export class CommandController {
 
     canRedo(): boolean {
         return this.redoStack.length > 0;
+    }
+
+    startEdgeDrag(edgeId: string, initialState: any) {
+        this.dragState.set(edgeId, {
+            nodeId: edgeId,
+            startPosition: initialState,
+        });
+    }
+
+    updateEdgeDuringDrag(edgeId: string, updates: Partial<BaseEdge>) {
+        useStore.setState((state) => ({
+            edges: state.edges.map((e) =>
+                e.id === edgeId ? { ...e, ...updates } : e
+            ),
+        }));
+    }
+
+    endEdgeDrag(edgeId: string, finalState: any) {
+        const dragStart = this.dragState.get(edgeId);
+        if (!dragStart) return;
+
+        const { edges } = useStore.getState();
+        const edge = edges.find((e) => e.id === edgeId);
+
+        if (!edge) {
+            this.dragState.delete(edgeId);
+            return;
+        }
+
+        const command = this.createUpdateEdgeCommand(edgeId, {
+            data: { ...edge.data, ...finalState },
+        });
+
+        this.execute(command);
+        this.dragState.delete(edgeId);
+    }
+
+    updateEdgeControlPoint(
+        edgeId: string,
+        controlPoint: { x: number; y: number }
+    ) {
+        const { edges } = useStore.getState();
+        const edge = edges.find((e) => e.id === edgeId);
+
+        if (!edge) return;
+
+        const isDragging = useStore.getState().dragProxy.isActive;
+
+        if (isDragging) {
+            console.log(`Skipping edge update during drag for edge ${edgeId}`);
+            return;
+        }
+
+        const command = this.createUpdateEdgeCommand(edgeId, {
+            data: {
+                ...edge.data,
+                controlPoint,
+            },
+        });
+
+        this.execute(command);
+    }
+
+    updateEdgeDelayPosition(edgeId: string, delayPosition: number) {
+        const { edges } = useStore.getState();
+        const edge = edges.find((e) => e.id === edgeId);
+
+        if (!edge) return;
+
+        const isDragging = useStore.getState().dragProxy.isActive;
+
+        if (isDragging) {
+            console.log(`Skipping delay update during drag for edge ${edgeId}`);
+            return;
+        }
+
+        const command = this.createUpdateEdgeCommand(edgeId, {
+            data: {
+                ...edge.data,
+                delayPosition,
+            },
+        });
+
+        this.execute(command);
+    }
+
+    updateEdgeParameterPosition(edgeId: string, parameterPosition: number) {
+        const { edges } = useStore.getState();
+        const edge = edges.find((e) => e.id === edgeId);
+
+        if (!edge) return;
+
+        const isDragging = useStore.getState().dragProxy.isActive;
+
+        if (isDragging) {
+            console.log(
+                `Skipping parameter update during drag for edge ${edgeId}`
+            );
+            return;
+        }
+
+        const command = this.createUpdateEdgeCommand(edgeId, {
+            data: {
+                ...edge.data,
+                parameterPosition,
+            },
+        });
+
+        this.execute(command);
     }
 
     createAddNodeCommand(node: BaseNode): Command {
@@ -202,6 +427,7 @@ export class CommandController {
 
         if (endedDrags.length > 0) {
             const commands: Command[] = [];
+            const draggedNodeIds = new Set<string>();
 
             for (const change of endedDrags) {
                 const dragStart = this.dragState.get(change.id);
@@ -209,6 +435,8 @@ export class CommandController {
 
                 const node = currentNodes.find((n) => n.id === change.id);
                 if (!node) continue;
+
+                draggedNodeIds.add(change.id);
 
                 commands.push({
                     execute: () => {
@@ -237,6 +465,123 @@ export class CommandController {
                 });
 
                 this.dragState.delete(change.id);
+            }
+
+            if (draggedNodeIds.size > 0) {
+                const { edges } = useStore.getState();
+
+                const affectedEdges = edges.filter((edge) => {
+                    if (
+                        edge.data?.edgeType !== "bezier" ||
+                        !edge.data?.controlPoint
+                    ) {
+                        return false;
+                    }
+
+                    return (
+                        draggedNodeIds.has(edge.source) ||
+                        draggedNodeIds.has(edge.target)
+                    );
+                });
+
+                affectedEdges.forEach((edge) => {
+                    const sourceNode = currentNodes.find(
+                        (n) => n.id === edge.source
+                    );
+                    const targetNode = currentNodes.find(
+                        (n) => n.id === edge.target
+                    );
+
+                    if (!sourceNode || !targetNode || !edge.data?.controlPoint)
+                        return;
+
+                    const sourceNodeDragged = draggedNodeIds.has(sourceNode.id);
+                    const targetNodeDragged = draggedNodeIds.has(targetNode.id);
+
+                    if (!sourceNodeDragged && !targetNodeDragged) return;
+
+                    const controlPoint = edge.data.controlPoint;
+                    const newControlPoint = { ...controlPoint };
+
+                    let sourceDeltaX = 0,
+                        sourceDeltaY = 0;
+                    let targetDeltaX = 0,
+                        targetDeltaY = 0;
+
+                    for (const change of endedDrags) {
+                        const dragStart = this.dragState.get(change.id);
+                        if (!dragStart) continue;
+
+                        if (change.id === sourceNode.id && change.position) {
+                            sourceDeltaX =
+                                change.position.x - dragStart.startPosition.x;
+                            sourceDeltaY =
+                                change.position.y - dragStart.startPosition.y;
+                        }
+
+                        if (change.id === targetNode.id && change.position) {
+                            targetDeltaX =
+                                change.position.x - dragStart.startPosition.x;
+                            targetDeltaY =
+                                change.position.y - dragStart.startPosition.y;
+                        }
+                    }
+
+                    const tWeight = 0.5;
+                    let deltaX = 0,
+                        deltaY = 0;
+
+                    if (sourceNodeDragged && targetNodeDragged) {
+                        deltaX =
+                            sourceDeltaX * (1 - tWeight) +
+                            targetDeltaX * tWeight;
+                        deltaY =
+                            sourceDeltaY * (1 - tWeight) +
+                            targetDeltaY * tWeight;
+                    } else if (sourceNodeDragged) {
+                        deltaX = sourceDeltaX * (1 - tWeight);
+                        deltaY = sourceDeltaY * (1 - tWeight);
+                    } else if (targetNodeDragged) {
+                        deltaX = targetDeltaX * tWeight;
+                        deltaY = targetDeltaY * tWeight;
+                    }
+
+                    newControlPoint.x += deltaX;
+                    newControlPoint.y += deltaY;
+
+                    commands.push({
+                        execute: () => {
+                            useStore.setState((state) => ({
+                                edges: state.edges.map((e) =>
+                                    e.id === edge.id
+                                        ? {
+                                              ...e,
+                                              data: {
+                                                  ...e.data,
+                                                  controlPoint: newControlPoint,
+                                              },
+                                          }
+                                        : e
+                                ),
+                            }));
+                        },
+                        undo: () => {
+                            useStore.setState((state) => ({
+                                edges: state.edges.map((e) =>
+                                    e.id === edge.id
+                                        ? {
+                                              ...e,
+                                              data: {
+                                                  ...e.data,
+                                                  controlPoint: controlPoint,
+                                              },
+                                          }
+                                        : e
+                                ),
+                            }));
+                        },
+                    });
+                });
             }
 
             if (commands.length > 0) {
@@ -410,6 +755,29 @@ export class CommandController {
             }
         });
 
+        const originalEdgeStates = new Map<string, BaseEdge>();
+        edgeIds.forEach((id) => {
+            const edge = originalEdges.find((e) => e.id === id);
+            if (edge) {
+                originalEdgeStates.set(id, JSON.parse(JSON.stringify(edge)));
+            }
+        });
+
+        const connectedEdgeIds = new Set<string>();
+        nodeIds.forEach((nodeId) => {
+            originalEdges.forEach((edge) => {
+                if (edge.source === nodeId || edge.target === nodeId) {
+                    connectedEdgeIds.add(edge.id);
+                    if (!originalEdgeStates.has(edge.id)) {
+                        originalEdgeStates.set(
+                            edge.id,
+                            JSON.parse(JSON.stringify(edge))
+                        );
+                    }
+                }
+            });
+        });
+
         return {
             execute: () => {
                 if (nodeOperations.length > 0) {
@@ -432,6 +800,27 @@ export class CommandController {
                 }
 
                 if (edgeOperations.length > 0) {
+                    useStore.setState((state) => {
+                        const updatedEdges = state.edges.map((edge) => {
+                            const operation = edgeOperations.find(
+                                (op) => op.id === edge.id
+                            );
+                            if (operation) {
+                                return {
+                                    ...edge,
+                                    ...operation.changes,
+
+                                    data: {
+                                        ...edge.data,
+                                        ...(operation.changes.data || {}),
+                                    },
+                                };
+                            }
+                            return edge;
+                        });
+
+                        return { edges: updatedEdges };
+                    });
                 }
 
                 this.autosaveService.autosave();
@@ -456,7 +845,25 @@ export class CommandController {
                     });
                 }
 
-                if (edgeIds.length > 0) {
+                const allAffectedEdgeIds = new Set([
+                    ...edgeIds,
+                    ...connectedEdgeIds,
+                ]);
+
+                if (allAffectedEdgeIds.size > 0) {
+                    useStore.setState((state) => {
+                        const restoredEdges = state.edges.map((edge) => {
+                            const originalEdge = originalEdgeStates.get(
+                                edge.id
+                            );
+                            if (originalEdge) {
+                                return originalEdge;
+                            }
+                            return edge;
+                        });
+
+                        return { edges: restoredEdges };
+                    });
                 }
 
                 this.autosaveService.autosave();
