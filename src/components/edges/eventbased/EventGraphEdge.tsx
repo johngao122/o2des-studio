@@ -41,6 +41,7 @@ import {
     projectPointOntoBezierCurve,
 } from "@/lib/utils/math";
 import { calculateOffsetPointForEdge } from "@/lib/utils/edge";
+import { useStore } from "@/store";
 
 const commandController = CommandController.getInstance();
 
@@ -147,7 +148,6 @@ const EventGraphEdge = memo(
         const delayLabelRef = useRef<HTMLDivElement>(null);
         const paramLabelRef = useRef<HTMLDivElement>(null);
 
-        // Refs to prevent layout thrashing
         const flowPaneRef = useRef<Element | null>(null);
         const transformMatrixRef = useRef<ReturnType<
             typeof parseTransformMatrix
@@ -180,64 +180,6 @@ const EventGraphEdge = memo(
             lastUpdateTime: 0,
         });
 
-        const debouncedControlPointUpdate = useCallback(
-            debounce(
-                (
-                    newSourceX: number,
-                    newSourceY: number,
-                    newTargetX: number,
-                    newTargetY: number,
-                    controlPoint: { x: number; y: number }
-                ) => {
-                    const sourceDeltaX =
-                        newSourceX - prevPositions.current.sourceX;
-                    const sourceDeltaY =
-                        newSourceY - prevPositions.current.sourceY;
-                    const targetDeltaX =
-                        newTargetX - prevPositions.current.targetX;
-                    const targetDeltaY =
-                        newTargetY - prevPositions.current.targetY;
-
-                    const tWeight = 0.5;
-                    const deltaX =
-                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
-                    const deltaY =
-                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
-
-                    const newControlPoint = {
-                        x: controlPoint.x + deltaX,
-                        y: controlPoint.y + deltaY,
-                    };
-
-                    if (selected) {
-                        setTempControlPoint(newControlPoint);
-                    }
-
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                controlPoint: newControlPoint,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
-
-                    prevPositions.current = {
-                        sourceX: newSourceX,
-                        sourceY: newSourceY,
-                        targetX: newTargetX,
-                        targetY: newTargetY,
-                        initialized: true,
-                        lastUpdateTime: Date.now(),
-                    };
-                },
-                selected ? 16 : 50
-            ),
-            [id, data, selected]
-        );
-
         useEffect(() => {
             if (isDragging || isEditing) {
                 return;
@@ -265,35 +207,30 @@ const EventGraphEdge = memo(
                     return;
                 }
 
-                if (selected) {
-                    const sourceDeltaX =
-                        sourceX - prevPositions.current.sourceX;
-                    const sourceDeltaY =
-                        sourceY - prevPositions.current.sourceY;
-                    const targetDeltaX =
-                        targetX - prevPositions.current.targetX;
-                    const targetDeltaY =
-                        targetY - prevPositions.current.targetY;
+                const sourceDeltaX = sourceX - prevPositions.current.sourceX;
+                const sourceDeltaY = sourceY - prevPositions.current.sourceY;
+                const targetDeltaX = targetX - prevPositions.current.targetX;
+                const targetDeltaY = targetY - prevPositions.current.targetY;
 
-                    const tWeight = 0.5;
-                    const deltaX =
-                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
-                    const deltaY =
-                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+                const tWeight = 0.5;
+                const deltaX =
+                    sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                const deltaY =
+                    sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
 
-                    setTempControlPoint({
-                        x: data.controlPoint.x + deltaX,
-                        y: data.controlPoint.y + deltaY,
-                    });
-                }
+                const newControlPoint = {
+                    x: data.controlPoint.x + deltaX,
+                    y: data.controlPoint.y + deltaY,
+                };
 
-                debouncedControlPointUpdate(
+                prevPositions.current = {
                     sourceX,
                     sourceY,
                     targetX,
                     targetY,
-                    data.controlPoint
-                );
+                    initialized: true,
+                    lastUpdateTime: Date.now(),
+                };
             }
         }, [
             sourceX,
@@ -304,8 +241,8 @@ const EventGraphEdge = memo(
             isEditing,
             data?.edgeType,
             data?.controlPoint,
-            debouncedControlPointUpdate,
             selected,
+            id,
         ]);
 
         const edgeStyle = {
@@ -321,8 +258,6 @@ const EventGraphEdge = memo(
                 case "bezier":
                     const controlPoint =
                         isDragging && tempControlPoint
-                            ? tempControlPoint
-                            : tempControlPoint && selected
                             ? tempControlPoint
                             : data?.controlPoint;
 
@@ -876,7 +811,6 @@ const EventGraphEdge = memo(
 
             e.stopPropagation();
 
-            // Read DOM once at the start of the drag
             flowPaneRef.current = document.querySelector(
                 ".react-flow__viewport"
             );
@@ -903,13 +837,16 @@ const EventGraphEdge = memo(
                     transformMatrixRef.current
                 );
 
-                // Batch all writes
                 const offsetX = currentControlPoint.x - mousePosition.x;
                 const offsetY = currentControlPoint.y - mousePosition.y;
 
                 setDragOffset({ x: offsetX, y: offsetY });
                 setTempControlPoint(currentControlPoint);
                 setIsDragging(true);
+
+                commandController.startEdgeDrag(id, {
+                    controlPoint: currentControlPoint,
+                });
 
                 document.body.style.cursor = "grabbing";
             }
@@ -929,7 +866,6 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Batch reads
                 if (!flowPaneRef.current) {
                     flowPaneRef.current = document.querySelector(
                         ".react-flow__viewport"
@@ -945,22 +881,29 @@ const EventGraphEdge = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    // Read: compute mouse position once
                     mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
                         transformMatrixRef.current
                     );
 
-                    // Write: Update state in a single batch
                     if (mousePosRef.current) {
                         const x = mousePosRef.current.x + dragOffset.x;
                         const y = mousePosRef.current.y + dragOffset.y;
-                        setTempControlPoint({ x, y });
+                        const newControlPoint = { x, y };
+
+                        setTempControlPoint(newControlPoint);
+
+                        commandController.updateEdgeDuringDrag(id, {
+                            data: {
+                                ...data,
+                                controlPoint: newControlPoint,
+                            },
+                        });
                     }
                 }
             }, 16),
-            [isDragging, isEditing, data, tempControlPoint, dragOffset]
+            [isDragging, isEditing, data, tempControlPoint, dragOffset, id]
         );
 
         const handleDragEnd = useCallback(() => {
@@ -972,16 +915,9 @@ const EventGraphEdge = memo(
                     currentControlPoint.y !== tempControlPoint.y;
 
                 if (hasChanged) {
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                controlPoint: tempControlPoint,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
+                    commandController.endEdgeDrag(id, {
+                        controlPoint: tempControlPoint,
+                    });
                 }
             }
 
@@ -997,7 +933,6 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
-            // Read DOM once at the start of the drag
             flowPaneRef.current = document.querySelector(
                 ".react-flow__viewport"
             );
@@ -1010,6 +945,13 @@ const EventGraphEdge = memo(
                     parseTransformMatrix(transformStyle);
             }
 
+            commandController.startEdgeDrag(id, {
+                delayPosition:
+                    data?.delayPosition !== undefined
+                        ? data.delayPosition
+                        : 0.25,
+            });
+
             setIsDelayDragging(true);
             document.body.style.cursor = "grabbing";
         };
@@ -1021,7 +963,6 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Batch reads
                 if (!flowPaneRef.current) {
                     flowPaneRef.current = document.querySelector(
                         ".react-flow__viewport"
@@ -1037,15 +978,15 @@ const EventGraphEdge = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    // Read: compute mouse position once
                     mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
                         transformMatrixRef.current
                     );
 
-                    // Write: all calculations and state updates
                     if (mousePosRef.current) {
+                        let newDelayPosition: number;
+
                         if (data?.edgeType === "bezier") {
                             const projection = projectPointOntoBezierCurve(
                                 mousePosRef.current,
@@ -1064,7 +1005,7 @@ const EventGraphEdge = memo(
                                 0.45
                             );
 
-                            setTempDelayPosition(projection.t);
+                            newDelayPosition = projection.t;
                         } else {
                             const lineLength = Math.sqrt(
                                 Math.pow(targetX - sourceX, 2) +
@@ -1078,16 +1019,25 @@ const EventGraphEdge = memo(
                                     (mousePosRef.current.y - sourceY) * dy) /
                                 (lineLength * lineLength);
 
-                            const constrainedT = Math.max(
+                            newDelayPosition = Math.max(
                                 0.05,
                                 Math.min(0.45, t)
                             );
-                            setTempDelayPosition(constrainedT);
                         }
+
+                        setTempDelayPosition(newDelayPosition);
+
+                        commandController.updateEdgeDuringDrag(id, {
+                            data: {
+                                ...data,
+                                delayPosition: newDelayPosition,
+                            },
+                        });
                     }
                 }
             }, 16),
             [
+                id,
                 isDelayDragging,
                 isEditing,
                 sourceX,
@@ -1103,16 +1053,9 @@ const EventGraphEdge = memo(
                 const hasChanged = data?.delayPosition !== tempDelayPosition;
 
                 if (hasChanged) {
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                delayPosition: tempDelayPosition,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
+                    commandController.endEdgeDrag(id, {
+                        delayPosition: tempDelayPosition,
+                    });
                 }
             }
 
@@ -1127,7 +1070,6 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
-            // Read DOM once at the start of the drag
             flowPaneRef.current = document.querySelector(
                 ".react-flow__viewport"
             );
@@ -1140,6 +1082,13 @@ const EventGraphEdge = memo(
                     parseTransformMatrix(transformStyle);
             }
 
+            commandController.startEdgeDrag(id, {
+                parameterPosition:
+                    data?.parameterPosition !== undefined
+                        ? data.parameterPosition
+                        : 0.75,
+            });
+
             setIsParamDragging(true);
             document.body.style.cursor = "grabbing";
         };
@@ -1151,7 +1100,6 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Batch reads
                 if (!flowPaneRef.current) {
                     flowPaneRef.current = document.querySelector(
                         ".react-flow__viewport"
@@ -1167,15 +1115,15 @@ const EventGraphEdge = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    // Read: compute mouse position once
                     mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
                         transformMatrixRef.current
                     );
 
-                    // Write: all calculations and state updates
                     if (mousePosRef.current) {
+                        let newParamPosition: number;
+
                         if (data?.edgeType === "bezier") {
                             const projection = projectPointOntoBezierCurve(
                                 mousePosRef.current,
@@ -1194,7 +1142,7 @@ const EventGraphEdge = memo(
                                 0.95
                             );
 
-                            setTempParamPosition(projection.t);
+                            newParamPosition = projection.t;
                         } else {
                             const lineLength = Math.sqrt(
                                 Math.pow(targetX - sourceX, 2) +
@@ -1208,16 +1156,25 @@ const EventGraphEdge = memo(
                                     (mousePosRef.current.y - sourceY) * dy) /
                                 (lineLength * lineLength);
 
-                            const constrainedT = Math.max(
+                            newParamPosition = Math.max(
                                 0.55,
                                 Math.min(0.95, t)
                             );
-                            setTempParamPosition(constrainedT);
                         }
+
+                        setTempParamPosition(newParamPosition);
+
+                        commandController.updateEdgeDuringDrag(id, {
+                            data: {
+                                ...data,
+                                parameterPosition: newParamPosition,
+                            },
+                        });
                     }
                 }
             }, 16),
             [
+                id,
                 isParamDragging,
                 isEditing,
                 sourceX,
@@ -1234,16 +1191,9 @@ const EventGraphEdge = memo(
                     data?.parameterPosition !== tempParamPosition;
 
                 if (hasChanged) {
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                parameterPosition: tempParamPosition,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
+                    commandController.endEdgeDrag(id, {
+                        parameterPosition: tempParamPosition,
+                    });
                 }
             }
 
@@ -1252,9 +1202,7 @@ const EventGraphEdge = memo(
             document.body.style.cursor = "";
         }, [isParamDragging, tempParamPosition, data, id]);
 
-        // Reset the transformMatrix when the edge position changes significantly
         useEffect(() => {
-            // Reset transform matrix when node positions change significantly
             if (
                 Math.abs(sourceX - prevPositions.current.sourceX) > 5 ||
                 Math.abs(sourceY - prevPositions.current.sourceY) > 5 ||
@@ -1265,7 +1213,6 @@ const EventGraphEdge = memo(
             }
         }, [sourceX, sourceY, targetX, targetY]);
 
-        // Add event listeners during active drag operations
         useEffect(() => {
             if (isDragging) {
                 window.addEventListener("mousemove", handleDrag as any);
