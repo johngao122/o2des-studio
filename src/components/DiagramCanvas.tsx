@@ -61,7 +61,7 @@ const flowOptions = {
     defaultViewport: { x: 0, y: 0, zoom: 1 },
     minZoom: 0.1,
     maxZoom: 4,
-    snapToGrid: false,
+    snapToGrid: true,
     zoomOnScroll: true,
     zoomOnPinch: true,
     snapGrid: [15, 15] as [number, number],
@@ -79,6 +79,7 @@ function FlowCanvas() {
         useStore();
     const dragTimeoutRef = useRef<number | null>(null);
     const viewportRef = useRef<HTMLDivElement | null>(null);
+    const mouseStartPositionRef = useRef<{ x: number; y: number } | null>(null);
 
     const updateViewport = useCallback(
         (x: number, y: number, zoom: number) => {
@@ -337,9 +338,9 @@ function FlowCanvas() {
                         const viewport = reactFlowInstance.getViewport();
                         const viewportTransform: ViewportTransform = viewport;
 
-                        const mousePosition = firstChange.position;
+                        const currentMousePosition = firstChange.position;
 
-                        updateDragProxy(mousePosition, viewport.zoom);
+                        updateDragProxy(currentMousePosition, viewport.zoom);
                     }
 
                     if (endingDrag) {
@@ -348,6 +349,7 @@ function FlowCanvas() {
                             dragTimeoutRef.current = null;
                         }
 
+                        mouseStartPositionRef.current = null;
                         endDragProxy(true);
                     }
 
@@ -357,6 +359,15 @@ function FlowCanvas() {
                     shouldUseDragProxy &&
                     !isDragProxyActive
                 ) {
+                    const firstChange = positionChanges[0];
+                    if (
+                        firstChange &&
+                        "position" in firstChange &&
+                        firstChange.position
+                    ) {
+                        mouseStartPositionRef.current = firstChange.position;
+                    }
+
                     startDragProxy(
                         selectedNodes,
                         edges.filter((edge) =>

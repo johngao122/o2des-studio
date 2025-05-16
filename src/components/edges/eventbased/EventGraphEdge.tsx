@@ -147,7 +147,6 @@ const EventGraphEdge = memo(
         const delayLabelRef = useRef<HTMLDivElement>(null);
         const paramLabelRef = useRef<HTMLDivElement>(null);
 
-        // Refs to prevent layout thrashing
         const flowPaneRef = useRef<Element | null>(null);
         const transformMatrixRef = useRef<ReturnType<
             typeof parseTransformMatrix
@@ -876,7 +875,6 @@ const EventGraphEdge = memo(
 
             e.stopPropagation();
 
-            // Read DOM once at the start of the drag
             flowPaneRef.current = document.querySelector(
                 ".react-flow__viewport"
             );
@@ -903,7 +901,6 @@ const EventGraphEdge = memo(
                     transformMatrixRef.current
                 );
 
-                // Batch all writes
                 const offsetX = currentControlPoint.x - mousePosition.x;
                 const offsetY = currentControlPoint.y - mousePosition.y;
 
@@ -929,7 +926,6 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Batch reads
                 if (!flowPaneRef.current) {
                     flowPaneRef.current = document.querySelector(
                         ".react-flow__viewport"
@@ -945,14 +941,12 @@ const EventGraphEdge = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    // Read: compute mouse position once
                     mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
                         transformMatrixRef.current
                     );
 
-                    // Write: Update state in a single batch
                     if (mousePosRef.current) {
                         const x = mousePosRef.current.x + dragOffset.x;
                         const y = mousePosRef.current.y + dragOffset.y;
@@ -997,7 +991,6 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
-            // Read DOM once at the start of the drag
             flowPaneRef.current = document.querySelector(
                 ".react-flow__viewport"
             );
@@ -1021,7 +1014,6 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Batch reads
                 if (!flowPaneRef.current) {
                     flowPaneRef.current = document.querySelector(
                         ".react-flow__viewport"
@@ -1037,14 +1029,12 @@ const EventGraphEdge = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    // Read: compute mouse position once
                     mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
                         transformMatrixRef.current
                     );
 
-                    // Write: all calculations and state updates
                     if (mousePosRef.current) {
                         if (data?.edgeType === "bezier") {
                             const projection = projectPointOntoBezierCurve(
@@ -1127,7 +1117,6 @@ const EventGraphEdge = memo(
             e.stopPropagation();
             e.preventDefault();
 
-            // Read DOM once at the start of the drag
             flowPaneRef.current = document.querySelector(
                 ".react-flow__viewport"
             );
@@ -1151,7 +1140,6 @@ const EventGraphEdge = memo(
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Batch reads
                 if (!flowPaneRef.current) {
                     flowPaneRef.current = document.querySelector(
                         ".react-flow__viewport"
@@ -1167,14 +1155,12 @@ const EventGraphEdge = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    // Read: compute mouse position once
                     mousePosRef.current = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
                         transformMatrixRef.current
                     );
 
-                    // Write: all calculations and state updates
                     if (mousePosRef.current) {
                         if (data?.edgeType === "bezier") {
                             const projection = projectPointOntoBezierCurve(
@@ -1252,9 +1238,7 @@ const EventGraphEdge = memo(
             document.body.style.cursor = "";
         }, [isParamDragging, tempParamPosition, data, id]);
 
-        // Reset the transformMatrix when the edge position changes significantly
         useEffect(() => {
-            // Reset transform matrix when node positions change significantly
             if (
                 Math.abs(sourceX - prevPositions.current.sourceX) > 5 ||
                 Math.abs(sourceY - prevPositions.current.sourceY) > 5 ||
@@ -1265,7 +1249,6 @@ const EventGraphEdge = memo(
             }
         }, [sourceX, sourceY, targetX, targetY]);
 
-        // Add event listeners during active drag operations
         useEffect(() => {
             if (isDragging) {
                 window.addEventListener("mousemove", handleDrag as any);

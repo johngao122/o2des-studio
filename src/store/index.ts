@@ -794,10 +794,16 @@ export const useStore = create<StoreState>((set, get) => ({
         const dragProxy = get().dragProxy;
         if (!dragProxy.isActive || !dragProxy.startPosition) return;
 
+        const gridSize = 15;
+        const snappedPosition = {
+            x: Math.round(position.x / gridSize) * gridSize,
+            y: Math.round(position.y / gridSize) * gridSize,
+        };
+
         set({
             dragProxy: {
                 ...dragProxy,
-                currentPosition: position,
+                currentPosition: snappedPosition,
             },
         });
     },
@@ -820,22 +826,11 @@ export const useStore = create<StoreState>((set, get) => ({
             const deltaY =
                 dragProxy.currentPosition.y - dragProxy.startPosition.y;
 
-            console.log("End drag proxy with delta:", { deltaX, deltaY });
-            console.log("Start position:", dragProxy.startPosition);
-            console.log("End position:", dragProxy.currentPosition);
-
             const batchOperations = dragProxy.nodesSnapshot.map((node) => {
                 const newPosition = {
                     x: node.position.x + deltaX,
                     y: node.position.y + deltaY,
                 };
-
-                console.log(
-                    `Node ${node.id} moved from`,
-                    node.position,
-                    "to",
-                    newPosition
-                );
 
                 return {
                     type: "node",
