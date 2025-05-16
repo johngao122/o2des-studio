@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useLayoutEffect, useState } from "react";
 import { useStore } from "@/store";
-import { useReactFlow, getNodesBounds } from "reactflow";
+import { useReactFlow } from "reactflow";
 import { Position, ViewportTransform } from "@/lib/utils/coordinates";
 import { createPortal } from "react-dom";
 
@@ -28,6 +28,7 @@ export const DragProxy = () => {
 
     if (
         !dragProxy.isActive ||
+        !dragProxy.boundingBox ||
         !dragProxy.currentPosition ||
         !dragProxy.startPosition ||
         (dragProxy.nodesSnapshot?.length === 0 &&
@@ -37,16 +38,7 @@ export const DragProxy = () => {
         return null;
     }
 
-    const nodesBounds = dragProxy.nodesSnapshot
-        ? getNodesBounds(dragProxy.nodesSnapshot)
-        : null;
-
-    if (!nodesBounds) {
-        console.warn("Could not calculate nodes bounds for drag proxy");
-        return null;
-    }
-
-    const { width, height } = nodesBounds;
+    const { width, height } = dragProxy.boundingBox;
     if (
         typeof width !== "number" ||
         typeof height !== "number" ||
@@ -64,11 +56,23 @@ export const DragProxy = () => {
 
     const viewport = reactFlowInstance.getViewport();
 
-    const deltaX = dragProxy.currentPosition.x - dragProxy.startPosition.x;
-    const deltaY = dragProxy.currentPosition.y - dragProxy.startPosition.y;
+    const topPosition = dragProxy.currentPosition.y - safeHeight / 2;
+    const leftPosition = dragProxy.currentPosition.x - safeWidth / 2;
 
-    const topPosition = nodesBounds.y + deltaY;
-    const leftPosition = nodesBounds.x + deltaX;
+    console.log("DragProxy positioning details:", {
+        centerPosition: dragProxy.currentPosition,
+        topPosition,
+        leftPosition,
+
+        viewport,
+
+        style: {
+            top: topPosition,
+            left: leftPosition,
+            width: safeWidth,
+            height: safeHeight,
+        },
+    });
 
     const style: React.CSSProperties = {
         position: "absolute",
