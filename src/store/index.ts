@@ -9,7 +9,6 @@ import {
     addEdge,
     applyEdgeChanges,
     applyNodeChanges,
-    getNodesBounds,
 } from "reactflow";
 import { BaseNode, BaseEdge } from "../types/base";
 import { nanoid } from "nanoid";
@@ -735,28 +734,30 @@ export const useStore = create<StoreState>((set, get) => ({
 
         const originalNodes = [...nodes];
 
-        const nodesBounds = getNodesBounds(originalNodes);
+        const nodePositions = nodes
+            .map((n) => {
+                const width =
+                    typeof n.style?.width === "number" ? n.style.width : 200;
+                const height =
+                    typeof n.style?.height === "number" ? n.style.height : 100;
 
-        if (!nodesBounds) {
+                return [
+                    { x: n.position.x, y: n.position.y },
+                    { x: n.position.x + width, y: n.position.y },
+                    { x: n.position.x, y: n.position.y + height },
+                    { x: n.position.x + width, y: n.position.y + height },
+                ];
+            })
+            .flat();
+
+        const boundingBox = getBoundingBoxFromPositions(nodePositions);
+
+        if (!boundingBox) {
             console.warn("Could not calculate bounding box for drag proxy");
             return;
         }
 
-        const boundingBox = {
-            left: nodesBounds.x,
-            top: nodesBounds.y,
-            width: nodesBounds.width,
-            height: nodesBounds.height,
-        };
-
         const centerPosition = getBoundingBoxCenter(boundingBox);
-
-        console.log(
-            "Start drag proxy with bounding box:",
-            boundingBox,
-            "center:",
-            centerPosition
-        );
 
         const storeNodes = get().nodes;
         const resetNodes = storeNodes.map((node) => {
@@ -793,20 +794,16 @@ export const useStore = create<StoreState>((set, get) => ({
         const dragProxy = get().dragProxy;
         if (!dragProxy.isActive || !dragProxy.startPosition) return;
 
-        console.log("Update drag proxy:", {
-            from: dragProxy.currentPosition,
-            to: position,
-            delta: {
-                x: position.x - (dragProxy.currentPosition?.x || 0),
-                y: position.y - (dragProxy.currentPosition?.y || 0),
-            },
-            zoom,
-        });
+        const gridSize = 15;
+        const snappedPosition = {
+            x: Math.round(position.x / gridSize) * gridSize,
+            y: Math.round(position.y / gridSize) * gridSize,
+        };
 
         set({
             dragProxy: {
                 ...dragProxy,
-                currentPosition: position,
+                currentPosition: snappedPosition,
             },
         });
     },
@@ -829,97 +826,24 @@ export const useStore = create<StoreState>((set, get) => ({
             const deltaY =
                 dragProxy.currentPosition.y - dragProxy.startPosition.y;
 
-            console.log("End drag proxy with delta:", { deltaX, deltaY });
-            console.log("Start position:", dragProxy.startPosition);
-            console.log("End position:", dragProxy.currentPosition);
+            const batchOperations = dragProxy.nodesSnapshot.map((node) => {
+                const newPosition = {
+                    x: node.position.x + deltaX,
+                    y: node.position.y + deltaY,
+                };
 
-            commandController.beginBatch();
+                return {
+                    type: "node",
+                    id: node.id,
+                    changes: {
+                        position: newPosition,
+                    },
+                };
+            });
 
-            try {
-                dragProxy.nodesSnapshot.forEach((node) => {
-                    const newPosition = {
-                        x: node.position.x + deltaX,
-                        y: node.position.y + deltaY,
-                    };
-
-                    console.log(
-                        `Node ${node.id} moved from`,
-                        node.position,
-                        "to",
-                        newPosition
-                    );
-
-                    const command = commandController.createUpdateNodeCommand(
-                        node.id,
-                        { position: newPosition }
-                    );
-                    commandController.execute(command);
-                });
-
-                const { edges } = get();
-                const movedNodeIds = dragProxy.nodesSnapshot!.map(
-                    (node) => node.id
-                );
-
-                const affectedEdges = edges.filter((edge) => {
-                    if (
-                        edge.data?.edgeType !== "bezier" ||
-                        !edge.data?.controlPoint
-                    ) {
-                        return false;
-                    }
-
-                    return (
-                        movedNodeIds.includes(edge.source) ||
-                        movedNodeIds.includes(edge.target)
-                    );
-                });
-
-                affectedEdges.forEach((edge) => {
-                    const sourceNode = dragProxy.nodesSnapshot!.find(
-                        (n) => n.id === edge.source
-                    );
-                    const targetNode = dragProxy.nodesSnapshot!.find(
-                        (n) => n.id === edge.target
-                    );
-
-                    if (!edge.data?.controlPoint) return;
-
-                    const controlPoint = edge.data.controlPoint;
-                    const newControlPoint = { ...controlPoint };
-
-                    if (sourceNode && targetNode) {
-                        newControlPoint.x += deltaX;
-                        newControlPoint.y += deltaY;
-                    } else if (sourceNode) {
-                        newControlPoint.x += deltaX * 0.5;
-                        newControlPoint.y += deltaY * 0.5;
-                    } else if (targetNode) {
-                        newControlPoint.x += deltaX * 0.5;
-                        newControlPoint.y += deltaY * 0.5;
-                    }
-
-                    console.log(
-                        `Edge ${edge.id} control point moved from`,
-                        controlPoint,
-                        "to",
-                        newControlPoint
-                    );
-
-                    const command = commandController.createUpdateEdgeCommand(
-                        edge.id,
-                        {
-                            data: {
-                                ...edge.data,
-                                controlPoint: newControlPoint,
-                            },
-                        }
-                    );
-                    commandController.execute(command);
-                });
-            } finally {
-                commandController.endBatch();
-            }
+            const command =
+                commandController.createBatchCommand(batchOperations);
+            commandController.execute(command);
         }
 
         set({

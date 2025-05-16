@@ -41,7 +41,6 @@ import {
     projectPointOntoBezierCurve,
 } from "@/lib/utils/math";
 import { calculateOffsetPointForEdge } from "@/lib/utils/edge";
-import { useStore } from "@/store";
 
 const commandController = CommandController.getInstance();
 
@@ -180,6 +179,64 @@ const EventGraphEdge = memo(
             lastUpdateTime: 0,
         });
 
+        const debouncedControlPointUpdate = useCallback(
+            debounce(
+                (
+                    newSourceX: number,
+                    newSourceY: number,
+                    newTargetX: number,
+                    newTargetY: number,
+                    controlPoint: { x: number; y: number }
+                ) => {
+                    const sourceDeltaX =
+                        newSourceX - prevPositions.current.sourceX;
+                    const sourceDeltaY =
+                        newSourceY - prevPositions.current.sourceY;
+                    const targetDeltaX =
+                        newTargetX - prevPositions.current.targetX;
+                    const targetDeltaY =
+                        newTargetY - prevPositions.current.targetY;
+
+                    const tWeight = 0.5;
+                    const deltaX =
+                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                    const deltaY =
+                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+
+                    const newControlPoint = {
+                        x: controlPoint.x + deltaX,
+                        y: controlPoint.y + deltaY,
+                    };
+
+                    if (selected) {
+                        setTempControlPoint(newControlPoint);
+                    }
+
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                controlPoint: newControlPoint,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
+
+                    prevPositions.current = {
+                        sourceX: newSourceX,
+                        sourceY: newSourceY,
+                        targetX: newTargetX,
+                        targetY: newTargetY,
+                        initialized: true,
+                        lastUpdateTime: Date.now(),
+                    };
+                },
+                selected ? 16 : 50
+            ),
+            [id, data, selected]
+        );
+
         useEffect(() => {
             if (isDragging || isEditing) {
                 return;
@@ -207,30 +264,35 @@ const EventGraphEdge = memo(
                     return;
                 }
 
-                const sourceDeltaX = sourceX - prevPositions.current.sourceX;
-                const sourceDeltaY = sourceY - prevPositions.current.sourceY;
-                const targetDeltaX = targetX - prevPositions.current.targetX;
-                const targetDeltaY = targetY - prevPositions.current.targetY;
+                if (selected) {
+                    const sourceDeltaX =
+                        sourceX - prevPositions.current.sourceX;
+                    const sourceDeltaY =
+                        sourceY - prevPositions.current.sourceY;
+                    const targetDeltaX =
+                        targetX - prevPositions.current.targetX;
+                    const targetDeltaY =
+                        targetY - prevPositions.current.targetY;
 
-                const tWeight = 0.5;
-                const deltaX =
-                    sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
-                const deltaY =
-                    sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
+                    const tWeight = 0.5;
+                    const deltaX =
+                        sourceDeltaX * (1 - tWeight) + targetDeltaX * tWeight;
+                    const deltaY =
+                        sourceDeltaY * (1 - tWeight) + targetDeltaY * tWeight;
 
-                const newControlPoint = {
-                    x: data.controlPoint.x + deltaX,
-                    y: data.controlPoint.y + deltaY,
-                };
+                    setTempControlPoint({
+                        x: data.controlPoint.x + deltaX,
+                        y: data.controlPoint.y + deltaY,
+                    });
+                }
 
-                prevPositions.current = {
+                debouncedControlPointUpdate(
                     sourceX,
                     sourceY,
                     targetX,
                     targetY,
-                    initialized: true,
-                    lastUpdateTime: Date.now(),
-                };
+                    data.controlPoint
+                );
             }
         }, [
             sourceX,
@@ -241,8 +303,8 @@ const EventGraphEdge = memo(
             isEditing,
             data?.edgeType,
             data?.controlPoint,
+            debouncedControlPointUpdate,
             selected,
-            id,
         ]);
 
         const edgeStyle = {
@@ -258,6 +320,8 @@ const EventGraphEdge = memo(
                 case "bezier":
                     const controlPoint =
                         isDragging && tempControlPoint
+                            ? tempControlPoint
+                            : tempControlPoint && selected
                             ? tempControlPoint
                             : data?.controlPoint;
 
@@ -844,10 +908,6 @@ const EventGraphEdge = memo(
                 setTempControlPoint(currentControlPoint);
                 setIsDragging(true);
 
-                commandController.startEdgeDrag(id, {
-                    controlPoint: currentControlPoint,
-                });
-
                 document.body.style.cursor = "grabbing";
             }
         };
@@ -890,20 +950,11 @@ const EventGraphEdge = memo(
                     if (mousePosRef.current) {
                         const x = mousePosRef.current.x + dragOffset.x;
                         const y = mousePosRef.current.y + dragOffset.y;
-                        const newControlPoint = { x, y };
-
-                        setTempControlPoint(newControlPoint);
-
-                        commandController.updateEdgeDuringDrag(id, {
-                            data: {
-                                ...data,
-                                controlPoint: newControlPoint,
-                            },
-                        });
+                        setTempControlPoint({ x, y });
                     }
                 }
             }, 16),
-            [isDragging, isEditing, data, tempControlPoint, dragOffset, id]
+            [isDragging, isEditing, data, tempControlPoint, dragOffset]
         );
 
         const handleDragEnd = useCallback(() => {
@@ -915,9 +966,16 @@ const EventGraphEdge = memo(
                     currentControlPoint.y !== tempControlPoint.y;
 
                 if (hasChanged) {
-                    commandController.endEdgeDrag(id, {
-                        controlPoint: tempControlPoint,
-                    });
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                controlPoint: tempControlPoint,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
                 }
             }
 
@@ -944,13 +1002,6 @@ const EventGraphEdge = memo(
                 transformMatrixRef.current =
                     parseTransformMatrix(transformStyle);
             }
-
-            commandController.startEdgeDrag(id, {
-                delayPosition:
-                    data?.delayPosition !== undefined
-                        ? data.delayPosition
-                        : 0.25,
-            });
 
             setIsDelayDragging(true);
             document.body.style.cursor = "grabbing";
@@ -985,8 +1036,6 @@ const EventGraphEdge = memo(
                     );
 
                     if (mousePosRef.current) {
-                        let newDelayPosition: number;
-
                         if (data?.edgeType === "bezier") {
                             const projection = projectPointOntoBezierCurve(
                                 mousePosRef.current,
@@ -1005,7 +1054,7 @@ const EventGraphEdge = memo(
                                 0.45
                             );
 
-                            newDelayPosition = projection.t;
+                            setTempDelayPosition(projection.t);
                         } else {
                             const lineLength = Math.sqrt(
                                 Math.pow(targetX - sourceX, 2) +
@@ -1019,25 +1068,16 @@ const EventGraphEdge = memo(
                                     (mousePosRef.current.y - sourceY) * dy) /
                                 (lineLength * lineLength);
 
-                            newDelayPosition = Math.max(
+                            const constrainedT = Math.max(
                                 0.05,
                                 Math.min(0.45, t)
                             );
+                            setTempDelayPosition(constrainedT);
                         }
-
-                        setTempDelayPosition(newDelayPosition);
-
-                        commandController.updateEdgeDuringDrag(id, {
-                            data: {
-                                ...data,
-                                delayPosition: newDelayPosition,
-                            },
-                        });
                     }
                 }
             }, 16),
             [
-                id,
                 isDelayDragging,
                 isEditing,
                 sourceX,
@@ -1053,9 +1093,16 @@ const EventGraphEdge = memo(
                 const hasChanged = data?.delayPosition !== tempDelayPosition;
 
                 if (hasChanged) {
-                    commandController.endEdgeDrag(id, {
-                        delayPosition: tempDelayPosition,
-                    });
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                delayPosition: tempDelayPosition,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
                 }
             }
 
@@ -1081,13 +1128,6 @@ const EventGraphEdge = memo(
                 transformMatrixRef.current =
                     parseTransformMatrix(transformStyle);
             }
-
-            commandController.startEdgeDrag(id, {
-                parameterPosition:
-                    data?.parameterPosition !== undefined
-                        ? data.parameterPosition
-                        : 0.75,
-            });
 
             setIsParamDragging(true);
             document.body.style.cursor = "grabbing";
@@ -1122,8 +1162,6 @@ const EventGraphEdge = memo(
                     );
 
                     if (mousePosRef.current) {
-                        let newParamPosition: number;
-
                         if (data?.edgeType === "bezier") {
                             const projection = projectPointOntoBezierCurve(
                                 mousePosRef.current,
@@ -1142,7 +1180,7 @@ const EventGraphEdge = memo(
                                 0.95
                             );
 
-                            newParamPosition = projection.t;
+                            setTempParamPosition(projection.t);
                         } else {
                             const lineLength = Math.sqrt(
                                 Math.pow(targetX - sourceX, 2) +
@@ -1156,25 +1194,16 @@ const EventGraphEdge = memo(
                                     (mousePosRef.current.y - sourceY) * dy) /
                                 (lineLength * lineLength);
 
-                            newParamPosition = Math.max(
+                            const constrainedT = Math.max(
                                 0.55,
                                 Math.min(0.95, t)
                             );
+                            setTempParamPosition(constrainedT);
                         }
-
-                        setTempParamPosition(newParamPosition);
-
-                        commandController.updateEdgeDuringDrag(id, {
-                            data: {
-                                ...data,
-                                parameterPosition: newParamPosition,
-                            },
-                        });
                     }
                 }
             }, 16),
             [
-                id,
                 isParamDragging,
                 isEditing,
                 sourceX,
@@ -1191,9 +1220,16 @@ const EventGraphEdge = memo(
                     data?.parameterPosition !== tempParamPosition;
 
                 if (hasChanged) {
-                    commandController.endEdgeDrag(id, {
-                        parameterPosition: tempParamPosition,
-                    });
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                parameterPosition: tempParamPosition,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
                 }
             }
 

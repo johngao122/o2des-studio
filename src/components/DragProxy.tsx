@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useLayoutEffect, useState } from "react";
 import { useStore } from "@/store";
-import { useReactFlow, getNodesBounds } from "reactflow";
+import { useReactFlow } from "reactflow";
 import { Position, ViewportTransform } from "@/lib/utils/coordinates";
 import { createPortal } from "react-dom";
 
@@ -9,11 +9,6 @@ import { createPortal } from "react-dom";
  *
  * Displays a lightweight visual representation when dragging multiple elements
  * instead of rendering all nodes/edges in real-time.
- *
- * Performance benefits:
- * 1. Prevents expensive re-rendering of complex nodes during drag
- * 2. Only updates actual node positions once at the end of the drag
- * 3. Uses a batched command for undo/redo operations
  *
  * The drag proxy activates when 3+ total components (nodes + edges) are selected.
  * All operations are batched into a single undo/redo stack entry.
@@ -26,31 +21,16 @@ export const DragProxy = () => {
         null
     );
 
-    useLayoutEffect(() => {
-        if (dragProxy.isActive && !viewportElement) {
-            const viewport = document.querySelector(".react-flow__viewport");
-            if (viewport instanceof HTMLElement) {
-                setViewportElement(viewport);
-                console.log("ReactFlow viewport found:", viewport);
-            }
-        }
-    }, [dragProxy.isActive, viewportElement]);
-
     useEffect(() => {
-        if (proxyRef.current && dragProxy.isActive) {
-            const rect = proxyRef.current.getBoundingClientRect();
-
-            console.log("DragProxy DOM position:", {
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height,
-            });
+        const element = document.querySelector(".react-flow__viewport");
+        if (element instanceof HTMLElement) {
+            setViewportElement(element);
         }
-    });
+    }, []);
 
     if (
         !dragProxy.isActive ||
+        !dragProxy.boundingBox ||
         !dragProxy.currentPosition ||
         !dragProxy.startPosition ||
         (dragProxy.nodesSnapshot?.length === 0 &&
@@ -60,16 +40,7 @@ export const DragProxy = () => {
         return null;
     }
 
-    const nodesBounds = dragProxy.nodesSnapshot
-        ? getNodesBounds(dragProxy.nodesSnapshot)
-        : null;
-
-    if (!nodesBounds) {
-        console.warn("Could not calculate nodes bounds for drag proxy");
-        return null;
-    }
-
-    const { width, height } = nodesBounds;
+    const { width, height } = dragProxy.boundingBox;
     if (
         typeof width !== "number" ||
         typeof height !== "number" ||
@@ -87,31 +58,15 @@ export const DragProxy = () => {
 
     const viewport = reactFlowInstance.getViewport();
 
-    const deltaX = dragProxy.currentPosition.x - dragProxy.startPosition.x;
-    const deltaY = dragProxy.currentPosition.y - dragProxy.startPosition.y;
+    const topPosition = dragProxy.currentPosition.y - safeHeight / 2;
+    const leftPosition = dragProxy.currentPosition.x - safeWidth / 2;
 
-    const topPosition = nodesBounds.y + deltaY;
-    const leftPosition = nodesBounds.x + deltaX;
-
-    console.log("DragProxy positioning details:", {
-        nodesBounds,
-        deltaPosition: { x: deltaX, y: deltaY },
-        currentPosition: dragProxy.currentPosition,
-        topPosition,
-        leftPosition,
-        viewport,
-        style: {
-            top: topPosition,
-            left: leftPosition,
-            width: safeWidth,
-            height: safeHeight,
-        },
-    });
+    const xCoord = Math.round(leftPosition * 10) / 10;
+    const yCoord = Math.round(topPosition * 10) / 10;
 
     const style: React.CSSProperties = {
         position: "absolute",
         pointerEvents: "none",
-
         top: topPosition,
         left: leftPosition,
         width: safeWidth,
@@ -132,6 +87,7 @@ export const DragProxy = () => {
 
     const content = (
         <div ref={proxyRef} className="react-flow__drag-proxy" style={style}>
+            {/* Header info */}
             <div
                 style={{
                     position: "absolute",
@@ -157,6 +113,27 @@ export const DragProxy = () => {
                     (Drag to move, Esc to cancel)
                 </span>
             </div>
+
+            {/* Coordinates display */}
+            <div
+                style={{
+                    position: "absolute",
+                    bottom: -28,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "#0096ff",
+                    color: "white",
+                    padding: "3px 10px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    whiteSpace: "nowrap",
+                    userSelect: "none",
+                }}
+            >
+                {`x: ${xCoord}, y: ${yCoord}`}
+            </div>
+
             <div
                 style={{
                     position: "absolute",
@@ -169,19 +146,20 @@ export const DragProxy = () => {
                     backgroundSize: "16px 16px",
                 }}
             />
-            {/* Indicator showing exact mouse position at the center */}
+
+            {/* Grid snap visualization */}
             <div
                 style={{
                     position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    backgroundColor: "red",
-                    transform: "translate(-50%, -50%)",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    border: "1px solid rgba(0, 150, 255, 0.5)",
+                    backgroundImage:
+                        "repeating-linear-gradient(0deg, rgba(0, 150, 255, 0.1), rgba(0, 150, 255, 0.1) 1px, transparent 1px, transparent 15px), repeating-linear-gradient(90deg, rgba(0, 150, 255, 0.1), rgba(0, 150, 255, 0.1) 1px, transparent 1px, transparent 15px)",
                     pointerEvents: "none",
-                    boxShadow: "0 0 0 2px white",
+                    zIndex: 5,
                 }}
             />
         </div>
