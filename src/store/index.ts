@@ -751,13 +751,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
         const centerPosition = getBoundingBoxCenter(boundingBox);
 
-        console.log(
-            "Start drag proxy with bounding box:",
-            boundingBox,
-            "center:",
-            centerPosition
-        );
-
         const storeNodes = get().nodes;
         const resetNodes = storeNodes.map((node) => {
             const originalNode = originalNodes.find((n) => n.id === node.id);
@@ -793,16 +786,6 @@ export const useStore = create<StoreState>((set, get) => ({
         const dragProxy = get().dragProxy;
         if (!dragProxy.isActive || !dragProxy.startPosition) return;
 
-        console.log("Update drag proxy:", {
-            from: dragProxy.currentPosition,
-            to: position,
-            delta: {
-                x: position.x - (dragProxy.currentPosition?.x || 0),
-                y: position.y - (dragProxy.currentPosition?.y || 0),
-            },
-            zoom,
-        });
-
         set({
             dragProxy: {
                 ...dragProxy,
@@ -829,10 +812,6 @@ export const useStore = create<StoreState>((set, get) => ({
             const deltaY =
                 dragProxy.currentPosition.y - dragProxy.startPosition.y;
 
-            console.log("End drag proxy with delta:", { deltaX, deltaY });
-            console.log("Start position:", dragProxy.startPosition);
-            console.log("End position:", dragProxy.currentPosition);
-
             commandController.beginBatch();
 
             try {
@@ -841,13 +820,6 @@ export const useStore = create<StoreState>((set, get) => ({
                         x: node.position.x + deltaX,
                         y: node.position.y + deltaY,
                     };
-
-                    console.log(
-                        `Node ${node.id} moved from`,
-                        node.position,
-                        "to",
-                        newPosition
-                    );
 
                     const command = commandController.createUpdateNodeCommand(
                         node.id,
@@ -898,13 +870,6 @@ export const useStore = create<StoreState>((set, get) => ({
                         newControlPoint.x += deltaX * 0.5;
                         newControlPoint.y += deltaY * 0.5;
                     }
-
-                    console.log(
-                        `Edge ${edge.id} control point moved from`,
-                        controlPoint,
-                        "to",
-                        newControlPoint
-                    );
 
                     const command = commandController.createUpdateEdgeCommand(
                         edge.id,

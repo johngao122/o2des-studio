@@ -339,11 +339,6 @@ function FlowCanvas() {
 
                         const mousePosition = firstChange.position;
 
-                        console.log("ReactFlow position change:", {
-                            position: mousePosition,
-                            viewport,
-                        });
-
                         updateDragProxy(mousePosition, viewport.zoom);
                     }
 
@@ -353,10 +348,6 @@ function FlowCanvas() {
                             dragTimeoutRef.current = null;
                         }
 
-                        console.log(
-                            "Ending drag proxy, final position changes:",
-                            positionChanges
-                        );
                         endDragProxy(true);
                     }
 
@@ -366,15 +357,6 @@ function FlowCanvas() {
                     shouldUseDragProxy &&
                     !isDragProxyActive
                 ) {
-                    console.log(
-                        "Starting drag proxy with nodes:",
-                        selectedNodes.length,
-                        "edges:",
-                        edges.filter((edge) =>
-                            selectedEdgeIds.includes(edge.id)
-                        ).length
-                    );
-
                     startDragProxy(
                         selectedNodes,
                         edges.filter((edge) =>
@@ -455,12 +437,6 @@ function FlowCanvas() {
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [dragProxy.isActive, endDragProxy]);
-
-    useEffect(() => {
-        if (dragProxy.isActive && viewportRef.current) {
-            console.log("ReactFlow viewport ref:", viewportRef.current);
-        }
-    }, [dragProxy.isActive, viewportRef.current]);
 
     return (
         <div

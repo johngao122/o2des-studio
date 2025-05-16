@@ -60,31 +60,16 @@ export class CommandController {
         const callerMatch =
             stackTrace.split("\n")[2]?.trim() || "Unknown caller";
 
-        console.log(`Executing command from ${commandDesc}`);
-        console.log(`Called from: ${callerMatch}`);
-
         command.execute();
 
         if (!options?.silent) {
             if (this.isBatching) {
-                console.log(
-                    `Adding command to batch (total: ${
-                        this.batchedCommands.length + 1
-                    })`
-                );
-
                 const commandCopy = {
                     execute: command.execute,
                     undo: command.undo,
                 };
                 this.batchedCommands.push(commandCopy);
             } else {
-                console.log(
-                    `Adding command to undo stack (total: ${
-                        this.undoStack.length + 1
-                    })`
-                );
-                console.log("Command:", commandDesc);
                 this.undoStack.push(command);
                 this.redoStack = [];
                 this.autosaveService.autosave();
@@ -93,38 +78,23 @@ export class CommandController {
     }
 
     beginBatch() {
-        console.log("Beginning command batch");
         this.isBatching = true;
         this.batchedCommands = [];
     }
 
     endBatch() {
-        console.log(
-            `Ending command batch with ${this.batchedCommands.length} commands`
-        );
         if (this.batchedCommands.length > 0) {
             const batchedCommandsCopy = [...this.batchedCommands];
 
             const compound: Command = {
                 execute: () => {
-                    console.log(
-                        `Executing batch of ${batchedCommandsCopy.length} commands`
-                    );
                     batchedCommandsCopy.forEach((c) => c.execute());
                 },
                 undo: () => {
-                    console.log(
-                        `Undoing batch of ${batchedCommandsCopy.length} commands`
-                    );
                     [...batchedCommandsCopy].reverse().forEach((c) => c.undo());
                 },
             };
 
-            console.log(
-                `Adding compound command to undo stack (total: ${
-                    this.undoStack.length + 1
-                })`
-            );
             this.undoStack.push(compound);
             this.redoStack = [];
         }
@@ -136,53 +106,27 @@ export class CommandController {
     undo() {
         const command = this.undoStack.pop();
         if (command) {
-            console.log(
-                `Undoing command (${this.undoStack.length} commands remaining in undo stack)`
-            );
-
             const isBatchCommand = command.execute
                 .toString()
                 .includes("batchedCommandsCopy");
-            if (isBatchCommand) {
-                console.log(
-                    "This is a batch command - undoing multiple operations"
-                );
-            }
-
-            console.log(
-                "Command:",
-                command.execute.toString().slice(0, 150) + "..."
-            );
 
             try {
                 command.undo();
-                console.log("Undo operation completed successfully");
             } catch (error) {
                 console.error("Error during undo operation:", error);
             }
 
             this.redoStack.push(command);
             this.autosaveService.autosave();
-        } else {
-            console.log("No commands to undo");
         }
     }
 
     redo() {
         const command = this.redoStack.pop();
         if (command) {
-            console.log(
-                `Redoing command (${this.redoStack.length} commands remaining in redo stack)`
-            );
-            console.log(
-                "Command:",
-                command.execute.toString().slice(0, 150) + "..."
-            );
             command.execute();
             this.undoStack.push(command);
             this.autosaveService.autosave();
-        } else {
-            console.log("No commands to redo");
         }
     }
 
@@ -241,7 +185,6 @@ export class CommandController {
         const isDragging = useStore.getState().dragProxy.isActive;
 
         if (isDragging) {
-            console.log(`Skipping edge update during drag for edge ${edgeId}`);
             return;
         }
 
@@ -264,7 +207,6 @@ export class CommandController {
         const isDragging = useStore.getState().dragProxy.isActive;
 
         if (isDragging) {
-            console.log(`Skipping delay update during drag for edge ${edgeId}`);
             return;
         }
 
@@ -287,9 +229,6 @@ export class CommandController {
         const isDragging = useStore.getState().dragProxy.isActive;
 
         if (isDragging) {
-            console.log(
-                `Skipping parameter update during drag for edge ${edgeId}`
-            );
             return;
         }
 

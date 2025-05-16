@@ -26,29 +26,6 @@ export const DragProxy = () => {
         null
     );
 
-    useLayoutEffect(() => {
-        if (dragProxy.isActive && !viewportElement) {
-            const viewport = document.querySelector(".react-flow__viewport");
-            if (viewport instanceof HTMLElement) {
-                setViewportElement(viewport);
-                console.log("ReactFlow viewport found:", viewport);
-            }
-        }
-    }, [dragProxy.isActive, viewportElement]);
-
-    useEffect(() => {
-        if (proxyRef.current && dragProxy.isActive) {
-            const rect = proxyRef.current.getBoundingClientRect();
-
-            console.log("DragProxy DOM position:", {
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height,
-            });
-        }
-    });
-
     if (
         !dragProxy.isActive ||
         !dragProxy.currentPosition ||
@@ -92,21 +69,6 @@ export const DragProxy = () => {
 
     const topPosition = nodesBounds.y + deltaY;
     const leftPosition = nodesBounds.x + deltaX;
-
-    console.log("DragProxy positioning details:", {
-        nodesBounds,
-        deltaPosition: { x: deltaX, y: deltaY },
-        currentPosition: dragProxy.currentPosition,
-        topPosition,
-        leftPosition,
-        viewport,
-        style: {
-            top: topPosition,
-            left: leftPosition,
-            width: safeWidth,
-            height: safeHeight,
-        },
-    });
 
     const style: React.CSSProperties = {
         position: "absolute",
