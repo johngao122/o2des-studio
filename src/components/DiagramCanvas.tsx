@@ -286,6 +286,8 @@ function FlowCanvas() {
                 const selectedEdgeIds =
                     useStore.getState().selectedElements.edges;
 
+                // Might need this later on
+                /* 
                 const connectedEdges = edges.filter(
                     (edge) =>
                         selectedNodeIds.includes(edge.source) ||
@@ -308,6 +310,7 @@ function FlowCanvas() {
                         );
                     });
                 }
+                */
 
                 const DRAG_PROXY_THRESHOLD = 3;
                 const selectedNodes = nodes.filter((node) =>
