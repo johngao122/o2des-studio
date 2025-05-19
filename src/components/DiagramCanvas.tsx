@@ -286,7 +286,7 @@ function FlowCanvas() {
                 const selectedEdgeIds =
                     useStore.getState().selectedElements.edges;
 
-                // Comment out the automatic edge selection
+                // Might need this later on
                 /* 
                 const connectedEdges = edges.filter(
                     (edge) =>
