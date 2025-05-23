@@ -2,8 +2,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
     Select,
     SelectContent,
@@ -11,14 +12,22 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useStore } from "@/store";
+import { nodeTypes } from "@/components/nodes";
+import ActivityNode from "@/components/nodes/activitybased/resourceconstrainedqueues/ActivityNode";
+import { CommandController } from "@/controllers/CommandController";
+import { useState } from "react";
+
+const commandController = CommandController.getInstance();
 
 interface Property {
     key: string;
     value: string | number;
-    type: "string" | "number";
+    type: "string" | "number" | "array";
     editable: boolean;
     isTextArea?: boolean;
     options?: string[];
+    arrayValue?: string[];
 }
 
 interface PropertiesBarProps {
@@ -37,6 +46,110 @@ export function PropertiesBar({
     className,
     selectionInfo,
 }: PropertiesBarProps) {
+    const [newResourceInput, setNewResourceInput] = useState("");
+    const selectedElements = useStore((state) => state.selectedElements);
+
+    const handleAddResource = () => {
+        if (newResourceInput.trim() === "") return;
+
+        const { selectedElements, nodes } = useStore.getState();
+        if (selectedElements.nodes.length === 1) {
+            const nodeId = selectedElements.nodes[0];
+            const node = nodes.find((n) => n.id === nodeId);
+
+            if (node && node.type === "activity") {
+                const updatedData = ActivityNode.addResource(
+                    node.data,
+                    newResourceInput.trim()
+                );
+                const command = commandController.createUpdateNodeCommand(
+                    nodeId,
+                    {
+                        data: updatedData,
+                    }
+                );
+                commandController.execute(command);
+                setNewResourceInput("");
+            }
+        }
+    };
+
+    const handleRemoveResource = (resourceIndex: number) => {
+        const { selectedElements, nodes } = useStore.getState();
+        if (selectedElements.nodes.length === 1) {
+            const nodeId = selectedElements.nodes[0];
+            const node = nodes.find((n) => n.id === nodeId);
+
+            if (node && node.type === "activity") {
+                const updatedData = ActivityNode.removeResource(
+                    node.data,
+                    resourceIndex
+                );
+                const command = commandController.createUpdateNodeCommand(
+                    nodeId,
+                    {
+                        data: updatedData,
+                    }
+                );
+                commandController.execute(command);
+            }
+        }
+    };
+
+    const renderResourceManager = (resources: string[]) => {
+        return (
+            <div className="space-y-2">
+                <div className="space-y-1">
+                    {resources.map((resource, index) => (
+                        <div
+                            key={index}
+                            className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-zinc-700 rounded"
+                        >
+                            <span className="flex-1 text-sm">{resource}</span>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRemoveResource(index)}
+                                className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex gap-2">
+                    <Input
+                        value={newResourceInput}
+                        onChange={(e) => setNewResourceInput(e.target.value)}
+                        placeholder="Add resource..."
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddResource();
+                            }
+                        }}
+                    />
+                    <Button
+                        size="sm"
+                        onClick={handleAddResource}
+                        disabled={newResourceInput.trim() === ""}
+                        className="h-8"
+                    >
+                        <Plus className="h-3 w-3" />
+                    </Button>
+                </div>
+
+                {resources.length === 0 && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400 italic text-center py-2">
+                        No resources added
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const renderMultiSelectionMessage = () => {
         if (!selectionInfo) return null;
 
@@ -102,7 +215,9 @@ export function PropertiesBar({
                                     </span>
                                 )}
                             </Label>
-                            {property.options ? (
+                            {property.type === "array" ? (
+                                renderResourceManager(property.arrayValue || [])
+                            ) : property.options ? (
                                 <Select
                                     value={String(property.value)}
                                     onValueChange={(value) => {
@@ -144,7 +259,11 @@ export function PropertiesBar({
                                 />
                             ) : (
                                 <Input
-                                    type={property.type}
+                                    type={
+                                        property.type === "number"
+                                            ? "number"
+                                            : "text"
+                                    }
                                     value={String(property.value)}
                                     readOnly={!property.editable}
                                     className={cn(
@@ -170,6 +289,39 @@ export function PropertiesBar({
                         </div>
                     );
                 })}
+
+                {/* Special handling for ActivityNode resources */}
+                {(() => {
+                    const { selectedElements, nodes } = useStore.getState();
+                    if (selectedElements.nodes.length === 1) {
+                        const node = nodes.find(
+                            (n) => n.id === selectedElements.nodes[0]
+                        );
+                        if (node && node.type === "activity") {
+                            const resources = Array.isArray(
+                                node.data?.resources
+                            )
+                                ? node.data.resources
+                                : [];
+
+                            const hasResourcesProperty = properties.some(
+                                (p) => p.key === "resources"
+                            );
+                            if (!hasResourcesProperty) {
+                                return (
+                                    <div key="activity-resources">
+                                        <Label className="text-sm font-medium flex items-center gap-2">
+                                            Resources
+                                        </Label>
+                                        {renderResourceManager(resources)}
+                                        <Separator className="mt-4" />
+                                    </div>
+                                );
+                            }
+                        }
+                    }
+                    return null;
+                })()}
             </div>
         </div>
     );

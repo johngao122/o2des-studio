@@ -22,6 +22,7 @@ import { EventNodePreview } from "./nodes/eventbased/EventNode";
 import { ModuleFramePreview } from "./nodes/eventbased/ModuleFrame";
 import { TableauNodePreview } from "./nodes/eventbased/TableauNode";
 import { GeneratorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GeneratorNode";
+import { ActivityNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/ActivityNode";
 import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
@@ -30,6 +31,7 @@ const NODE_DESCRIPTIONS = {
     moduleFrame: "Container for encapsulating event graphs",
     tableau: "Event transition table with conditions and parameters",
     generator: "Generates entities in activity-based models",
+    activity: "Activity with resource constraints and duration",
 } as const;
 
 const PREVIEW_COMPONENTS = {
@@ -38,6 +40,7 @@ const PREVIEW_COMPONENTS = {
     [NODE_TYPES.MODULE_FRAME]: ModuleFramePreview,
     [NODE_TYPES.TABLEAU]: TableauNodePreview,
     [NODE_TYPES.GENERATOR]: GeneratorNodePreview,
+    [NODE_TYPES.ACTIVITY]: ActivityNodePreview,
 } as const;
 
 const nodeFactory = new NodeFactory();

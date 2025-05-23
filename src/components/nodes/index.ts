@@ -3,6 +3,7 @@ import EventNode from "./eventbased/EventNode";
 import ModuleFrame from "./eventbased/ModuleFrame";
 import TableauNode from "./eventbased/TableauNode";
 import GeneratorNode from "./activitybased/resourceconstrainedqueues/GeneratorNode";
+import ActivityNode from "./activitybased/resourceconstrainedqueues/ActivityNode";
 
 export const NODE_TYPES = {
     INITIALIZATION: "initialization",
@@ -10,6 +11,7 @@ export const NODE_TYPES = {
     MODULE_FRAME: "moduleFrame",
     TABLEAU: "tableau",
     GENERATOR: "generator",
+    ACTIVITY: "activity",
 } as const;
 
 export const EVENT_BASED_NODES = {
@@ -21,6 +23,7 @@ export const EVENT_BASED_NODES = {
 
 export const ACTIVITY_BASED_NODES = {
     generator: GeneratorNode,
+    activity: ActivityNode,
 } as const;
 
 export const nodeTypes = {
@@ -45,4 +48,5 @@ export {
     ModuleFrame,
     TableauNode,
     GeneratorNode,
+    ActivityNode,
 };
