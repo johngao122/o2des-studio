@@ -373,7 +373,7 @@ const ActivityNode = memo(
                                 id={`${id}-top-${index}`}
                                 type="source"
                                 position={Position.Top}
-                                className="!bg-blue-500 dark:!bg-blue-400 !w-2 !h-2 !border-1 !border-white dark:!border-zinc-800 !rounded-full"
+                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${leftPos}px`,
@@ -390,7 +390,7 @@ const ActivityNode = memo(
                                 id={`${id}-right-${index}`}
                                 type="source"
                                 position={Position.Right}
-                                className="!bg-blue-500 dark:!bg-blue-400 !w-2 !h-2 !border-1 !border-white dark:!border-zinc-800 !rounded-full"
+                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${dimensions.width}px`,
@@ -407,7 +407,7 @@ const ActivityNode = memo(
                                 id={`${id}-bottom-${index}`}
                                 type="source"
                                 position={Position.Bottom}
-                                className="!bg-blue-500 dark:!bg-blue-400 !w-2 !h-2 !border-1 !border-white dark:!border-zinc-800 !rounded-full"
+                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${leftPos}px`,
@@ -424,7 +424,7 @@ const ActivityNode = memo(
                                 id={`${id}-left-${index}`}
                                 type="target"
                                 position={Position.Left}
-                                className="!bg-blue-500 dark:!bg-blue-400 !w-2 !h-2 !border-1 !border-white dark:!border-zinc-800 !rounded-full"
+                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                                 isConnectable={isConnectable}
                                 style={{
                                     left: "0px",

@@ -9,35 +9,35 @@ import { BaseNode } from "@/types/base";
 
 const commandController = CommandController.getInstance();
 
-interface GeneratorNodeData {
+interface TerminatorNodeData {
     updateNodeData?: (nodeId: string, data: any) => void;
 }
 
-interface ExtendedNodeProps extends NodeProps<GeneratorNodeData> {
+interface ExtendedNodeProps extends NodeProps<TerminatorNodeData> {
     name?: string;
 }
 
-interface GeneratorNodeComponent
+interface TerminatorNodeComponent
     extends React.NamedExoticComponent<ExtendedNodeProps> {
-    defaultData: GeneratorNodeData;
+    defaultData: TerminatorNodeData;
     displayName?: string;
     getGraphType?: () => string;
 }
 
-interface GeneratorNodeJSON {
+interface TerminatorNodeJSON {
     id: string;
-    type: "generator";
+    type: "terminator";
     name?: string;
     data: {};
     position: XYPosition;
 }
 
 export const createJSON = (
-    props: NodeProps<GeneratorNodeData>
-): GeneratorNodeJSON => {
+    props: NodeProps<TerminatorNodeData>
+): TerminatorNodeJSON => {
     return {
         id: props.id,
-        type: "generator",
+        type: "terminator",
         name: (props as any).name,
         data: {},
         position: {
@@ -47,18 +47,21 @@ export const createJSON = (
     };
 };
 
-export const GeneratorNodePreview = () => {
+export const TerminatorNodePreview = () => {
     return (
         <div className="relative" style={{ width: "200px", height: "120px" }}>
-            {/* SVG Shape */}
+            {/* SVG Shape - Ellipse */}
             <svg
                 width="200"
                 height="120"
                 viewBox="0 0 200 120"
                 className="absolute inset-0"
             >
-                <path
-                    d="M 0 15 L 150 15 L 190 60 L 150 105 L 0 105 L 40 60 Z"
+                <ellipse
+                    cx="100"
+                    cy="60"
+                    rx="95"
+                    ry="55"
                     fill="white"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -68,18 +71,18 @@ export const GeneratorNodePreview = () => {
 
             {/* Content Area */}
             <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8">
-                <span>Load 1</span>
+                <span>Terminator</span>
             </div>
         </div>
     );
 };
 
-export const getDefaultData = (): GeneratorNodeData => ({});
+export const getDefaultData = (): TerminatorNodeData => ({});
 
-const GeneratorNode = memo(
+const TerminatorNode = memo(
     ({
         id,
-        data = {} as GeneratorNodeData,
+        data = {} as TerminatorNodeData,
         selected,
         isConnectable,
         dragging,
@@ -92,7 +95,7 @@ const GeneratorNode = memo(
             .getState()
             .nodes.find((n: BaseNode) => n.id === id);
 
-        const nodeName = node?.name || "Generator Node";
+        const nodeName = node?.name || "Terminator Node";
 
         return (
             <div
@@ -101,15 +104,18 @@ const GeneratorNode = memo(
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {/* SVG Shape */}
+                {/* SVG Shape - Ellipse */}
                 <svg
                     width="200"
                     height="120"
                     viewBox="0 0 200 120"
                     className="absolute inset-0"
                 >
-                    <path
-                        d="M 0 15 L 150 15 L 190 60 L 150 105 L 0 105 L 40 60 Z"
+                    <ellipse
+                        cx="100"
+                        cy="60"
+                        rx="95"
+                        ry="55"
                         fill="white"
                         stroke={selected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
@@ -124,111 +130,107 @@ const GeneratorNode = memo(
 
                 {id !== "preview" && (selected || isHovered) && (
                     <>
-                        {/* Top Handles */}
+                        {/* Top Handles - 3 handles */}
                         <Handle
-                            id={`${id}-top-left-source`}
-                            type="source"
+                            id={`${id}-top-left-target`}
+                            type="target"
                             position={Position.Top}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "-3%",
-                                top: "17.5%",
-                                transform: "translateY(-50%)",
+                                left: "20%",
+                                top: "15%",
+                                transform: "translateX(-50%)",
                             }}
                         />
-
                         <Handle
-                            id={`${id}-top-center-source`}
-                            type="source"
+                            id={`${id}-top-center-target`}
+                            type="target"
                             position={Position.Top}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "37.5%",
-                                top: "17.5%",
-                                transform: "translateY(-50%)",
+                                left: "50%",
+                                top: "5%",
+                                transform: "translateX(-50%)",
                             }}
                         />
-
                         <Handle
-                            id={`${id}-top-right-source`}
-                            type="source"
+                            id={`${id}-top-right-target`}
+                            type="target"
                             position={Position.Top}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "73%",
-                                top: "17.5%",
-                                transform: "translateY(-50%)",
+                                left: "80%",
+                                top: "15%",
+                                transform: "translateX(-50%)",
                             }}
                         />
 
-                        {/* Left Handle - at the indent */}
+                        {/* Left Handle */}
                         <Handle
-                            id={`${id}-left-source`}
-                            type="source"
+                            id={`${id}-left-target`}
+                            type="target"
                             position={Position.Left}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "19%",
+                                left: "2.5%",
                                 top: "50%",
                                 transform: "translateY(-50%)",
                             }}
                         />
 
-                        {/* Right Handle - at the tip */}
+                        {/* Right Handle */}
                         <Handle
-                            id={`${id}-right-source`}
-                            type="source"
+                            id={`${id}-right-target`}
+                            type="target"
                             position={Position.Right}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                right: "5%",
+                                right: "2.5%",
                                 top: "50%",
                                 transform: "translateY(-50%)",
                             }}
                         />
 
-                        {/* Bottom Handles */}
+                        {/* Bottom Handles - 3 handles */}
                         <Handle
-                            id={`${id}-bottom-left-source`}
-                            type="source"
+                            id={`${id}-bottom-left-target`}
+                            type="target"
                             position={Position.Bottom}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "-3%",
-                                bottom: "17.5%",
-                                transform: "translateY(50%)",
+                                left: "20%",
+                                bottom: "15%",
+                                transform: "translateX(-50%)",
                             }}
                         />
-
                         <Handle
-                            id={`${id}-bottom-center-source`}
-                            type="source"
+                            id={`${id}-bottom-center-target`}
+                            type="target"
                             position={Position.Bottom}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "37.5%",
-                                bottom: "17.5%",
-                                transform: "translateY(50%)",
+                                left: "50%",
+                                bottom: "5%",
+                                transform: "translateX(-50%)",
                             }}
                         />
-
                         <Handle
-                            id={`${id}-bottom-right-source`}
-                            type="source"
+                            id={`${id}-bottom-right-target`}
+                            type="target"
                             position={Position.Bottom}
                             className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
                             isConnectable={isConnectable}
                             style={{
-                                left: "73%",
-                                bottom: "17.5%",
-                                transform: "translateY(50%)",
+                                left: "80%",
+                                bottom: "15%",
+                                transform: "translateX(-50%)",
                             }}
                         />
                     </>
@@ -262,10 +264,10 @@ const GeneratorNode = memo(
     }
 ) as any;
 
-GeneratorNode.getDefaultData = (): GeneratorNodeData => ({});
+TerminatorNode.getDefaultData = (): TerminatorNodeData => ({});
 
-GeneratorNode.getGraphType = (): string => "activityBased";
+TerminatorNode.getGraphType = (): string => "activityBased";
 
-GeneratorNode.displayName = "GeneratorNode";
+TerminatorNode.displayName = "TerminatorNode";
 
-export default GeneratorNode;
+export default TerminatorNode;

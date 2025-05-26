@@ -23,6 +23,7 @@ import { ModuleFramePreview } from "./nodes/eventbased/ModuleFrame";
 import { TableauNodePreview } from "./nodes/eventbased/TableauNode";
 import { GeneratorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GeneratorNode";
 import { ActivityNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/ActivityNode";
+import { TerminatorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/TerminatorNode";
 import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
@@ -32,6 +33,7 @@ const NODE_DESCRIPTIONS = {
     tableau: "Event transition table with conditions and parameters",
     generator: "Generates entities in activity-based models",
     activity: "Activity with resource constraints and duration",
+    terminator: "Terminates entities in activity-based models",
 } as const;
 
 const PREVIEW_COMPONENTS = {
@@ -41,6 +43,7 @@ const PREVIEW_COMPONENTS = {
     [NODE_TYPES.TABLEAU]: TableauNodePreview,
     [NODE_TYPES.GENERATOR]: GeneratorNodePreview,
     [NODE_TYPES.ACTIVITY]: ActivityNodePreview,
+    [NODE_TYPES.TERMINATOR]: TerminatorNodePreview,
 } as const;
 
 const nodeFactory = new NodeFactory();
