@@ -373,3 +373,27 @@ export function projectPointOntoBezierCurve(
         };
     }
 }
+
+/**
+ * Throttle function execution to limit how often it can be called
+ */
+export function throttle<T extends (...args: any[]) => any>(
+    func: T,
+    limit: number
+): (...args: Parameters<T>) => void {
+    let lastCall = 0;
+    return function (...args: Parameters<T>) {
+        const now = Date.now();
+        if (now - lastCall >= limit) {
+            lastCall = now;
+            return func(...args);
+        }
+    };
+}
+
+/**
+ * Snap a value to the nearest grid position
+ */
+export function snapToGrid(value: number, gridSize: number = 15): number {
+    return Math.round(value / gridSize) * gridSize;
+}

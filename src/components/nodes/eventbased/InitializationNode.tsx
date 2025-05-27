@@ -23,6 +23,7 @@ interface InitializationNodeComponent
     defaultData: InitializationNodeData;
     displayName?: string;
     getGraphType?: () => string;
+    getType?: () => string;
 }
 
 interface InitializationNodeJSON {
@@ -281,6 +282,7 @@ InitializationNode.getDefaultData = (): InitializationNodeData => ({
 });
 
 InitializationNode.getGraphType = (): string => "eventBased";
+InitializationNode.getType = (): string => "eventGraph";
 
 InitializationNode.displayName = "InitializationNode";
 

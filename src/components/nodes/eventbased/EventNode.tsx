@@ -235,6 +235,7 @@ EventNode.getDefaultData = (): EventNodeData => ({
 });
 
 EventNode.getGraphType = (): string => "eventBased";
+EventNode.getType = (): string => "eventGraph";
 
 EventNode.displayName = "EventNode";
 

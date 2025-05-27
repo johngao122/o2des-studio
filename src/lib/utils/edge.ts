@@ -1,6 +1,34 @@
 import { isCurveFlipped, getOffsetPoint, calculateDynamicOffset } from "./math";
 
 /**
+ * Calculate default control points for a multi-segment edge path
+ */
+export function calculateDefaultControlPoints(
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number
+): {
+    cp1: { x: number; y: number };
+    cp2: { x: number; y: number };
+    cp3: { x: number; y: number };
+} {
+    const cp1 = {
+        x: sourceX + (targetX - sourceX) * 0.25,
+        y: sourceY + (targetY - sourceY) * 0.25,
+    };
+    const cp2 = {
+        x: sourceX + (targetX - sourceX) * 0.5,
+        y: sourceY + (targetY - sourceY) * 0.5,
+    };
+    const cp3 = {
+        x: sourceX + (targetX - sourceX) * 0.75,
+        y: sourceY + (targetY - sourceY) * 0.75,
+    };
+    return { cp1, cp2, cp3 };
+}
+
+/**
  * Calculate an offset point for edge labels based on the edge path and parameters.
  * Takes into account the curve orientation, distance between nodes, and provides appropriate
  * offset positions for visual elements.

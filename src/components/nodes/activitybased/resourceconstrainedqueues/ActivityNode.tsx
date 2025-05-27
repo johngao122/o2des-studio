@@ -364,7 +364,7 @@ const ActivityNode = memo(
                     )}
                 </div>
 
-                {id !== "preview" && isHovered && (
+                {id !== "preview" && (
                     <>
                         {/* Top handles */}
                         {handlePositions.top.map((leftPos, index) => (
@@ -373,7 +373,11 @@ const ActivityNode = memo(
                                 id={`${id}-top-${index}`}
                                 type="source"
                                 position={Position.Top}
-                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${leftPos}px`,
@@ -390,7 +394,11 @@ const ActivityNode = memo(
                                 id={`${id}-right-${index}`}
                                 type="source"
                                 position={Position.Right}
-                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${dimensions.width}px`,
@@ -407,7 +415,11 @@ const ActivityNode = memo(
                                 id={`${id}-bottom-${index}`}
                                 type="source"
                                 position={Position.Bottom}
-                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${leftPos}px`,
@@ -424,7 +436,11 @@ const ActivityNode = memo(
                                 id={`${id}-left-${index}`}
                                 type="target"
                                 position={Position.Left}
-                                className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
                                 isConnectable={isConnectable}
                                 style={{
                                     left: "0px",
@@ -487,7 +503,7 @@ ActivityNode.getDefaultData = (): ActivityNodeData => ({
     duration: "op time",
 });
 
-ActivityNode.getGraphType = (): string => "activityBased";
+ActivityNode.getGraphType = (): string => "rcq";
 
 ActivityNode.displayName = "ActivityNode";
 
