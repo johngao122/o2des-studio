@@ -440,15 +440,31 @@ export const useStore = create<StoreState>((set, get) => ({
                     ];
 
                     if (selectedEdge.data) {
-                        const dataProps = Object.entries(selectedEdge.data).map(
-                            ([key, value]) => {
+                        const dataProps = Object.entries(selectedEdge.data)
+                            .filter(([key]) => {
+                                if (
+                                    selectedEdge.type === "rcq" &&
+                                    (key === "controlPoint1" ||
+                                        key === "controlPoint2" ||
+                                        key === "controlPoint3" ||
+                                        key === "conditionLabelOffset")
+                                ) {
+                                    return false;
+                                }
+                                return true;
+                            })
+                            .map(([key, value]) => {
                                 if (key === "edgeType") {
                                     return {
                                         key: "edgeType",
                                         value: value as string,
                                         type: "string" as const,
                                         editable: true,
-                                        options: ["straight", "bezier"],
+                                        options: [
+                                            "straight",
+                                            "bezier",
+                                            "smoothstep",
+                                        ],
                                     };
                                 }
                                 return {
@@ -459,15 +475,62 @@ export const useStore = create<StoreState>((set, get) => ({
                                         : "string") as "number" | "string",
                                     editable: true,
                                 };
-                            }
-                        );
+                            });
+
+                        if (
+                            selectedEdge.type === "rcq" &&
+                            !selectedEdge.data.edgeType
+                        ) {
+                            dataProps.push({
+                                key: "edgeType",
+                                value: "straight",
+                                type: "string" as const,
+                                editable: true,
+                                options: ["straight", "bezier", "smoothstep"],
+                            });
+                        }
+
+                        if (
+                            selectedEdge.type === "rcq" &&
+                            !selectedEdge.data.condition
+                        ) {
+                            dataProps.push({
+                                key: "condition",
+                                value: "True",
+                                type: "string" as const,
+                                editable: true,
+                            });
+                        }
 
                         updatedProperties = [
                             ...explicitProps,
                             ...dataProps,
                         ] as SelectedProperty[];
                     } else {
-                        updatedProperties = explicitProps;
+                        if (selectedEdge.type === "rcq") {
+                            updatedProperties = [
+                                ...explicitProps,
+                                {
+                                    key: "edgeType",
+                                    value: "straight",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: [
+                                        "straight",
+                                        "bezier",
+                                        "smoothstep",
+                                    ],
+                                },
+                                {
+                                    key: "condition",
+                                    value: "True",
+                                    type: "string" as const,
+                                    editable: true,
+                                },
+                            ] as SelectedProperty[];
+                        } else {
+                            updatedProperties = explicitProps;
+                        }
                     }
                 }
             }

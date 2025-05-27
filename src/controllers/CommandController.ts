@@ -302,6 +302,9 @@ export class CommandController {
                 }
                 return "eventGraph";
 
+            case sourceGraphType === "rcq" && targetGraphType === "rcq":
+                return "rcq";
+
             default:
                 return undefined;
         }
@@ -328,11 +331,17 @@ export class CommandController {
                 parameter: "1",
                 edgeType: "straight",
             };
+        } else if (edgeType === "rcq") {
+            defaultData = {
+                edgeType: "straight",
+            };
         }
 
         let graphType: string | undefined = undefined;
         if (edgeType === "eventGraph" || edgeType === "initialization") {
             graphType = "eventBased";
+        } else if (edgeType === "rcq") {
+            graphType = "rcq";
         }
 
         const edge: BaseEdge = {

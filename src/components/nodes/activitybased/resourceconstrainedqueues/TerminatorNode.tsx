@@ -128,14 +128,18 @@ const TerminatorNode = memo(
                     <MathJax>{nodeName}</MathJax>
                 </div>
 
-                {id !== "preview" && (selected || isHovered) && (
+                {id !== "preview" && (
                     <>
                         {/* Top Handles - 3 handles */}
                         <Handle
                             id={`${id}-top-left-target`}
                             type="target"
                             position={Position.Top}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "20%",
@@ -147,7 +151,11 @@ const TerminatorNode = memo(
                             id={`${id}-top-center-target`}
                             type="target"
                             position={Position.Top}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "50%",
@@ -159,7 +167,11 @@ const TerminatorNode = memo(
                             id={`${id}-top-right-target`}
                             type="target"
                             position={Position.Top}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "80%",
@@ -173,7 +185,11 @@ const TerminatorNode = memo(
                             id={`${id}-left-target`}
                             type="target"
                             position={Position.Left}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "2.5%",
@@ -187,7 +203,11 @@ const TerminatorNode = memo(
                             id={`${id}-right-target`}
                             type="target"
                             position={Position.Right}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 right: "2.5%",
@@ -201,7 +221,11 @@ const TerminatorNode = memo(
                             id={`${id}-bottom-left-target`}
                             type="target"
                             position={Position.Bottom}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "20%",
@@ -213,7 +237,11 @@ const TerminatorNode = memo(
                             id={`${id}-bottom-center-target`}
                             type="target"
                             position={Position.Bottom}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "50%",
@@ -225,7 +253,11 @@ const TerminatorNode = memo(
                             id={`${id}-bottom-right-target`}
                             type="target"
                             position={Position.Bottom}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "80%",
@@ -266,7 +298,7 @@ const TerminatorNode = memo(
 
 TerminatorNode.getDefaultData = (): TerminatorNodeData => ({});
 
-TerminatorNode.getGraphType = (): string => "activityBased";
+TerminatorNode.getGraphType = (): string => "rcq";
 
 TerminatorNode.displayName = "TerminatorNode";
 

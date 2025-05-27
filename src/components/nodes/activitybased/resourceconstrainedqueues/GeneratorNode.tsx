@@ -67,7 +67,7 @@ export const GeneratorNodePreview = () => {
             </svg>
 
             {/* Content Area */}
-            <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8">
+            <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-4">
                 <span>Load 1</span>
             </div>
         </div>
@@ -118,18 +118,22 @@ const GeneratorNode = memo(
                 </svg>
 
                 {/* Content Area */}
-                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8">
+                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-4 text-sm left-4">
                     <MathJax>{nodeName}</MathJax>
                 </div>
 
-                {id !== "preview" && (selected || isHovered) && (
+                {id !== "preview" && (
                     <>
                         {/* Top Handles */}
                         <Handle
                             id={`${id}-top-left-source`}
                             type="source"
                             position={Position.Top}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "-3%",
@@ -142,7 +146,11 @@ const GeneratorNode = memo(
                             id={`${id}-top-center-source`}
                             type="source"
                             position={Position.Top}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "37.5%",
@@ -155,7 +163,11 @@ const GeneratorNode = memo(
                             id={`${id}-top-right-source`}
                             type="source"
                             position={Position.Top}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "73%",
@@ -169,7 +181,11 @@ const GeneratorNode = memo(
                             id={`${id}-left-source`}
                             type="source"
                             position={Position.Left}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "19%",
@@ -183,7 +199,11 @@ const GeneratorNode = memo(
                             id={`${id}-right-source`}
                             type="source"
                             position={Position.Right}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 right: "5%",
@@ -197,7 +217,11 @@ const GeneratorNode = memo(
                             id={`${id}-bottom-left-source`}
                             type="source"
                             position={Position.Bottom}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "-3%",
@@ -210,7 +234,11 @@ const GeneratorNode = memo(
                             id={`${id}-bottom-center-source`}
                             type="source"
                             position={Position.Bottom}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "37.5%",
@@ -223,7 +251,11 @@ const GeneratorNode = memo(
                             id={`${id}-bottom-right-source`}
                             type="source"
                             position={Position.Bottom}
-                            className="!bg-transparent !border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45"
+                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                selected || isHovered
+                                    ? "!bg-transparent"
+                                    : "!bg-transparent !opacity-0"
+                            }`}
                             isConnectable={isConnectable}
                             style={{
                                 left: "73%",
@@ -264,7 +296,7 @@ const GeneratorNode = memo(
 
 GeneratorNode.getDefaultData = (): GeneratorNodeData => ({});
 
-GeneratorNode.getGraphType = (): string => "activityBased";
+GeneratorNode.getGraphType = (): string => "rcq";
 
 GeneratorNode.displayName = "GeneratorNode";
 
