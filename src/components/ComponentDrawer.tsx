@@ -1,5 +1,5 @@
 import { DragEvent, MouseEvent } from "react";
-import { NODE_TYPES, nodeTypes } from "./nodes";
+import { NODE_TYPES, nodeTypes, NODE_GROUPS } from "./nodes";
 import { useStore } from "@/store";
 import { NodeFactory } from "@/factories/NodeFactory";
 import { ViewController } from "@/controllers/ViewController";
@@ -10,11 +10,20 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 import React from "react";
 import { InitializationNodePreview } from "./nodes/eventbased/InitializationNode";
 import { EventNodePreview } from "./nodes/eventbased/EventNode";
 import { ModuleFramePreview } from "./nodes/eventbased/ModuleFrame";
 import { TableauNodePreview } from "./nodes/eventbased/TableauNode";
+import { GeneratorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GeneratorNode";
+import { ActivityNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/ActivityNode";
+import { TerminatorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/TerminatorNode";
 import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
@@ -22,6 +31,9 @@ const NODE_DESCRIPTIONS = {
     event: "Event node with state updates",
     moduleFrame: "Container for encapsulating event graphs",
     tableau: "Event transition table with conditions and parameters",
+    generator: "Generates entities in activity-based models",
+    activity: "Activity with resource constraints and duration",
+    terminator: "Terminates entities in activity-based models",
 } as const;
 
 const PREVIEW_COMPONENTS = {
@@ -29,6 +41,9 @@ const PREVIEW_COMPONENTS = {
     [NODE_TYPES.EVENT]: EventNodePreview,
     [NODE_TYPES.MODULE_FRAME]: ModuleFramePreview,
     [NODE_TYPES.TABLEAU]: TableauNodePreview,
+    [NODE_TYPES.GENERATOR]: GeneratorNodePreview,
+    [NODE_TYPES.ACTIVITY]: ActivityNodePreview,
+    [NODE_TYPES.TERMINATOR]: TerminatorNodePreview,
 } as const;
 
 const nodeFactory = new NodeFactory();
@@ -139,51 +154,70 @@ const ComponentDrawer = () => {
                 Components
             </h3>
 
-            <div className="">
-                <div className="font-medium text-gray-700 dark:text-gray-300">
-                    Event-Based
-                </div>
-                <div className="flex flex-col gap-6 py-4">
-                    {Object.keys(nodeTypes).map((type) => (
-                        <TooltipProvider key={type}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div
-                                        className="cursor-pointer transition-transform hover:scale-105 p-2"
-                                        draggable
-                                        onDragStart={(e) =>
-                                            onDragStart(e, type)
-                                        }
-                                        onClick={(e) => onClick(e, type)}
+            <Accordion
+                type="multiple"
+                defaultValue={["eventBased", "activityBased"]}
+                className="w-full"
+            >
+                {Object.entries(NODE_GROUPS).map(([groupKey, group]) => (
+                    <AccordionItem key={groupKey} value={groupKey}>
+                        <AccordionTrigger className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:no-underline">
+                            {group.title}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <div className="flex flex-col gap-6 py-4">
+                                {Object.keys(group.nodes).map((type) => (
+                                    <TooltipProvider
+                                        key={`${groupKey}-${type}`}
                                     >
-                                        {renderNodePreview(type)}
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                    side="right"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg"
-                                >
-                                    <div className="bg-zinc-50 dark:bg-zinc-900 rounded-md p-2">
-                                        {renderNodePreview(type, true)}
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {type.charAt(0).toUpperCase() +
-                                            type.slice(1)}{" "}
-                                        Node
-                                    </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                                        {
-                                            NODE_DESCRIPTIONS[
-                                                type as keyof typeof NODE_DESCRIPTIONS
-                                            ]
-                                        }
-                                    </div>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    ))}
-                </div>
-            </div>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div
+                                                    className="cursor-pointer transition-transform hover:scale-105 p-2"
+                                                    draggable
+                                                    onDragStart={(e) =>
+                                                        onDragStart(e, type)
+                                                    }
+                                                    onClick={(e) =>
+                                                        onClick(e, type)
+                                                    }
+                                                >
+                                                    {renderNodePreview(type)}
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                                side="right"
+                                                className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg"
+                                            >
+                                                <div className="bg-zinc-50 dark:bg-zinc-900 rounded-md p-2">
+                                                    {renderNodePreview(
+                                                        type,
+                                                        true
+                                                    )}
+                                                </div>
+                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    {type
+                                                        .charAt(0)
+                                                        .toUpperCase() +
+                                                        type.slice(1)}{" "}
+                                                    Node
+                                                </div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                                                    {
+                                                        NODE_DESCRIPTIONS[
+                                                            type as keyof typeof NODE_DESCRIPTIONS
+                                                        ]
+                                                    }
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ))}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
         </div>
     );
 };
