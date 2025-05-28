@@ -65,10 +65,6 @@ const flowOptions = {
     zoomOnScroll: true,
     zoomOnPinch: true,
     snapGrid: [15, 15] as [number, number],
-    translateExtent: [
-        [-1000, -1000],
-        [2000, 2000],
-    ] as [[number, number], [number, number]],
 } as const;
 
 function FlowCanvas() {
