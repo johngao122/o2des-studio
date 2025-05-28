@@ -193,6 +193,9 @@ export const useStore = create<StoreState>((set, get) => ({
         }
 
         if (positionChanges.length > 0) {
+            const nodeIds = positionChanges.map((change) => change.id);
+            commandController.captureOriginalPositions(nodeIds);
+
             const nodesAfterPositionChanges = applyNodeChanges(
                 positionChanges,
                 nodesBeforeChange
@@ -205,8 +208,11 @@ export const useStore = create<StoreState>((set, get) => ({
             );
 
             if (dragEnded) {
-                const command =
-                    commandController.createNodesChangeCommand(positionChanges);
+                const command = commandController.createNodesChangeCommand(
+                    positionChanges,
+                    nodesBeforeChange
+                );
+
                 if (command) {
                     commandController.execute(command);
                 }

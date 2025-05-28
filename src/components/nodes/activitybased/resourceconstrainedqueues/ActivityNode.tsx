@@ -144,10 +144,10 @@ const ActivityNode = memo(
         );
         const [isHovered, setIsHovered] = useState(false);
         const [isResizing, setIsResizing] = useState(false);
-        const [dimensions, setDimensions] = useState({
-            width: data?.width || 240,
-            height: data?.height || 70,
-        });
+        const [resizeDimensions, setResizeDimensions] = useState<{
+            width: number;
+            height: number;
+        } | null>(null);
 
         const nodeRef = useRef<HTMLDivElement>(null);
         const initialMousePos = useRef<{ x: number; y: number } | null>(null);
@@ -156,11 +156,20 @@ const ActivityNode = memo(
             height: number;
         } | null>(null);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
+        const storeNode = useStore((state) =>
+            state.nodes.find((n) => n.id === id)
+        );
 
-        const nodeName = node?.name || "Activity Node";
+        const nodeName = storeNode?.name || "Activity Node";
+
+        const storeData = storeNode?.data || {};
+        const dimensions =
+            isResizing && resizeDimensions
+                ? resizeDimensions
+                : {
+                      width: storeData?.width || 240,
+                      height: storeData?.height || 70,
+                  };
 
         const handleMouseDown = useCallback(
             (e: React.MouseEvent) => {
@@ -168,12 +177,14 @@ const ActivityNode = memo(
                 e.stopPropagation();
                 setIsResizing(true);
                 initialMousePos.current = { x: e.clientX, y: e.clientY };
-                initialDimensions.current = {
-                    width: dimensions.width,
-                    height: dimensions.height,
+                const currentDimensions = {
+                    width: data?.width || 240,
+                    height: data?.height || 70,
                 };
+                initialDimensions.current = currentDimensions;
+                setResizeDimensions(currentDimensions);
             },
-            [dimensions]
+            [data?.width, data?.height]
         );
 
         const handleMouseMove = useCallback(
@@ -197,27 +208,28 @@ const ActivityNode = memo(
                     snapToGrid(initialDimensions.current.height + deltaY)
                 );
 
-                setDimensions({ width: newWidth, height: newHeight });
+                setResizeDimensions({ width: newWidth, height: newHeight });
             },
             [isResizing]
         );
 
         const handleMouseUp = useCallback(() => {
-            if (isResizing) {
+            if (isResizing && resizeDimensions) {
                 setIsResizing(false);
                 initialMousePos.current = null;
                 initialDimensions.current = null;
 
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
-                        ...data,
-                        width: dimensions.width,
-                        height: dimensions.height,
+                        ...storeData,
+                        width: resizeDimensions.width,
+                        height: resizeDimensions.height,
                     },
                 });
                 commandController.execute(command);
+                setResizeDimensions(null);
             }
-        }, [isResizing, dimensions, data, id]);
+        }, [isResizing, resizeDimensions, storeData, id]);
 
         useEffect(() => {
             if (isResizing) {

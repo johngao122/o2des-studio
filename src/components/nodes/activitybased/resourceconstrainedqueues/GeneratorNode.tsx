@@ -95,10 +95,10 @@ const GeneratorNode = memo(
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
         const [isResizing, setIsResizing] = useState(false);
-        const [dimensions, setDimensions] = useState({
-            width: data?.width || 200,
-            height: data?.height || 120,
-        });
+        const [resizeDimensions, setResizeDimensions] = useState<{
+            width: number;
+            height: number;
+        } | null>(null);
 
         const nodeRef = useRef<HTMLDivElement>(null);
         const initialMousePos = useRef<{ x: number; y: number } | null>(null);
@@ -107,11 +107,20 @@ const GeneratorNode = memo(
             height: number;
         } | null>(null);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
+        const storeNode = useStore((state) =>
+            state.nodes.find((n) => n.id === id)
+        );
 
-        const nodeName = node?.name || "Generator Node";
+        const nodeName = storeNode?.name || "Generator Node";
+
+        const storeData = storeNode?.data || {};
+        const dimensions =
+            isResizing && resizeDimensions
+                ? resizeDimensions
+                : {
+                      width: storeData?.width || 200,
+                      height: storeData?.height || 120,
+                  };
 
         const handleMouseDown = useCallback(
             (e: React.MouseEvent) => {
@@ -119,12 +128,14 @@ const GeneratorNode = memo(
                 e.stopPropagation();
                 setIsResizing(true);
                 initialMousePos.current = { x: e.clientX, y: e.clientY };
-                initialDimensions.current = {
-                    width: dimensions.width,
-                    height: dimensions.height,
+                const currentDimensions = {
+                    width: data?.width || 200,
+                    height: data?.height || 120,
                 };
+                initialDimensions.current = currentDimensions;
+                setResizeDimensions(currentDimensions);
             },
-            [dimensions]
+            [data?.width, data?.height]
         );
 
         const handleMouseMove = useCallback(
@@ -148,27 +159,28 @@ const GeneratorNode = memo(
                     snapToGrid(initialDimensions.current.height + deltaY)
                 );
 
-                setDimensions({ width: newWidth, height: newHeight });
+                setResizeDimensions({ width: newWidth, height: newHeight });
             },
             [isResizing]
         );
 
         const handleMouseUp = useCallback(() => {
-            if (isResizing) {
+            if (isResizing && resizeDimensions) {
                 setIsResizing(false);
                 initialMousePos.current = null;
                 initialDimensions.current = null;
 
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
-                        ...data,
-                        width: dimensions.width,
-                        height: dimensions.height,
+                        ...storeData,
+                        width: resizeDimensions.width,
+                        height: resizeDimensions.height,
                     },
                 });
                 commandController.execute(command);
+                setResizeDimensions(null);
             }
-        }, [isResizing, dimensions, data, id]);
+        }, [isResizing, resizeDimensions, storeData, id]);
 
         useEffect(() => {
             if (isResizing) {
