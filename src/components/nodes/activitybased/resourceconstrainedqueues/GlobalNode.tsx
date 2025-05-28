@@ -12,6 +12,7 @@ const commandController = CommandController.getInstance();
 
 interface GlobalNodeData {
     resources?: string[];
+    duration?: string;
     updateNodeData?: (nodeId: string, data: any) => void;
     width?: number;
     height?: number;
@@ -44,6 +45,7 @@ interface GlobalNodeJSON {
     name?: string;
     data: {
         resources?: string[];
+        duration?: string;
     };
     position: XYPosition;
 }
@@ -57,6 +59,7 @@ export const createJSON = (
         name: (props as any).name,
         data: {
             resources: props.data?.resources,
+            duration: props.data?.duration,
         },
         position: {
             x: props.xPos,
@@ -72,7 +75,7 @@ export const GlobalNodePreview = () => {
     return (
         <div
             className="relative"
-            style={{ width: `${previewWidth}px`, height: "105px" }}
+            style={{ width: `${previewWidth}px`, height: "140px" }}
         >
             {/* Resources */}
             <div className="absolute top-0 left-0 flex gap-1">
@@ -98,12 +101,25 @@ export const GlobalNodePreview = () => {
                     Global Node
                 </div>
             </div>
+
+            {/* Duration */}
+            <div
+                className="absolute text-xs text-gray-600 dark:text-gray-400 text-center"
+                style={{
+                    top: `${35 + previewHeight + 10}px`,
+                    left: "0px",
+                    width: `${previewWidth}px`,
+                }}
+            >
+                Duration: <span className="font-mono">op time</span>
+            </div>
         </div>
     );
 };
 
 export const getDefaultData = (): GlobalNodeData => ({
     resources: [],
+    duration: "op time",
     width: 240,
     height: 70,
 });
@@ -119,6 +135,10 @@ const GlobalNode = memo(
         yPos,
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
+        const [isEditing, setIsEditing] = useState(false);
+        const [editDuration, setEditDuration] = useState(
+            data?.duration || "op time"
+        );
         const [isResizing, setIsResizing] = useState(false);
         const [dimensions, setDimensions] = useState({
             width: data?.width || 240,
@@ -199,6 +219,22 @@ const GlobalNode = memo(
             }
         }, [isResizing, dimensions, data, id]);
 
+        const handleDoubleClick = useCallback(() => {
+            setIsEditing(true);
+            setEditDuration(data?.duration || "op time");
+        }, [data?.duration]);
+
+        const handleBlur = useCallback(() => {
+            setIsEditing(false);
+
+            if (data?.updateNodeData) {
+                data.updateNodeData(id, {
+                    ...data,
+                    duration: editDuration,
+                });
+            }
+        }, [editDuration, id, data]);
+
         useEffect(() => {
             if (isResizing) {
                 window.addEventListener("mousemove", handleMouseMove);
@@ -269,8 +305,9 @@ const GlobalNode = memo(
                 className={`relative ${selected ? "shadow-lg" : ""}`}
                 style={{
                     width: `${dimensions.width}px`,
-                    height: `${dimensions.height + 35}px`,
+                    height: `${dimensions.height + 70}px`,
                 }}
+                onDoubleClick={handleDoubleClick}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
@@ -294,6 +331,34 @@ const GlobalNode = memo(
                     <div className="text-sm font-medium text-center dark:text-white text-black px-4">
                         <MathJax>{nodeName}</MathJax>
                     </div>
+                </div>
+
+                <div
+                    className="absolute text-xs text-center"
+                    style={{
+                        top: `${35 + dimensions.height + 10}px`,
+                        left: "0px",
+                        width: `${dimensions.width}px`,
+                    }}
+                >
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={editDuration}
+                            onChange={(e) => setEditDuration(e.target.value)}
+                            onBlur={handleBlur}
+                            className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
+                            placeholder="Duration"
+                            autoFocus
+                        />
+                    ) : (
+                        <div className="text-gray-600 dark:text-gray-400">
+                            Duration:{" "}
+                            <MathJax inline>
+                                {data?.duration || "op time"}
+                            </MathJax>
+                        </div>
+                    )}
                 </div>
 
                 {id !== "preview" && (
@@ -424,13 +489,15 @@ const GlobalNode = memo(
             prev.yPos === next.yPos &&
             prevName === nextName &&
             JSON.stringify(prev.data?.resources) ===
-                JSON.stringify(next.data?.resources)
+                JSON.stringify(next.data?.resources) &&
+            prev.data?.duration === next.data?.duration
         );
     }
 ) as any;
 
 GlobalNode.getDefaultData = (): GlobalNodeData => ({
     resources: [],
+    duration: "op time",
 });
 
 GlobalNode.getGraphType = (): string => "rcq";
