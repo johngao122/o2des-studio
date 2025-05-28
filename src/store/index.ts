@@ -50,8 +50,8 @@ interface ProjectMetadata {
 
 type SelectedProperty = {
     key: string;
-    value: string | number;
-    type: "string" | "number";
+    value: string | number | boolean;
+    type: "string" | "number" | "boolean";
     editable: boolean;
     isTextArea?: boolean;
     options?: string[];
@@ -469,10 +469,15 @@ export const useStore = create<StoreState>((set, get) => ({
                                 }
                                 return {
                                     key,
-                                    value: value as string | number,
+                                    value: value as string | number | boolean,
                                     type: (typeof value === "number"
                                         ? "number"
-                                        : "string") as "number" | "string",
+                                        : typeof value === "boolean"
+                                        ? "boolean"
+                                        : "string") as
+                                        | "number"
+                                        | "string"
+                                        | "boolean",
                                     editable: true,
                                 };
                             });
@@ -502,6 +507,18 @@ export const useStore = create<StoreState>((set, get) => ({
                             });
                         }
 
+                        if (
+                            selectedEdge.type === "rcq" &&
+                            selectedEdge.data.isDependency === undefined
+                        ) {
+                            dataProps.push({
+                                key: "isDependency",
+                                value: false,
+                                type: "boolean" as const,
+                                editable: true,
+                            });
+                        }
+
                         updatedProperties = [
                             ...explicitProps,
                             ...dataProps,
@@ -525,6 +542,12 @@ export const useStore = create<StoreState>((set, get) => ({
                                     key: "condition",
                                     value: "True",
                                     type: "string" as const,
+                                    editable: true,
+                                },
+                                {
+                                    key: "isDependency",
+                                    value: false,
+                                    type: "boolean" as const,
                                     editable: true,
                                 },
                             ] as SelectedProperty[];

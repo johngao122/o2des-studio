@@ -22,8 +22,8 @@ const commandController = CommandController.getInstance();
 
 interface Property {
     key: string;
-    value: string | number;
-    type: "string" | "number" | "array";
+    value: string | number | boolean;
+    type: "string" | "number" | "array" | "boolean";
     editable: boolean;
     isTextArea?: boolean;
     options?: string[];
@@ -32,7 +32,7 @@ interface Property {
 
 interface PropertiesBarProps {
     properties: Property[];
-    onPropertyChange: (key: string, value: string | number) => void;
+    onPropertyChange: (key: string, value: string | number | boolean) => void;
     className?: string;
     selectionInfo?: {
         nodes: number;
@@ -217,6 +217,31 @@ export function PropertiesBar({
                             </Label>
                             {property.type === "array" ? (
                                 renderResourceManager(property.arrayValue || [])
+                            ) : property.type === "boolean" ? (
+                                <div className="flex items-center space-x-2 mt-1">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(property.value)}
+                                        disabled={!property.editable}
+                                        className={cn(
+                                            "h-4 w-4 rounded border border-gray-300 dark:border-gray-600",
+                                            !property.editable &&
+                                                "opacity-50 cursor-not-allowed"
+                                        )}
+                                        onChange={(e) => {
+                                            if (!property.editable) return;
+                                            onPropertyChange(
+                                                property.key,
+                                                e.target.checked
+                                            );
+                                        }}
+                                    />
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                                        {property.key === "isDependency"
+                                            ? "Dependency"
+                                            : "Enabled"}
+                                    </span>
+                                </div>
                             ) : property.options ? (
                                 <Select
                                     value={String(property.value)}

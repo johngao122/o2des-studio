@@ -24,6 +24,7 @@ import { TableauNodePreview } from "./nodes/eventbased/TableauNode";
 import { GeneratorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GeneratorNode";
 import { ActivityNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/ActivityNode";
 import { TerminatorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/TerminatorNode";
+import { GlobalNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GlobalNode";
 import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
@@ -34,6 +35,7 @@ const NODE_DESCRIPTIONS = {
     generator: "Generates entities in activity-based models",
     activity: "Activity with resource constraints and duration",
     terminator: "Terminates entities in activity-based models",
+    global: "Global resource container with dashed border",
 } as const;
 
 const PREVIEW_COMPONENTS = {
@@ -44,6 +46,7 @@ const PREVIEW_COMPONENTS = {
     [NODE_TYPES.GENERATOR]: GeneratorNodePreview,
     [NODE_TYPES.ACTIVITY]: ActivityNodePreview,
     [NODE_TYPES.TERMINATOR]: TerminatorNodePreview,
+    [NODE_TYPES.GLOBAL]: GlobalNodePreview,
 } as const;
 
 const nodeFactory = new NodeFactory();

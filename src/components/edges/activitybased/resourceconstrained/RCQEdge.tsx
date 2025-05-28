@@ -38,6 +38,7 @@ interface RCQEdgeData {
     controlPoint3?: { x: number; y: number };
     condition?: string;
     conditionLabelOffset?: { x: number; y: number };
+    isDependency?: boolean;
 }
 
 interface ExtendedEdgeProps extends EdgeProps<RCQEdgeData> {
@@ -87,6 +88,7 @@ const RCQEdge = memo(
         const edgeStyle = {
             strokeWidth: selected ? 3 : 2,
             stroke: selected ? "#3b82f6" : "#555",
+            strokeDasharray: data?.isDependency ? "5,5" : "none",
             ...style,
         };
 
@@ -543,6 +545,9 @@ const RCQEdge = memo(
                             stroke: "#93c5fd",
                             strokeWidth: 6,
                             strokeOpacity: 0.5,
+                            strokeDasharray: data?.isDependency
+                                ? "5,5"
+                                : "none",
                             fill: "none",
                         }}
                     />
@@ -724,6 +729,7 @@ RCQEdge.getDefaultData = (): RCQEdgeData => ({
     edgeType: "straight",
     condition: "True",
     conditionLabelOffset: { x: 0, y: -30 },
+    isDependency: false,
 });
 
 RCQEdge.getGraphType = (): string => "rcq";

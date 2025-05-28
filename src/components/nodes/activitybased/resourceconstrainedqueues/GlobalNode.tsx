@@ -1,0 +1,504 @@
+"use client";
+
+import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { Handle, Position, NodeProps, XYPosition } from "reactflow";
+import { MathJax } from "better-react-mathjax";
+import { GripIcon } from "lucide-react";
+import { CommandController } from "@/controllers/CommandController";
+import { useStore } from "@/store";
+import { BaseNode } from "@/types/base";
+
+const commandController = CommandController.getInstance();
+
+interface GlobalNodeData {
+    resources?: string[];
+    updateNodeData?: (nodeId: string, data: any) => void;
+    width?: number;
+    height?: number;
+}
+
+interface ExtendedNodeProps extends NodeProps<GlobalNodeData> {
+    name?: string;
+}
+
+interface GlobalNodeComponent
+    extends React.NamedExoticComponent<ExtendedNodeProps> {
+    defaultData: GlobalNodeData;
+    displayName?: string;
+    getGraphType?: () => string;
+    addResource: (nodeData: GlobalNodeData, resource: string) => GlobalNodeData;
+    removeResource: (
+        nodeData: GlobalNodeData,
+        resourceIndex: number
+    ) => GlobalNodeData;
+    updateResource: (
+        nodeData: GlobalNodeData,
+        resourceIndex: number,
+        newResource: string
+    ) => GlobalNodeData;
+}
+
+interface GlobalNodeJSON {
+    id: string;
+    type: "global";
+    name?: string;
+    data: {
+        resources?: string[];
+    };
+    position: XYPosition;
+}
+
+export const createJSON = (
+    props: NodeProps<GlobalNodeData>
+): GlobalNodeJSON => {
+    return {
+        id: props.id,
+        type: "global",
+        name: (props as any).name,
+        data: {
+            resources: props.data?.resources,
+        },
+        position: {
+            x: props.xPos,
+            y: props.yPos,
+        },
+    };
+};
+
+export const GlobalNodePreview = () => {
+    const previewWidth = 240;
+    const previewHeight = 70;
+
+    return (
+        <div
+            className="relative"
+            style={{ width: `${previewWidth}px`, height: "105px" }}
+        >
+            {/* Resources */}
+            <div className="absolute top-0 left-0 flex gap-1">
+                <div className="px-2 py-1 bg-green-500 text-white text-xs rounded-sm font-medium">
+                    RES (5AU)
+                </div>
+                <div className="px-2 py-1 bg-green-500 text-white text-xs rounded-sm font-medium">
+                    ADV
+                </div>
+            </div>
+
+            {/* Main Content Area with dashed border */}
+            <div
+                className="absolute border-2 border-dashed border-black dark:border-white bg-white dark:bg-zinc-800 rounded-lg flex items-center justify-center"
+                style={{
+                    top: "35px",
+                    left: "0px",
+                    width: `${previewWidth}px`,
+                    height: `${previewHeight}px`,
+                }}
+            >
+                <div className="text-sm font-medium text-center dark:text-white text-black">
+                    Global Node
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const getDefaultData = (): GlobalNodeData => ({
+    resources: [],
+    width: 240,
+    height: 70,
+});
+
+const GlobalNode = memo(
+    ({
+        id,
+        data = {} as GlobalNodeData,
+        selected,
+        isConnectable,
+        dragging,
+        xPos,
+        yPos,
+    }: ExtendedNodeProps) => {
+        const [isHovered, setIsHovered] = useState(false);
+        const [isResizing, setIsResizing] = useState(false);
+        const [dimensions, setDimensions] = useState({
+            width: data?.width || 240,
+            height: data?.height || 70,
+        });
+
+        const nodeRef = useRef<HTMLDivElement>(null);
+        const initialMousePos = useRef<{ x: number; y: number } | null>(null);
+        const initialDimensions = useRef<{
+            width: number;
+            height: number;
+        } | null>(null);
+
+        const node = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === id);
+
+        const nodeName = node?.name || "Global Node";
+
+        const snapToGrid = (value: number, gridSize: number = 15) => {
+            return Math.round(value / gridSize) * gridSize;
+        };
+
+        const handleMouseDown = useCallback(
+            (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsResizing(true);
+                initialMousePos.current = { x: e.clientX, y: e.clientY };
+                initialDimensions.current = {
+                    width: dimensions.width,
+                    height: dimensions.height,
+                };
+            },
+            [dimensions]
+        );
+
+        const handleMouseMove = useCallback(
+            (e: MouseEvent) => {
+                if (
+                    !isResizing ||
+                    !initialMousePos.current ||
+                    !initialDimensions.current
+                )
+                    return;
+
+                const deltaX = e.clientX - initialMousePos.current.x;
+                const deltaY = e.clientY - initialMousePos.current.y;
+
+                const newWidth = Math.max(
+                    180,
+                    snapToGrid(initialDimensions.current.width + deltaX)
+                );
+                const newHeight = Math.max(
+                    50,
+                    snapToGrid(initialDimensions.current.height + deltaY)
+                );
+
+                setDimensions({ width: newWidth, height: newHeight });
+            },
+            [isResizing]
+        );
+
+        const handleMouseUp = useCallback(() => {
+            if (isResizing) {
+                setIsResizing(false);
+                initialMousePos.current = null;
+                initialDimensions.current = null;
+
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...data,
+                        width: dimensions.width,
+                        height: dimensions.height,
+                    },
+                });
+                commandController.execute(command);
+            }
+        }, [isResizing, dimensions, data, id]);
+
+        useEffect(() => {
+            if (isResizing) {
+                window.addEventListener("mousemove", handleMouseMove);
+                window.addEventListener("mouseup", handleMouseUp);
+                return () => {
+                    window.removeEventListener("mousemove", handleMouseMove);
+                    window.removeEventListener("mouseup", handleMouseUp);
+                };
+            }
+        }, [isResizing, handleMouseMove, handleMouseUp]);
+
+        const getHandlePositions = () => {
+            const rectTop = 35;
+            const rectBottom = rectTop + dimensions.height;
+            const rectWidth = dimensions.width;
+            const rectHeight = dimensions.height;
+
+            return {
+                top: [
+                    0,
+                    rectWidth * 0.25,
+                    rectWidth * 0.5,
+                    rectWidth * 0.75,
+                    rectWidth,
+                ],
+                right: [
+                    rectTop + rectHeight * 0.25,
+                    rectTop + rectHeight * 0.5,
+                    rectTop + rectHeight * 0.75,
+                ],
+                bottom: [
+                    rectWidth,
+                    rectWidth * 0.75,
+                    rectWidth * 0.5,
+                    rectWidth * 0.25,
+                    0,
+                ],
+                left: [
+                    rectTop + rectHeight * 0.75,
+                    rectTop + rectHeight * 0.5,
+                    rectTop + rectHeight * 0.25,
+                ],
+            };
+        };
+
+        const handlePositions = getHandlePositions();
+
+        const renderResourceRectangles = (resources: string[] | undefined) => {
+            const safeResources = Array.isArray(resources) ? resources : [];
+
+            if (safeResources.length === 0) {
+                return null;
+            }
+
+            return safeResources.map((resource, index) => (
+                <div
+                    key={index}
+                    className="px-2 py-1 bg-green-500 text-white text-xs rounded-sm font-medium"
+                >
+                    {String(resource)}
+                </div>
+            ));
+        };
+
+        return (
+            <div
+                ref={nodeRef}
+                className={`relative ${selected ? "shadow-lg" : ""}`}
+                style={{
+                    width: `${dimensions.width}px`,
+                    height: `${dimensions.height + 35}px`,
+                }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
+                <div className="absolute top-0 left-0 flex flex-wrap gap-1">
+                    {renderResourceRectangles(data?.resources || [])}
+                </div>
+
+                <div
+                    className={`absolute border-2 border-dashed rounded-lg bg-white dark:bg-zinc-800 flex items-center justify-center ${
+                        selected
+                            ? "border-blue-500"
+                            : "border-black dark:border-white"
+                    }`}
+                    style={{
+                        top: "35px",
+                        left: "0px",
+                        width: `${dimensions.width}px`,
+                        height: `${dimensions.height}px`,
+                    }}
+                >
+                    <div className="text-sm font-medium text-center dark:text-white text-black px-4">
+                        <MathJax>{nodeName}</MathJax>
+                    </div>
+                </div>
+
+                {id !== "preview" && (
+                    <>
+                        {/* Top handles */}
+                        {handlePositions.top.map((leftPos, index) => (
+                            <Handle
+                                key={`top-${index}`}
+                                id={`${id}-top-${index}`}
+                                type="source"
+                                position={Position.Top}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${leftPos}px`,
+                                    top: "35px",
+                                    transform: "translate(-50%, -0%)",
+                                }}
+                            />
+                        ))}
+
+                        {/* Right handles */}
+                        {handlePositions.right.map((topPos, index) => (
+                            <Handle
+                                key={`right-${index}`}
+                                id={`${id}-right-${index}`}
+                                type="source"
+                                position={Position.Right}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${dimensions.width}px`,
+                                    top: `${topPos}px`,
+                                    transform: "translate(-100%, -50%)",
+                                }}
+                            />
+                        ))}
+
+                        {/* Bottom handles */}
+                        {handlePositions.bottom.map((leftPos, index) => (
+                            <Handle
+                                key={`bottom-${index}`}
+                                id={`${id}-bottom-${index}`}
+                                type="source"
+                                position={Position.Bottom}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${leftPos}px`,
+                                    top: `${35 + dimensions.height}px`,
+                                    transform: "translate(-50%, -100%)",
+                                }}
+                            />
+                        ))}
+
+                        {/* Left handles */}
+                        {handlePositions.left.map((topPos, index) => (
+                            <Handle
+                                key={`left-${index}`}
+                                id={`${id}-left-${index}`}
+                                type="target"
+                                position={Position.Left}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: "0px",
+                                    top: `${topPos}px`,
+                                    transform: "translate(0%, -50%)",
+                                }}
+                            />
+                        ))}
+                    </>
+                )}
+
+                {/* Resize handle */}
+                {(selected || isHovered) && (
+                    <div
+                        className="absolute w-6 h-6 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
+                        style={{
+                            right: -3,
+                            bottom: -3,
+                            zIndex: 1,
+                            pointerEvents: "auto",
+                        }}
+                        onMouseDown={handleMouseDown}
+                    >
+                        <GripIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 nodrag" />
+                    </div>
+                )}
+            </div>
+        );
+    },
+    (prev, next) => {
+        if (next.dragging) {
+            return true;
+        }
+
+        const prevNode = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === prev.id);
+        const nextNode = useStore
+            .getState()
+            .nodes.find((n: BaseNode) => n.id === next.id);
+        const prevName = prevNode?.name;
+        const nextName = nextNode?.name;
+
+        return (
+            prev.id === next.id &&
+            prev.selected === next.selected &&
+            prev.isConnectable === next.isConnectable &&
+            prev.xPos === next.xPos &&
+            prev.yPos === next.yPos &&
+            prevName === nextName &&
+            JSON.stringify(prev.data?.resources) ===
+                JSON.stringify(next.data?.resources)
+        );
+    }
+) as any;
+
+GlobalNode.getDefaultData = (): GlobalNodeData => ({
+    resources: [],
+});
+
+GlobalNode.getGraphType = (): string => "rcq";
+
+GlobalNode.displayName = "GlobalNode";
+
+GlobalNode.hiddenProperties = ["resources"];
+
+GlobalNode.addResource = (
+    nodeData: GlobalNodeData,
+    resource: string
+): GlobalNodeData => {
+    const currentResources = Array.isArray(nodeData.resources)
+        ? nodeData.resources
+        : [];
+    const trimmedResource = String(resource || "").trim();
+
+    if (!currentResources.includes(trimmedResource) && trimmedResource !== "") {
+        return {
+            ...nodeData,
+            resources: [...currentResources, trimmedResource],
+        };
+    }
+    return nodeData;
+};
+
+GlobalNode.removeResource = (
+    nodeData: GlobalNodeData,
+    resourceIndex: number
+): GlobalNodeData => {
+    const currentResources = Array.isArray(nodeData.resources)
+        ? nodeData.resources
+        : [];
+
+    if (resourceIndex >= 0 && resourceIndex < currentResources.length) {
+        return {
+            ...nodeData,
+            resources: currentResources.filter(
+                (_, index) => index !== resourceIndex
+            ),
+        };
+    }
+    return nodeData;
+};
+
+GlobalNode.updateResource = (
+    nodeData: GlobalNodeData,
+    resourceIndex: number,
+    newResource: string
+): GlobalNodeData => {
+    const currentResources = Array.isArray(nodeData.resources)
+        ? nodeData.resources
+        : [];
+    const trimmedResource = String(newResource || "").trim();
+
+    if (
+        resourceIndex >= 0 &&
+        resourceIndex < currentResources.length &&
+        trimmedResource !== ""
+    ) {
+        const updatedResources = [...currentResources];
+        updatedResources[resourceIndex] = trimmedResource;
+        return {
+            ...nodeData,
+            resources: updatedResources,
+        };
+    }
+    return nodeData;
+};
+
+export default GlobalNode;
