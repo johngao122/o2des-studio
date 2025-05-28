@@ -5,6 +5,7 @@ import TableauNode from "./eventbased/TableauNode";
 import GeneratorNode from "./activitybased/resourceconstrainedqueues/GeneratorNode";
 import ActivityNode from "./activitybased/resourceconstrainedqueues/ActivityNode";
 import TerminatorNode from "./activitybased/resourceconstrainedqueues/TerminatorNode";
+import GlobalNode from "./activitybased/resourceconstrainedqueues/GlobalNode";
 
 export const NODE_TYPES = {
     INITIALIZATION: "initialization",
@@ -14,6 +15,7 @@ export const NODE_TYPES = {
     GENERATOR: "generator",
     ACTIVITY: "activity",
     TERMINATOR: "terminator",
+    GLOBAL: "global",
 } as const;
 
 export const EVENT_BASED_NODES = {
@@ -27,6 +29,7 @@ export const ACTIVITY_BASED_NODES = {
     generator: GeneratorNode,
     activity: ActivityNode,
     terminator: TerminatorNode,
+    global: GlobalNode,
 } as const;
 
 export const nodeTypes = {
@@ -53,4 +56,5 @@ export {
     GeneratorNode,
     ActivityNode,
     TerminatorNode,
+    GlobalNode,
 };
