@@ -1,13 +1,17 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
-import { Handle, Position, NodeProps, XYPosition } from "reactflow";
-import { MathJax } from "better-react-mathjax";
-import { GripIcon } from "lucide-react";
+import { memo, useState, useCallback, useRef } from "react";
+import {
+    Handle,
+    Position,
+    NodeProps,
+    XYPosition,
+    NodeResizer,
+} from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid } from "@/lib/utils/math";
+import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
@@ -94,18 +98,8 @@ const GeneratorNode = memo(
         yPos,
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
-        const [isResizing, setIsResizing] = useState(false);
-        const [resizeDimensions, setResizeDimensions] = useState<{
-            width: number;
-            height: number;
-        } | null>(null);
 
         const nodeRef = useRef<HTMLDivElement>(null);
-        const initialMousePos = useRef<{ x: number; y: number } | null>(null);
-        const initialDimensions = useRef<{
-            width: number;
-            height: number;
-        } | null>(null);
 
         const storeNode = useStore((state) =>
             state.nodes.find((n) => n.id === id)
@@ -114,84 +108,24 @@ const GeneratorNode = memo(
         const nodeName = storeNode?.name || "Generator Node";
 
         const storeData = storeNode?.data || {};
-        const dimensions =
-            isResizing && resizeDimensions
-                ? resizeDimensions
-                : {
-                      width: storeData?.width || 200,
-                      height: storeData?.height || 120,
-                  };
+        const dimensions = {
+            width: storeData?.width || 200,
+            height: storeData?.height || 120,
+        };
 
-        const handleMouseDown = useCallback(
-            (e: React.MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsResizing(true);
-                initialMousePos.current = { x: e.clientX, y: e.clientY };
-                const currentDimensions = {
-                    width: data?.width || 200,
-                    height: data?.height || 120,
-                };
-                initialDimensions.current = currentDimensions;
-                setResizeDimensions(currentDimensions);
-            },
-            [data?.width, data?.height]
-        );
-
-        const handleMouseMove = useCallback(
-            (e: MouseEvent) => {
-                if (
-                    !isResizing ||
-                    !initialMousePos.current ||
-                    !initialDimensions.current
-                )
-                    return;
-
-                const deltaX = e.clientX - initialMousePos.current.x;
-                const deltaY = e.clientY - initialMousePos.current.y;
-
-                const newWidth = Math.max(
-                    150,
-                    snapToGrid(initialDimensions.current.width + deltaX)
-                );
-                const newHeight = Math.max(
-                    80,
-                    snapToGrid(initialDimensions.current.height + deltaY)
-                );
-
-                setResizeDimensions({ width: newWidth, height: newHeight });
-            },
-            [isResizing]
-        );
-
-        const handleMouseUp = useCallback(() => {
-            if (isResizing && resizeDimensions) {
-                setIsResizing(false);
-                initialMousePos.current = null;
-                initialDimensions.current = null;
-
+        const handleResize = useCallback(
+            (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...storeData,
-                        width: resizeDimensions.width,
-                        height: resizeDimensions.height,
+                        width: params.width,
+                        height: params.height,
                     },
                 });
                 commandController.execute(command);
-                setResizeDimensions(null);
-            }
-        }, [isResizing, resizeDimensions, storeData, id]);
-
-        useEffect(() => {
-            if (isResizing) {
-                window.addEventListener("mousemove", handleMouseMove);
-                window.addEventListener("mouseup", handleMouseUp);
-                return () => {
-                    window.removeEventListener("mousemove", handleMouseMove);
-                    window.removeEventListener("mouseup", handleMouseUp);
-                };
-            }
-        }, [isResizing, handleMouseMove, handleMouseUp]);
+            },
+            [id, storeData]
+        );
 
         return (
             <div
@@ -204,6 +138,13 @@ const GeneratorNode = memo(
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={150}
+                    minHeight={80}
+                    onResize={handleResize}
+                />
+
                 {/* SVG Shape */}
                 <svg
                     width={dimensions.width}
@@ -235,7 +176,7 @@ const GeneratorNode = memo(
                     className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black right-12 text-sm"
                     style={{ left: `${dimensions.width * 0.2}px` }}
                 >
-                    <MathJax>{nodeName}</MathJax>
+                    {nodeName}
                 </div>
 
                 {id !== "preview" && (
@@ -376,22 +317,6 @@ const GeneratorNode = memo(
                             }}
                         />
                     </>
-                )}
-
-                {/* Resize handle */}
-                {(selected || isHovered) && (
-                    <div
-                        className="absolute w-6 h-6 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
-                        style={{
-                            right: -3,
-                            bottom: -3,
-                            zIndex: 1,
-                            pointerEvents: "auto",
-                        }}
-                        onMouseDown={handleMouseDown}
-                    >
-                        <GripIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 nodrag" />
-                    </div>
                 )}
             </div>
         );
