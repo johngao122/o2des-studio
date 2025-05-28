@@ -1,16 +1,20 @@
 "use client";
 
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { Handle, Position, NodeProps, XYPosition } from "reactflow";
 import { MathJax } from "better-react-mathjax";
+import { GripIcon } from "lucide-react";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { snapToGrid } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
 interface TerminatorNodeData {
     updateNodeData?: (nodeId: string, data: any) => void;
+    width?: number;
+    height?: number;
 }
 
 interface ExtendedNodeProps extends NodeProps<TerminatorNodeData> {
@@ -77,7 +81,10 @@ export const TerminatorNodePreview = () => {
     );
 };
 
-export const getDefaultData = (): TerminatorNodeData => ({});
+export const getDefaultData = (): TerminatorNodeData => ({
+    width: 200,
+    height: 120,
+});
 
 const TerminatorNode = memo(
     ({
@@ -90,6 +97,18 @@ const TerminatorNode = memo(
         yPos,
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
+        const [isResizing, setIsResizing] = useState(false);
+        const [dimensions, setDimensions] = useState({
+            width: data?.width || 200,
+            height: data?.height || 120,
+        });
+
+        const nodeRef = useRef<HTMLDivElement>(null);
+        const initialMousePos = useRef<{ x: number; y: number } | null>(null);
+        const initialDimensions = useRef<{
+            width: number;
+            height: number;
+        } | null>(null);
 
         const node = useStore
             .getState()
@@ -97,25 +116,97 @@ const TerminatorNode = memo(
 
         const nodeName = node?.name || "Terminator Node";
 
+        const handleMouseDown = useCallback(
+            (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsResizing(true);
+                initialMousePos.current = { x: e.clientX, y: e.clientY };
+                initialDimensions.current = {
+                    width: dimensions.width,
+                    height: dimensions.height,
+                };
+            },
+            [dimensions]
+        );
+
+        const handleMouseMove = useCallback(
+            (e: MouseEvent) => {
+                if (
+                    !isResizing ||
+                    !initialMousePos.current ||
+                    !initialDimensions.current
+                )
+                    return;
+
+                const deltaX = e.clientX - initialMousePos.current.x;
+                const deltaY = e.clientY - initialMousePos.current.y;
+
+                const newWidth = Math.max(
+                    150,
+                    snapToGrid(initialDimensions.current.width + deltaX)
+                );
+                const newHeight = Math.max(
+                    80,
+                    snapToGrid(initialDimensions.current.height + deltaY)
+                );
+
+                setDimensions({ width: newWidth, height: newHeight });
+            },
+            [isResizing]
+        );
+
+        const handleMouseUp = useCallback(() => {
+            if (isResizing) {
+                setIsResizing(false);
+                initialMousePos.current = null;
+                initialDimensions.current = null;
+
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...data,
+                        width: dimensions.width,
+                        height: dimensions.height,
+                    },
+                });
+                commandController.execute(command);
+            }
+        }, [isResizing, dimensions, data, id]);
+
+        useEffect(() => {
+            if (isResizing) {
+                window.addEventListener("mousemove", handleMouseMove);
+                window.addEventListener("mouseup", handleMouseUp);
+                return () => {
+                    window.removeEventListener("mousemove", handleMouseMove);
+                    window.removeEventListener("mouseup", handleMouseUp);
+                };
+            }
+        }, [isResizing, handleMouseMove, handleMouseUp]);
+
         return (
             <div
+                ref={nodeRef}
                 className={`relative ${selected ? "shadow-lg" : ""}`}
-                style={{ width: "200px", height: "120px" }}
+                style={{
+                    width: `${dimensions.width}px`,
+                    height: `${dimensions.height}px`,
+                }}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {/* SVG Shape - Ellipse */}
+                {/* SVG Shape */}
                 <svg
-                    width="200"
-                    height="120"
-                    viewBox="0 0 200 120"
+                    width={dimensions.width}
+                    height={dimensions.height}
+                    viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
                     className="absolute inset-0"
                 >
                     <ellipse
-                        cx="100"
-                        cy="60"
-                        rx="95"
-                        ry="55"
+                        cx={dimensions.width / 2}
+                        cy={dimensions.height / 2}
+                        rx={dimensions.width * 0.475}
+                        ry={dimensions.height * 0.458}
                         fill="white"
                         stroke={selected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
@@ -124,13 +215,13 @@ const TerminatorNode = memo(
                 </svg>
 
                 {/* Content Area */}
-                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8">
+                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8 text-sm">
                     <MathJax>{nodeName}</MathJax>
                 </div>
 
                 {id !== "preview" && (
                     <>
-                        {/* Top Handles - 3 handles */}
+                        {/* Top Handles */}
                         <Handle
                             id={`${id}-top-left-target`}
                             type="target"
@@ -143,8 +234,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "20%",
-                                top: "15%",
-                                transform: "translateX(-50%)",
+                                top: "20%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -159,8 +250,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "50%",
-                                top: "5%",
-                                transform: "translateX(-50%)",
+                                top: "7%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -175,12 +266,12 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "80%",
-                                top: "15%",
-                                transform: "translateX(-50%)",
+                                top: "20%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
 
-                        {/* Left Handle */}
+                        {/* Side Handles */}
                         <Handle
                             id={`${id}-left-target`}
                             type="target"
@@ -192,13 +283,11 @@ const TerminatorNode = memo(
                             }`}
                             isConnectable={isConnectable}
                             style={{
-                                left: "2.5%",
+                                left: "5%",
                                 top: "50%",
-                                transform: "translateY(-50%)",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
-
-                        {/* Right Handle */}
                         <Handle
                             id={`${id}-right-target`}
                             type="target"
@@ -210,13 +299,13 @@ const TerminatorNode = memo(
                             }`}
                             isConnectable={isConnectable}
                             style={{
-                                right: "2.5%",
+                                left: "95%",
                                 top: "50%",
-                                transform: "translateY(-50%)",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
 
-                        {/* Bottom Handles - 3 handles */}
+                        {/* Bottom Handles */}
                         <Handle
                             id={`${id}-bottom-left-target`}
                             type="target"
@@ -229,8 +318,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "20%",
-                                bottom: "15%",
-                                transform: "translateX(-50%)",
+                                top: "80%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -245,8 +334,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "50%",
-                                bottom: "5%",
-                                transform: "translateX(-50%)",
+                                top: "95%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -261,11 +350,27 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "80%",
-                                bottom: "15%",
-                                transform: "translateX(-50%)",
+                                top: "80%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                     </>
+                )}
+
+                {/* Resize handle */}
+                {(selected || isHovered) && (
+                    <div
+                        className="absolute w-6 h-6 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
+                        style={{
+                            right: -3,
+                            bottom: -3,
+                            zIndex: 1,
+                            pointerEvents: "auto",
+                        }}
+                        onMouseDown={handleMouseDown}
+                    >
+                        <GripIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 nodrag" />
+                    </div>
                 )}
             </div>
         );
@@ -296,7 +401,10 @@ const TerminatorNode = memo(
     }
 ) as any;
 
-TerminatorNode.getDefaultData = (): TerminatorNodeData => ({});
+TerminatorNode.getDefaultData = (): TerminatorNodeData => ({
+    width: 200,
+    height: 120,
+});
 
 TerminatorNode.getGraphType = (): string => "rcq";
 

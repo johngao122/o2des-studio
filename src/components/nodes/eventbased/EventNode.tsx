@@ -6,6 +6,7 @@ import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { getStandardHandlePositions, snapToGrid } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
@@ -33,15 +34,17 @@ const EventNode = memo(
         isConnectable,
     }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
-        const [editValue, setEditValue] = useState(data?.stateUpdate || "");
-        const [editParams, setEditParams] = useState(
+        const [editStateUpdate, setEditStateUpdate] = useState(
+            data?.stateUpdate || ""
+        );
+        const [editEventParameters, setEditEventParameters] = useState(
             data?.eventParameters || ""
         );
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditValue(data?.stateUpdate || "");
-            setEditParams(data?.eventParameters || "");
+            setEditStateUpdate(data?.stateUpdate || "");
+            setEditEventParameters(data?.eventParameters || "");
         }, [data?.stateUpdate, data?.eventParameters]);
 
         const handleBlur = useCallback(
@@ -55,65 +58,89 @@ const EventNode = memo(
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...data,
-                        stateUpdate: editValue,
-                        eventParameters: editParams,
+                        stateUpdate: editStateUpdate,
+                        eventParameters: editEventParameters,
                     },
                 });
                 commandController.execute(command);
             },
-            [editValue, editParams, id, data]
+            [editStateUpdate, editEventParameters, id, data]
         );
 
         const node = useStore
             .getState()
             .nodes.find((n: BaseNode) => n.id === id);
-        const nodeName = node?.name || id;
 
-        const handlePositions = [
-            {
-                position: Position.Top,
-                style: { left: "50%", transform: "translateX(-50%)" },
-            },
+        const nodeName = node?.name || "Event Node";
+
+        const nodeSize = 120;
+        const handlePositions = getStandardHandlePositions(nodeSize, nodeSize);
+
+        const gridAlignedHandlePositions = [
             {
                 position: Position.Top,
                 style: {
-                    left: "15%",
-                    transform: "translateX(-50%) rotate(-45deg)",
+                    left: `${snapToGrid(nodeSize * 0.5)}px`,
+                    top: "0px",
+                    transform: "translate(-50%, -50%)",
                 },
             },
             {
                 position: Position.Top,
                 style: {
-                    left: "85%",
-                    transform: "translateX(-50%) rotate(45deg)",
+                    left: `${snapToGrid(nodeSize * 0.15)}px`,
+                    top: "0px",
+                    transform: "translate(-50%, -50%)",
+                },
+            },
+            {
+                position: Position.Top,
+                style: {
+                    left: `${snapToGrid(nodeSize * 0.85)}px`,
+                    top: "0px",
+                    transform: "translate(-50%, -50%)",
                 },
             },
 
             {
                 position: Position.Left,
-                style: { top: "50%", transform: "translateY(-50%)" },
+                style: {
+                    left: "0px",
+                    top: `${snapToGrid(nodeSize * 0.5)}px`,
+                    transform: "translate(-50%, -50%)",
+                },
             },
             {
                 position: Position.Right,
-                style: { top: "50%", transform: "translateY(-50%)" },
+                style: {
+                    left: `${nodeSize}px`,
+                    top: `${snapToGrid(nodeSize * 0.5)}px`,
+                    transform: "translate(-50%, -50%)",
+                },
             },
 
             {
                 position: Position.Bottom,
-                style: { left: "50%", transform: "translateX(-50%)" },
-            },
-            {
-                position: Position.Bottom,
                 style: {
-                    left: "15%",
-                    transform: "translateX(-50%) rotate(45deg)",
+                    left: `${snapToGrid(nodeSize * 0.5)}px`,
+                    top: `${nodeSize}px`,
+                    transform: "translate(-50%, -50%)",
                 },
             },
             {
                 position: Position.Bottom,
                 style: {
-                    left: "85%",
-                    transform: "translateX(-50%) rotate(-45deg)",
+                    left: `${snapToGrid(nodeSize * 0.15)}px`,
+                    top: `${nodeSize}px`,
+                    transform: "translate(-50%, -50%)",
+                },
+            },
+            {
+                position: Position.Bottom,
+                style: {
+                    left: `${snapToGrid(nodeSize * 0.85)}px`,
+                    top: `${nodeSize}px`,
+                    transform: "translate(-50%, -50%)",
                 },
             },
         ];
@@ -145,8 +172,10 @@ const EventNode = memo(
                     {isEditing ? (
                         <div className="space-y-2">
                             <textarea
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
+                                value={editStateUpdate}
+                                onChange={(e) =>
+                                    setEditStateUpdate(e.target.value)
+                                }
                                 onBlur={handleBlur}
                                 className="w-full min-h-[80px] p-2 border rounded dark:bg-zinc-700 dark:text-white event-node-input focus:outline-none focus:border-blue-500 nodrag"
                                 placeholder="State Update"
@@ -154,8 +183,10 @@ const EventNode = memo(
                             />
                             <input
                                 type="text"
-                                value={editParams}
-                                onChange={(e) => setEditParams(e.target.value)}
+                                value={editEventParameters}
+                                onChange={(e) =>
+                                    setEditEventParameters(e.target.value)
+                                }
                                 onBlur={handleBlur}
                                 className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input nodrag"
                                 placeholder="Event Parameters (optional)"
@@ -189,7 +220,7 @@ const EventNode = memo(
 
                 {/* Handles */}
                 {id !== "preview" &&
-                    handlePositions.map((handleConfig, index) => {
+                    gridAlignedHandlePositions.map((handleConfig, index) => {
                         const handleId = `${id}-${handleConfig.position}-${index}`;
                         return (
                             <Handle

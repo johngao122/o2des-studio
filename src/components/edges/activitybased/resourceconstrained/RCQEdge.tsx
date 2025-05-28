@@ -19,6 +19,8 @@ import {
 } from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
+import { useStore } from "@/store";
+import { BaseEdge as BaseEdgeType } from "@/types/base";
 import {
     parseTransformMatrix,
     clientToFlowPosition,

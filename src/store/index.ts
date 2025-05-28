@@ -22,6 +22,7 @@ import {
     getBoundingBoxCenter,
     getBoundingBoxFromPositions,
 } from "@/lib/utils/coordinates";
+import { GRID_SIZE } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
@@ -880,10 +881,9 @@ export const useStore = create<StoreState>((set, get) => ({
         const dragProxy = get().dragProxy;
         if (!dragProxy.isActive || !dragProxy.startPosition) return;
 
-        const gridSize = 15;
         const snappedPosition = {
-            x: Math.round(position.x / gridSize) * gridSize,
-            y: Math.round(position.y / gridSize) * gridSize,
+            x: Math.round(position.x / GRID_SIZE) * GRID_SIZE,
+            y: Math.round(position.y / GRID_SIZE) * GRID_SIZE,
         };
 
         set({

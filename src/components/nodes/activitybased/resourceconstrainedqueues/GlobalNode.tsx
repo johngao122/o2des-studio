@@ -7,8 +7,7 @@ import { GripIcon } from "lucide-react";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-
-const commandController = CommandController.getInstance();
+import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
 
 interface GlobalNodeData {
     resources?: string[];
@@ -49,6 +48,8 @@ interface GlobalNodeJSON {
     };
     position: XYPosition;
 }
+
+const commandController = CommandController.getInstance();
 
 export const createJSON = (
     props: NodeProps<GlobalNodeData>
@@ -158,10 +159,6 @@ const GlobalNode = memo(
 
         const nodeName = node?.name || "Global Node";
 
-        const snapToGrid = (value: number, gridSize: number = 15) => {
-            return Math.round(value / gridSize) * gridSize;
-        };
-
         const handleMouseDown = useCallback(
             (e: React.MouseEvent) => {
                 e.preventDefault();
@@ -247,37 +244,11 @@ const GlobalNode = memo(
         }, [isResizing, handleMouseMove, handleMouseUp]);
 
         const getHandlePositions = () => {
-            const rectTop = 35;
-            const rectBottom = rectTop + dimensions.height;
-            const rectWidth = dimensions.width;
-            const rectHeight = dimensions.height;
-
-            return {
-                top: [
-                    0,
-                    rectWidth * 0.25,
-                    rectWidth * 0.5,
-                    rectWidth * 0.75,
-                    rectWidth,
-                ],
-                right: [
-                    rectTop + rectHeight * 0.25,
-                    rectTop + rectHeight * 0.5,
-                    rectTop + rectHeight * 0.75,
-                ],
-                bottom: [
-                    rectWidth,
-                    rectWidth * 0.75,
-                    rectWidth * 0.5,
-                    rectWidth * 0.25,
-                    0,
-                ],
-                left: [
-                    rectTop + rectHeight * 0.75,
-                    rectTop + rectHeight * 0.5,
-                    rectTop + rectHeight * 0.25,
-                ],
-            };
+            return getGridAlignedHandlePositions(
+                dimensions.width,
+                dimensions.height,
+                35
+            );
         };
 
         const handlePositions = getHandlePositions();

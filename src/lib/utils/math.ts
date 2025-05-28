@@ -392,8 +392,107 @@ export function throttle<T extends (...args: any[]) => any>(
 }
 
 /**
+ * Grid configuration for consistent snap-to-grid behavior across all nodes
+ */
+export const GRID_SIZE = 15;
+
+/**
  * Snap a value to the nearest grid position
  */
-export function snapToGrid(value: number, gridSize: number = 15): number {
+export function snapToGrid(
+    value: number,
+    gridSize: number = GRID_SIZE
+): number {
     return Math.round(value / gridSize) * gridSize;
+}
+
+/**
+ * Calculate grid-aligned handle positions for resizable nodes
+ */
+export function getGridAlignedHandlePositions(
+    width: number,
+    height: number,
+    headerHeight: number = 35
+) {
+    // Ensure dimensions are grid-aligned
+    const alignedWidth = snapToGrid(width);
+    const alignedHeight = snapToGrid(height);
+
+    // Calculate handle positions that align to grid
+    const topY = headerHeight;
+    const bottomY = topY + alignedHeight;
+
+    // For horizontal handles (top and bottom edges)
+    const horizontalPositions = [];
+    const numHorizontalHandles = Math.max(
+        3,
+        Math.floor(alignedWidth / (GRID_SIZE * 4)) + 1
+    );
+
+    for (let i = 0; i < numHorizontalHandles; i++) {
+        const position = (i / (numHorizontalHandles - 1)) * alignedWidth;
+        horizontalPositions.push(snapToGrid(position));
+    }
+
+    // For vertical handles (left and right edges) - exclude corners to avoid overlap
+    const verticalPositions = [];
+    const numVerticalHandles = Math.max(
+        2,
+        Math.floor(alignedHeight / (GRID_SIZE * 3)) + 1
+    );
+
+    for (let i = 1; i < numVerticalHandles - 1; i++) {
+        const position = topY + (i / (numVerticalHandles - 1)) * alignedHeight;
+        verticalPositions.push(snapToGrid(position));
+    }
+
+    // Always include center position for vertical handles if not already included
+    const centerY = snapToGrid(topY + alignedHeight * 0.5);
+    if (!verticalPositions.includes(centerY)) {
+        verticalPositions.push(centerY);
+        verticalPositions.sort((a, b) => a - b);
+    }
+
+    return {
+        top: horizontalPositions,
+        right: verticalPositions,
+        bottom: [...horizontalPositions].reverse(),
+        left: [...verticalPositions].reverse(),
+        headerHeight: topY,
+        nodeHeight: alignedHeight,
+        nodeWidth: alignedWidth,
+    };
+}
+
+/**
+ * Get standard grid-aligned handle positions for fixed-size nodes
+ */
+export function getStandardHandlePositions(
+    nodeWidth: number,
+    nodeHeight: number
+) {
+    const alignedWidth = snapToGrid(nodeWidth);
+    const alignedHeight = snapToGrid(nodeHeight);
+
+    // Standard positions that work well for most fixed-size nodes
+    const horizontalPositions = [
+        0,
+        snapToGrid(alignedWidth * 0.25),
+        snapToGrid(alignedWidth * 0.5),
+        snapToGrid(alignedWidth * 0.75),
+        alignedWidth,
+    ].filter((pos, index, arr) => index === 0 || pos !== arr[index - 1]); // Remove duplicates
+
+    const verticalPositions = [
+        snapToGrid(alignedHeight * 0.25),
+        snapToGrid(alignedHeight * 0.5),
+        snapToGrid(alignedHeight * 0.75),
+    ].filter((pos, index, arr) => index === 0 || pos !== arr[index - 1]); // Remove duplicates
+
+    return {
+        horizontal: horizontalPositions,
+        vertical: verticalPositions,
+        nodeWidth: alignedWidth,
+        nodeHeight: alignedHeight,
+    };
 }

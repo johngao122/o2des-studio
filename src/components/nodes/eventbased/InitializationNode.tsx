@@ -6,6 +6,7 @@ import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { getStandardHandlePositions } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
@@ -108,6 +109,13 @@ const InitializationNode = memo(
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState("");
 
+        const nodeWidth = 200;
+        const nodeHeight = 80;
+        const handlePositions = getStandardHandlePositions(
+            nodeWidth,
+            nodeHeight
+        );
+
         useEffect(() => {
             if (
                 node?.data?.initializations &&
@@ -181,69 +189,100 @@ const InitializationNode = memo(
                 {id !== "preview" && (
                     <>
                         {/* Top Handles */}
-                        <Handle
-                            id={`${id}-top-source`}
-                            type="source"
-                            position={Position.Top}
-                            className="!dark:hidden"
-                            isConnectable={isConnectable}
-                        />
+                        {handlePositions.horizontal
+                            .slice(0, 3)
+                            .map((leftPos, index) => (
+                                <Handle
+                                    key={`top-${index}`}
+                                    id={`${id}-top-${index}-source`}
+                                    type="source"
+                                    position={Position.Top}
+                                    className="!bg-black dark:!bg-white !w-3 !h-3 !border-2 !border-white dark:!border-zinc-800"
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: "0px",
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
 
-                        {/* Left Handles */}
+                        {/* Side Handles */}
                         <Handle
                             id={`${id}-left-source`}
                             type="source"
                             position={Position.Left}
-                            className="!dark:hidden"
+                            className="!bg-black dark:!bg-white !w-3 !h-3 !border-2 !border-white dark:!border-zinc-800"
                             isConnectable={isConnectable}
+                            style={{
+                                left: "0px",
+                                top: `${nodeHeight / 2}px`,
+                                transform: "translate(-50%, -50%)",
+                            }}
                         />
 
-                        {/* Right Handles */}
                         <Handle
                             id={`${id}-right-source`}
                             type="source"
                             position={Position.Right}
-                            className="!dark:hidden"
+                            className="!bg-black dark:!bg-white !w-3 !h-3 !border-2 !border-white dark:!border-zinc-800"
                             isConnectable={isConnectable}
+                            style={{
+                                left: `${nodeWidth}px`,
+                                top: `${nodeHeight / 2}px`,
+                                transform: "translate(-50%, -50%)",
+                            }}
                         />
 
                         {/* Bottom Handles */}
-                        <Handle
-                            id={`${id}-bottom-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className="!dark:hidden"
-                            isConnectable={isConnectable}
-                        />
+                        {handlePositions.horizontal
+                            .slice(0, 3)
+                            .map((leftPos, index) => (
+                                <Handle
+                                    key={`bottom-${index}`}
+                                    id={`${id}-bottom-${index}-source`}
+                                    type="source"
+                                    position={Position.Bottom}
+                                    className="!bg-black dark:!bg-white !w-3 !h-3 !border-2 !border-white dark:!border-zinc-800"
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: `${nodeHeight}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
                     </>
                 )}
 
-                {/* Content Area */}
-                <div className="mt-2 min-h-[40px] text-center dark:text-gray-300">
+                {/* Content */}
+                <div className="mt-2 min-h-[40px]">
                     {isEditing ? (
                         <textarea
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={handleBlur}
-                            className="w-full min-h-[100px] p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-blue-500 dark:text-white nodrag"
+                            className="w-full min-h-[80px] p-2 border rounded dark:bg-zinc-700 dark:text-white nodrag"
+                            placeholder="Enter initializations..."
                             autoFocus
                         />
-                    ) : validItems.length > 0 ? (
-                        validItems.map((init: any, index: number) => (
-                            <div key={index} className="my-1">
-                                <div className="mathjax-content">
-                                    {typeof init === "string" &&
-                                    init.trim() !== "" ? (
-                                        <MathJax>{init}</MathJax>
-                                    ) : (
-                                        <span> </span>
-                                    )}
-                                </div>
-                            </div>
-                        ))
                     ) : (
-                        <div className="text-gray-400 dark:text-gray-500">
-                            No initializations
+                        <div className="space-y-1">
+                            {validItems.length > 0 ? (
+                                validItems.map(
+                                    (init: string, index: number) => (
+                                        <div key={index} className="my-1">
+                                            <div className="mathjax-content">
+                                                <MathJax>{init}</MathJax>
+                                            </div>
+                                        </div>
+                                    )
+                                )
+                            ) : (
+                                <div className="text-gray-400 dark:text-gray-500 text-center">
+                                    No initializations
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
