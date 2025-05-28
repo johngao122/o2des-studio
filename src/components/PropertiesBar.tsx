@@ -15,6 +15,7 @@ import {
 import { useStore } from "@/store";
 import { nodeTypes } from "@/components/nodes";
 import ActivityNode from "@/components/nodes/activitybased/resourceconstrainedqueues/ActivityNode";
+import GlobalNode from "@/components/nodes/activitybased/resourceconstrainedqueues/GlobalNode";
 import { CommandController } from "@/controllers/CommandController";
 import { useState } from "react";
 
@@ -70,6 +71,19 @@ export function PropertiesBar({
                 );
                 commandController.execute(command);
                 setNewResourceInput("");
+            } else if (node && node.type === "global") {
+                const updatedData = GlobalNode.addResource(
+                    node.data,
+                    newResourceInput.trim()
+                );
+                const command = commandController.createUpdateNodeCommand(
+                    nodeId,
+                    {
+                        data: updatedData,
+                    }
+                );
+                commandController.execute(command);
+                setNewResourceInput("");
             }
         }
     };
@@ -82,6 +96,18 @@ export function PropertiesBar({
 
             if (node && node.type === "activity") {
                 const updatedData = ActivityNode.removeResource(
+                    node.data,
+                    resourceIndex
+                );
+                const command = commandController.createUpdateNodeCommand(
+                    nodeId,
+                    {
+                        data: updatedData,
+                    }
+                );
+                commandController.execute(command);
+            } else if (node && node.type === "global") {
+                const updatedData = GlobalNode.removeResource(
                     node.data,
                     resourceIndex
                 );
@@ -315,14 +341,17 @@ export function PropertiesBar({
                     );
                 })}
 
-                {/* Special handling for ActivityNode resources */}
+                {/* Special handling for ActivityNode and GlobalNode resources */}
                 {(() => {
                     const { selectedElements, nodes } = useStore.getState();
                     if (selectedElements.nodes.length === 1) {
                         const node = nodes.find(
                             (n) => n.id === selectedElements.nodes[0]
                         );
-                        if (node && node.type === "activity") {
+                        if (
+                            node &&
+                            (node.type === "activity" || node.type === "global")
+                        ) {
                             const resources = Array.isArray(
                                 node.data?.resources
                             )
@@ -334,7 +363,7 @@ export function PropertiesBar({
                             );
                             if (!hasResourcesProperty) {
                                 return (
-                                    <div key="activity-resources">
+                                    <div key={`${node.type}-resources`}>
                                         <Label className="text-sm font-medium flex items-center gap-2">
                                             Resources
                                         </Label>

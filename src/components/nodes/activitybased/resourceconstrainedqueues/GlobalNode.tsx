@@ -1,17 +1,21 @@
 "use client";
 
 import { memo, useState, useCallback, useRef, useEffect } from "react";
-import { Handle, Position, NodeProps, XYPosition } from "reactflow";
-import { MathJax } from "better-react-mathjax";
-import { GripIcon } from "lucide-react";
+import {
+    Handle,
+    Position,
+    NodeProps,
+    XYPosition,
+    NodeResizer,
+} from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-
-const commandController = CommandController.getInstance();
+import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
 
 interface GlobalNodeData {
     resources?: string[];
+    duration?: string;
     updateNodeData?: (nodeId: string, data: any) => void;
     width?: number;
     height?: number;
@@ -44,9 +48,12 @@ interface GlobalNodeJSON {
     name?: string;
     data: {
         resources?: string[];
+        duration?: string;
     };
     position: XYPosition;
 }
+
+const commandController = CommandController.getInstance();
 
 export const createJSON = (
     props: NodeProps<GlobalNodeData>
@@ -57,6 +64,7 @@ export const createJSON = (
         name: (props as any).name,
         data: {
             resources: props.data?.resources,
+            duration: props.data?.duration,
         },
         position: {
             x: props.xPos,
@@ -72,7 +80,7 @@ export const GlobalNodePreview = () => {
     return (
         <div
             className="relative"
-            style={{ width: `${previewWidth}px`, height: "105px" }}
+            style={{ width: `${previewWidth}px`, height: "140px" }}
         >
             {/* Resources */}
             <div className="absolute top-0 left-0 flex gap-1">
@@ -98,12 +106,25 @@ export const GlobalNodePreview = () => {
                     Global Node
                 </div>
             </div>
+
+            {/* Duration */}
+            <div
+                className="absolute text-xs text-gray-600 dark:text-gray-400 text-center"
+                style={{
+                    top: `${35 + previewHeight + 10}px`,
+                    left: "0px",
+                    width: `${previewWidth}px`,
+                }}
+            >
+                Duration: <span className="font-mono">op time</span>
+            </div>
         </div>
     );
 };
 
 export const getDefaultData = (): GlobalNodeData => ({
     resources: [],
+    duration: "op time",
     width: 240,
     height: 70,
 });
@@ -119,129 +140,61 @@ const GlobalNode = memo(
         yPos,
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
-        const [isResizing, setIsResizing] = useState(false);
-        const [dimensions, setDimensions] = useState({
-            width: data?.width || 240,
-            height: data?.height || 70,
-        });
+        const [isEditing, setIsEditing] = useState(false);
+        const [editDuration, setEditDuration] = useState(
+            data?.duration || "op time"
+        );
 
         const nodeRef = useRef<HTMLDivElement>(null);
-        const initialMousePos = useRef<{ x: number; y: number } | null>(null);
-        const initialDimensions = useRef<{
-            width: number;
-            height: number;
-        } | null>(null);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
+        const storeNode = useStore((state) =>
+            state.nodes.find((n) => n.id === id)
+        );
 
-        const nodeName = node?.name || "Global Node";
+        const nodeName = storeNode?.name || "Global Node";
 
-        const snapToGrid = (value: number, gridSize: number = 15) => {
-            return Math.round(value / gridSize) * gridSize;
+        const storeData = storeNode?.data || {};
+        const dimensions = {
+            width: storeData?.width || 240,
+            height: storeData?.height || 70,
         };
 
-        const handleMouseDown = useCallback(
-            (e: React.MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsResizing(true);
-                initialMousePos.current = { x: e.clientX, y: e.clientY };
-                initialDimensions.current = {
-                    width: dimensions.width,
-                    height: dimensions.height,
-                };
-            },
-            [dimensions]
-        );
-
-        const handleMouseMove = useCallback(
-            (e: MouseEvent) => {
-                if (
-                    !isResizing ||
-                    !initialMousePos.current ||
-                    !initialDimensions.current
-                )
-                    return;
-
-                const deltaX = e.clientX - initialMousePos.current.x;
-                const deltaY = e.clientY - initialMousePos.current.y;
-
-                const newWidth = Math.max(
-                    180,
-                    snapToGrid(initialDimensions.current.width + deltaX)
-                );
-                const newHeight = Math.max(
-                    50,
-                    snapToGrid(initialDimensions.current.height + deltaY)
-                );
-
-                setDimensions({ width: newWidth, height: newHeight });
-            },
-            [isResizing]
-        );
-
-        const handleMouseUp = useCallback(() => {
-            if (isResizing) {
-                setIsResizing(false);
-                initialMousePos.current = null;
-                initialDimensions.current = null;
-
+        const handleResize = useCallback(
+            (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
-                        ...data,
-                        width: dimensions.width,
-                        height: dimensions.height,
+                        ...storeData,
+                        width: params.width,
+                        height: params.height,
                     },
                 });
                 commandController.execute(command);
-            }
-        }, [isResizing, dimensions, data, id]);
+            },
+            [id, storeData]
+        );
 
-        useEffect(() => {
-            if (isResizing) {
-                window.addEventListener("mousemove", handleMouseMove);
-                window.addEventListener("mouseup", handleMouseUp);
-                return () => {
-                    window.removeEventListener("mousemove", handleMouseMove);
-                    window.removeEventListener("mouseup", handleMouseUp);
-                };
+        const handleDoubleClick = useCallback(() => {
+            setIsEditing(true);
+            setEditDuration(data?.duration || "op time");
+        }, [data?.duration]);
+
+        const handleBlur = useCallback(() => {
+            setIsEditing(false);
+
+            if (data?.updateNodeData) {
+                data.updateNodeData(id, {
+                    ...data,
+                    duration: editDuration,
+                });
             }
-        }, [isResizing, handleMouseMove, handleMouseUp]);
+        }, [editDuration, id, data]);
 
         const getHandlePositions = () => {
-            const rectTop = 35;
-            const rectBottom = rectTop + dimensions.height;
-            const rectWidth = dimensions.width;
-            const rectHeight = dimensions.height;
-
-            return {
-                top: [
-                    0,
-                    rectWidth * 0.25,
-                    rectWidth * 0.5,
-                    rectWidth * 0.75,
-                    rectWidth,
-                ],
-                right: [
-                    rectTop + rectHeight * 0.25,
-                    rectTop + rectHeight * 0.5,
-                    rectTop + rectHeight * 0.75,
-                ],
-                bottom: [
-                    rectWidth,
-                    rectWidth * 0.75,
-                    rectWidth * 0.5,
-                    rectWidth * 0.25,
-                    0,
-                ],
-                left: [
-                    rectTop + rectHeight * 0.75,
-                    rectTop + rectHeight * 0.5,
-                    rectTop + rectHeight * 0.25,
-                ],
-            };
+            return getGridAlignedHandlePositions(
+                dimensions.width,
+                dimensions.height,
+                35
+            );
         };
 
         const handlePositions = getHandlePositions();
@@ -269,11 +222,19 @@ const GlobalNode = memo(
                 className={`relative ${selected ? "shadow-lg" : ""}`}
                 style={{
                     width: `${dimensions.width}px`,
-                    height: `${dimensions.height + 35}px`,
+                    height: `${dimensions.height + 70}px`,
                 }}
+                onDoubleClick={handleDoubleClick}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={180}
+                    minHeight={50}
+                    onResize={handleResize}
+                />
+
                 <div className="absolute top-0 left-0 flex flex-wrap gap-1">
                     {renderResourceRectangles(data?.resources || [])}
                 </div>
@@ -292,8 +253,33 @@ const GlobalNode = memo(
                     }}
                 >
                     <div className="text-sm font-medium text-center dark:text-white text-black px-4">
-                        <MathJax>{nodeName}</MathJax>
+                        {nodeName}
                     </div>
+                </div>
+
+                <div
+                    className="absolute text-xs text-center"
+                    style={{
+                        top: `${35 + dimensions.height + 10}px`,
+                        left: "0px",
+                        width: `${dimensions.width}px`,
+                    }}
+                >
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={editDuration}
+                            onChange={(e) => setEditDuration(e.target.value)}
+                            onBlur={handleBlur}
+                            className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
+                            placeholder="Duration"
+                            autoFocus
+                        />
+                    ) : (
+                        <div className="text-gray-600 dark:text-gray-400">
+                            Duration: {data?.duration || "op time"}
+                        </div>
+                    )}
                 </div>
 
                 {id !== "preview" && (
@@ -383,22 +369,6 @@ const GlobalNode = memo(
                         ))}
                     </>
                 )}
-
-                {/* Resize handle */}
-                {(selected || isHovered) && (
-                    <div
-                        className="absolute w-6 h-6 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
-                        style={{
-                            right: -3,
-                            bottom: -3,
-                            zIndex: 1,
-                            pointerEvents: "auto",
-                        }}
-                        onMouseDown={handleMouseDown}
-                    >
-                        <GripIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 nodrag" />
-                    </div>
-                )}
             </div>
         );
     },
@@ -424,13 +394,15 @@ const GlobalNode = memo(
             prev.yPos === next.yPos &&
             prevName === nextName &&
             JSON.stringify(prev.data?.resources) ===
-                JSON.stringify(next.data?.resources)
+                JSON.stringify(next.data?.resources) &&
+            prev.data?.duration === next.data?.duration
         );
     }
 ) as any;
 
 GlobalNode.getDefaultData = (): GlobalNodeData => ({
     resources: [],
+    duration: "op time",
 });
 
 GlobalNode.getGraphType = (): string => "rcq";

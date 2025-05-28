@@ -7,8 +7,10 @@ import {
     Viewport,
     NodePositionChange,
     MarkerType,
+    applyNodeChanges,
+    applyEdgeChanges,
+    addEdge,
 } from "reactflow";
-import { applyNodeChanges, applyEdgeChanges, addEdge } from "reactflow";
 import { nanoid } from "nanoid";
 import { AutosaveService } from "../services/AutosaveService";
 
@@ -20,6 +22,7 @@ interface Command {
 interface DragState {
     nodeId: string;
     startPosition: { x: number; y: number };
+    originalPosition: { x: number; y: number };
 }
 
 export class CommandController {
@@ -119,6 +122,13 @@ export class CommandController {
             throw new Error(`Node with id ${nodeId} not found`);
         }
 
+        const originalNode: BaseNode = {
+            ...node,
+            data: { ...node.data },
+            style: node.style ? { ...node.style } : undefined,
+            position: { ...node.position },
+        };
+
         return {
             execute: () => {
                 useStore.setState((state) => ({
@@ -130,7 +140,9 @@ export class CommandController {
             },
             undo: () => {
                 useStore.setState((state) => ({
-                    nodes: state.nodes.map((n) => (n.id === nodeId ? node : n)),
+                    nodes: state.nodes.map((n) =>
+                        n.id === nodeId ? originalNode : n
+                    ),
                 }));
                 this.autosaveService.autosave();
             },
@@ -166,33 +178,47 @@ export class CommandController {
         };
     }
 
-    createNodesChangeCommand(changes: NodeChange[]): Command | null {
+    createNodesChangeCommand(
+        changes: NodeChange[],
+        originalNodes?: BaseNode[]
+    ): Command | null {
         const positionChanges = changes.filter(
             (change): change is NodePositionChange =>
                 change.type === "position" &&
-                useStore.getState().nodes.some((n) => n.id === change.id)
+                (originalNodes || useStore.getState().nodes).some(
+                    (n) => n.id === change.id
+                )
         );
 
         if (positionChanges.length > 0) {
-            return this.handleDragChanges(positionChanges);
+            return this.handleDragChanges(positionChanges, originalNodes);
         }
 
         return null;
     }
 
-    private handleDragChanges(changes: NodePositionChange[]): Command | null {
-        const currentNodes = useStore.getState().nodes;
+    private handleDragChanges(
+        changes: NodePositionChange[],
+        originalNodes?: BaseNode[]
+    ): Command | null {
+        const currentNodes = originalNodes || useStore.getState().nodes;
 
         for (const change of changes) {
             if (!change.dragging) continue;
 
             if (!this.dragState.has(change.id)) {
+                console.warn(
+                    "Drag state missing for node:",
+                    change.id,
+                    "- this indicates a timing issue"
+                );
                 const node = currentNodes.find((n) => n.id === change.id);
                 if (!node) continue;
 
                 this.dragState.set(change.id, {
                     nodeId: change.id,
                     startPosition: { ...node.position },
+                    originalPosition: { ...node.position },
                 });
             }
         }
@@ -203,21 +229,47 @@ export class CommandController {
         if (endedDrags.length > 0) {
             const commands: Command[] = [];
 
+            const nodesAfterChanges = applyNodeChanges(
+                changes,
+                currentNodes
+            ) as BaseNode[];
+
             for (const change of endedDrags) {
                 const dragStart = this.dragState.get(change.id);
-                if (!dragStart) continue;
 
-                const node = currentNodes.find((n) => n.id === change.id);
-                if (!node) continue;
+                if (!dragStart) {
+                    continue;
+                }
+
+                const finalNode = nodesAfterChanges.find(
+                    (n) => n.id === change.id
+                );
+                const endPosition = finalNode ? finalNode.position : null;
+
+                if (!endPosition) {
+                    continue;
+                }
+
+                const startPos = dragStart.originalPosition;
+                const endPos = endPosition;
+
+                if (startPos.x === endPos.x && startPos.y === endPos.y) {
+                    this.dragState.delete(change.id);
+                    continue;
+                }
 
                 commands.push({
                     execute: () => {
-                        const pos = change.position;
-                        if (!pos?.x || !pos?.y) return;
                         useStore.setState((state) => ({
                             nodes: state.nodes.map((n) =>
                                 n.id === change.id
-                                    ? { ...n, position: { x: pos.x, y: pos.y } }
+                                    ? {
+                                          ...n,
+                                          position: {
+                                              x: endPos.x,
+                                              y: endPos.y,
+                                          },
+                                      }
                                     : n
                             ),
                         }));
@@ -228,7 +280,7 @@ export class CommandController {
                                 n.id === change.id
                                     ? {
                                           ...n,
-                                          position: dragStart.startPosition,
+                                          position: startPos,
                                       }
                                     : n
                             ),
@@ -248,9 +300,10 @@ export class CommandController {
         }
 
         if (ongoingDrags.length > 0) {
+            const storeNodes = useStore.getState().nodes;
             const newNodes = applyNodeChanges(
                 ongoingDrags,
-                currentNodes
+                storeNodes
             ) as BaseNode[];
             useStore.setState({ nodes: newNodes });
         }
@@ -471,5 +524,22 @@ export class CommandController {
                 this.autosaveService.autosave();
             },
         };
+    }
+
+    public captureOriginalPositions(nodeIds: string[]): void {
+        const currentNodes = useStore.getState().nodes;
+
+        for (const nodeId of nodeIds) {
+            if (!this.dragState.has(nodeId)) {
+                const node = currentNodes.find((n) => n.id === nodeId);
+                if (node) {
+                    this.dragState.set(nodeId, {
+                        nodeId,
+                        startPosition: { ...node.position },
+                        originalPosition: { ...node.position },
+                    });
+                }
+            }
+        }
     }
 }

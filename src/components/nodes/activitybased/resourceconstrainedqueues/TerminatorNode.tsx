@@ -1,16 +1,24 @@
 "use client";
 
-import { memo, useState, useCallback } from "react";
-import { Handle, Position, NodeProps, XYPosition } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import { memo, useState, useCallback, useRef } from "react";
+import {
+    Handle,
+    Position,
+    NodeProps,
+    XYPosition,
+    NodeResizer,
+} from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
 interface TerminatorNodeData {
     updateNodeData?: (nodeId: string, data: any) => void;
+    width?: number;
+    height?: number;
 }
 
 interface ExtendedNodeProps extends NodeProps<TerminatorNodeData> {
@@ -77,7 +85,10 @@ export const TerminatorNodePreview = () => {
     );
 };
 
-export const getDefaultData = (): TerminatorNodeData => ({});
+export const getDefaultData = (): TerminatorNodeData => ({
+    width: 200,
+    height: 120,
+});
 
 const TerminatorNode = memo(
     ({
@@ -91,31 +102,64 @@ const TerminatorNode = memo(
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
+        const nodeRef = useRef<HTMLDivElement>(null);
 
-        const nodeName = node?.name || "Terminator Node";
+        const storeNode = useStore((state) =>
+            state.nodes.find((n) => n.id === id)
+        );
+
+        const nodeName = storeNode?.name || "Terminator Node";
+
+        const storeData = storeNode?.data || {};
+        const dimensions = {
+            width: storeData?.width || 200,
+            height: storeData?.height || 120,
+        };
+
+        const handleResize = useCallback(
+            (event: any, params: { width: number; height: number }) => {
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...storeData,
+                        width: params.width,
+                        height: params.height,
+                    },
+                });
+                commandController.execute(command);
+            },
+            [id, storeData]
+        );
 
         return (
             <div
+                ref={nodeRef}
                 className={`relative ${selected ? "shadow-lg" : ""}`}
-                style={{ width: "200px", height: "120px" }}
+                style={{
+                    width: `${dimensions.width}px`,
+                    height: `${dimensions.height}px`,
+                }}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {/* SVG Shape - Ellipse */}
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={150}
+                    minHeight={80}
+                    onResize={handleResize}
+                />
+
+                {/* SVG Shape */}
                 <svg
-                    width="200"
-                    height="120"
-                    viewBox="0 0 200 120"
+                    width={dimensions.width}
+                    height={dimensions.height}
+                    viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
                     className="absolute inset-0"
                 >
                     <ellipse
-                        cx="100"
-                        cy="60"
-                        rx="95"
-                        ry="55"
+                        cx={dimensions.width / 2}
+                        cy={dimensions.height / 2}
+                        rx={dimensions.width * 0.475}
+                        ry={dimensions.height * 0.458}
                         fill="white"
                         stroke={selected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
@@ -124,13 +168,13 @@ const TerminatorNode = memo(
                 </svg>
 
                 {/* Content Area */}
-                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8">
-                    <MathJax>{nodeName}</MathJax>
+                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8 text-sm">
+                    {nodeName}
                 </div>
 
                 {id !== "preview" && (
                     <>
-                        {/* Top Handles - 3 handles */}
+                        {/* Top Handles */}
                         <Handle
                             id={`${id}-top-left-target`}
                             type="target"
@@ -143,8 +187,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "20%",
-                                top: "15%",
-                                transform: "translateX(-50%)",
+                                top: "20%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -159,8 +203,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "50%",
-                                top: "5%",
-                                transform: "translateX(-50%)",
+                                top: "7%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -175,12 +219,12 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "80%",
-                                top: "15%",
-                                transform: "translateX(-50%)",
+                                top: "20%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
 
-                        {/* Left Handle */}
+                        {/* Side Handles */}
                         <Handle
                             id={`${id}-left-target`}
                             type="target"
@@ -192,13 +236,11 @@ const TerminatorNode = memo(
                             }`}
                             isConnectable={isConnectable}
                             style={{
-                                left: "2.5%",
+                                left: "5%",
                                 top: "50%",
-                                transform: "translateY(-50%)",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
-
-                        {/* Right Handle */}
                         <Handle
                             id={`${id}-right-target`}
                             type="target"
@@ -210,13 +252,13 @@ const TerminatorNode = memo(
                             }`}
                             isConnectable={isConnectable}
                             style={{
-                                right: "2.5%",
+                                left: "95%",
                                 top: "50%",
-                                transform: "translateY(-50%)",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
 
-                        {/* Bottom Handles - 3 handles */}
+                        {/* Bottom Handles */}
                         <Handle
                             id={`${id}-bottom-left-target`}
                             type="target"
@@ -229,8 +271,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "20%",
-                                bottom: "15%",
-                                transform: "translateX(-50%)",
+                                top: "80%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -245,8 +287,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "50%",
-                                bottom: "5%",
-                                transform: "translateX(-50%)",
+                                top: "95%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                         <Handle
@@ -261,8 +303,8 @@ const TerminatorNode = memo(
                             isConnectable={isConnectable}
                             style={{
                                 left: "80%",
-                                bottom: "15%",
-                                transform: "translateX(-50%)",
+                                top: "80%",
+                                transform: "translate(-50%, -50%)",
                             }}
                         />
                     </>
@@ -296,7 +338,10 @@ const TerminatorNode = memo(
     }
 ) as any;
 
-TerminatorNode.getDefaultData = (): TerminatorNodeData => ({});
+TerminatorNode.getDefaultData = (): TerminatorNodeData => ({
+    width: 200,
+    height: 120,
+});
 
 TerminatorNode.getGraphType = (): string => "rcq";
 

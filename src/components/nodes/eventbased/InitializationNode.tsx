@@ -1,17 +1,26 @@
 "use client";
 
-import { memo, useState, useCallback, useEffect, useMemo } from "react";
-import { Handle, Position, NodeProps, XYPosition } from "reactflow";
+import { memo, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+    Handle,
+    Position,
+    NodeProps,
+    XYPosition,
+    NodeResizer,
+} from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { getStandardHandlePositions } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
 interface InitializationNodeData {
     initializations: string[];
     updateNodeData?: (nodeId: string, data: any) => void;
+    width?: number;
+    height?: number;
 }
 
 interface ExtendedNodeProps extends NodeProps<InitializationNodeData> {
@@ -90,6 +99,8 @@ export const InitializationNodePreview = () => {
 
 export const getDefaultData = (): InitializationNodeData => ({
     initializations: [],
+    width: 200,
+    height: 120,
 });
 
 const InitializationNode = memo(
@@ -107,6 +118,43 @@ const InitializationNode = memo(
             .nodes.find((n: BaseNode) => n.id === id);
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState("");
+        const [isHovered, setIsHovered] = useState(false);
+        const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+        const handleMouseEnter = useCallback(() => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = null;
+            }
+            setIsHovered(true);
+        }, []);
+
+        const handleMouseLeave = useCallback(() => {
+            hoverTimeoutRef.current = setTimeout(() => {
+                setIsHovered(false);
+            }, 200);
+        }, []);
+
+        const handleResize = useCallback(
+            (event: any, params: { width: number; height: number }) => {
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...data,
+                        width: params.width,
+                        height: params.height,
+                    },
+                });
+                commandController.execute(command);
+            },
+            [id, data]
+        );
+
+        const nodeWidth = data?.width || 200;
+        const nodeHeight = data?.height || 120;
+        const handlePositions = getStandardHandlePositions(
+            nodeWidth,
+            nodeHeight
+        );
 
         useEffect(() => {
             if (
@@ -168,11 +216,23 @@ const InitializationNode = memo(
                     selected
                         ? "border-blue-500"
                         : "border-black dark:border-white"
-                } bg-white dark:bg-zinc-800 min-w-[200px] ${
-                    selected ? "shadow-lg" : ""
-                }`}
+                } bg-white dark:bg-zinc-800 ${selected ? "shadow-lg" : ""}`}
+                style={{
+                    width: nodeWidth,
+                    height: nodeHeight,
+                    minWidth: 200,
+                    minHeight: 120,
+                }}
                 onDoubleClick={handleDoubleClick}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
             >
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={200}
+                    minHeight={120}
+                    onResize={handleResize}
+                />
                 {/* Node Name/Title */}
                 <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 dark:text-white text-black">
                     {nodeName}
@@ -180,70 +240,125 @@ const InitializationNode = memo(
 
                 {id !== "preview" && (
                     <>
-                        {/* Top Handles */}
-                        <Handle
-                            id={`${id}-top-source`}
-                            type="source"
-                            position={Position.Top}
-                            className="!dark:hidden"
-                            isConnectable={isConnectable}
-                        />
+                        {/* Top handles */}
+                        {handlePositions.horizontal
+                            .slice(1, -1)
+                            .map((leftPos, index) => (
+                                <Handle
+                                    key={`top-${index}`}
+                                    id={`${id}-top-${index}`}
+                                    type="source"
+                                    position={Position.Top}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: "5px",
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
 
-                        {/* Left Handles */}
-                        <Handle
-                            id={`${id}-left-source`}
-                            type="source"
-                            position={Position.Left}
-                            className="!dark:hidden"
-                            isConnectable={isConnectable}
-                        />
+                        {/* Right handles */}
+                        {handlePositions.vertical.map((topPos, index) => (
+                            <Handle
+                                key={`right-${index}`}
+                                id={`${id}-right-${index}`}
+                                type="source"
+                                position={Position.Right}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${nodeWidth - 10}px`,
+                                    top: `${topPos - 10}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
-                        {/* Right Handles */}
-                        <Handle
-                            id={`${id}-right-source`}
-                            type="source"
-                            position={Position.Right}
-                            className="!dark:hidden"
-                            isConnectable={isConnectable}
-                        />
+                        {/* Bottom handles */}
+                        {handlePositions.horizontal
+                            .slice(1, -1)
+                            .map((leftPos, index) => (
+                                <Handle
+                                    key={`bottom-${index}`}
+                                    id={`${id}-bottom-${index}`}
+                                    type="source"
+                                    position={Position.Bottom}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: `${nodeHeight - 10}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
 
-                        {/* Bottom Handles */}
-                        <Handle
-                            id={`${id}-bottom-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className="!dark:hidden"
-                            isConnectable={isConnectable}
-                        />
+                        {/* Left handles */}
+                        {handlePositions.vertical.map((topPos, index) => (
+                            <Handle
+                                key={`left-${index}`}
+                                id={`${id}-left-${index}`}
+                                type="target"
+                                position={Position.Left}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: "5px",
+                                    top: `${topPos - 10}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
                     </>
                 )}
 
-                {/* Content Area */}
-                <div className="mt-2 min-h-[40px] text-center dark:text-gray-300">
+                {/* Content */}
+                <div className="mt-2" style={{ height: nodeHeight - 60 }}>
                     {isEditing ? (
                         <textarea
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={handleBlur}
-                            className="w-full min-h-[100px] p-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-blue-500 dark:text-white nodrag"
+                            className="w-full p-2 border rounded dark:bg-zinc-700 dark:text-white nodrag resize-none"
+                            style={{ height: nodeHeight - 80 }}
+                            placeholder="Enter initializations..."
                             autoFocus
                         />
-                    ) : validItems.length > 0 ? (
-                        validItems.map((init: any, index: number) => (
-                            <div key={index} className="my-1">
-                                <div className="mathjax-content">
-                                    {typeof init === "string" &&
-                                    init.trim() !== "" ? (
-                                        <MathJax>{init}</MathJax>
-                                    ) : (
-                                        <span> </span>
-                                    )}
-                                </div>
-                            </div>
-                        ))
                     ) : (
-                        <div className="text-gray-400 dark:text-gray-500">
-                            No initializations
+                        <div className="space-y-1 h-full overflow-hidden">
+                            {validItems.length > 0 ? (
+                                validItems.map(
+                                    (init: string, index: number) => (
+                                        <div key={index} className="my-1">
+                                            <div className="mathjax-content">
+                                                <MathJax>{init}</MathJax>
+                                            </div>
+                                        </div>
+                                    )
+                                )
+                            ) : (
+                                <div className="text-gray-400 dark:text-gray-500 text-center">
+                                    No initializations
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -271,6 +386,8 @@ const InitializationNode = memo(
             prev.xPos === next.xPos &&
             prev.yPos === next.yPos &&
             prevName === nextName &&
+            prev.data?.width === next.data?.width &&
+            prev.data?.height === next.data?.height &&
             JSON.stringify(prevNode?.data?.initializations) ===
                 JSON.stringify(nextNode?.data?.initializations)
         );
@@ -279,6 +396,8 @@ const InitializationNode = memo(
 
 InitializationNode.getDefaultData = (): InitializationNodeData => ({
     initializations: [],
+    width: 200,
+    height: 120,
 });
 
 InitializationNode.getGraphType = (): string => "eventBased";

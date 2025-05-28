@@ -1,17 +1,26 @@
 "use client";
 
-import { memo, useState, useCallback } from "react";
-import { Handle, Position, NodeProps, XYPosition } from "reactflow";
+import { memo, useState, useCallback, useRef } from "react";
+import {
+    Handle,
+    Position,
+    NodeProps,
+    XYPosition,
+    NodeResizer,
+} from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { getStandardHandlePositions, snapToGrid } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
 interface EventNodeData {
     stateUpdate: string;
     eventParameters?: string;
+    width?: number;
+    height?: number;
 }
 
 interface ExtendedNodeProps extends NodeProps<EventNodeData> {
@@ -33,15 +42,19 @@ const EventNode = memo(
         isConnectable,
     }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
-        const [editValue, setEditValue] = useState(data?.stateUpdate || "");
-        const [editParams, setEditParams] = useState(
+        const [editStateUpdate, setEditStateUpdate] = useState(
+            data?.stateUpdate || ""
+        );
+        const [editEventParameters, setEditEventParameters] = useState(
             data?.eventParameters || ""
         );
+        const [isHovered, setIsHovered] = useState(false);
+        const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditValue(data?.stateUpdate || "");
-            setEditParams(data?.eventParameters || "");
+            setEditStateUpdate(data?.stateUpdate || "");
+            setEditEventParameters(data?.eventParameters || "");
         }, [data?.stateUpdate, data?.eventParameters]);
 
         const handleBlur = useCallback(
@@ -55,68 +68,55 @@ const EventNode = memo(
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...data,
-                        stateUpdate: editValue,
-                        eventParameters: editParams,
+                        stateUpdate: editStateUpdate,
+                        eventParameters: editEventParameters,
                     },
                 });
                 commandController.execute(command);
             },
-            [editValue, editParams, id, data]
+            [editStateUpdate, editEventParameters, id, data]
         );
+
+        const handleResize = useCallback(
+            (event: any, params: { width: number; height: number }) => {
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...data,
+                        width: params.width,
+                        height: params.height,
+                    },
+                });
+                commandController.execute(command);
+            },
+            [id, data]
+        );
+
+        const handleMouseEnter = useCallback(() => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = null;
+            }
+            setIsHovered(true);
+        }, []);
+
+        const handleMouseLeave = useCallback(() => {
+            hoverTimeoutRef.current = setTimeout(() => {
+                setIsHovered(false);
+            }, 200);
+        }, []);
 
         const node = useStore
             .getState()
             .nodes.find((n: BaseNode) => n.id === id);
-        const nodeName = node?.name || id;
 
-        const handlePositions = [
-            {
-                position: Position.Top,
-                style: { left: "50%", transform: "translateX(-50%)" },
-            },
-            {
-                position: Position.Top,
-                style: {
-                    left: "15%",
-                    transform: "translateX(-50%) rotate(-45deg)",
-                },
-            },
-            {
-                position: Position.Top,
-                style: {
-                    left: "85%",
-                    transform: "translateX(-50%) rotate(45deg)",
-                },
-            },
+        const nodeName = node?.name || "Event Node";
 
-            {
-                position: Position.Left,
-                style: { top: "50%", transform: "translateY(-50%)" },
-            },
-            {
-                position: Position.Right,
-                style: { top: "50%", transform: "translateY(-50%)" },
-            },
-
-            {
-                position: Position.Bottom,
-                style: { left: "50%", transform: "translateX(-50%)" },
-            },
-            {
-                position: Position.Bottom,
-                style: {
-                    left: "15%",
-                    transform: "translateX(-50%) rotate(45deg)",
-                },
-            },
-            {
-                position: Position.Bottom,
-                style: {
-                    left: "85%",
-                    transform: "translateX(-50%) rotate(-45deg)",
-                },
-            },
-        ];
+        const nodeWidth = data?.width || 200;
+        const nodeHeight = data?.height || 120;
+        const handlePositions = getStandardHandlePositions(
+            nodeWidth,
+            nodeHeight
+        );
 
         return (
             <div
@@ -124,11 +124,24 @@ const EventNode = memo(
                     selected
                         ? "border-blue-500"
                         : "border-black dark:border-white"
-                } bg-white dark:bg-zinc-800 min-w-[200px] ${
-                    selected ? "shadow-lg" : ""
-                } aspect-[2/1]`}
+                } bg-white dark:bg-zinc-800 ${selected ? "shadow-lg" : ""}`}
+                style={{
+                    width: nodeWidth,
+                    height: nodeHeight,
+                    minWidth: 200,
+                    minHeight: 120,
+                }}
                 onDoubleClick={handleDoubleClick}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
             >
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={200}
+                    minHeight={120}
+                    onResize={handleResize}
+                />
+
                 {/* Node Name/Title */}
                 <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
                     <MathJax>
@@ -141,28 +154,33 @@ const EventNode = memo(
                 </div>
 
                 {/* Content */}
-                <div className="space-y-2">
+                <div className="space-y-2" style={{ height: nodeHeight - 60 }}>
                     {isEditing ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2 h-full">
                             <textarea
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
+                                value={editStateUpdate}
+                                onChange={(e) =>
+                                    setEditStateUpdate(e.target.value)
+                                }
                                 onBlur={handleBlur}
-                                className="w-full min-h-[80px] p-2 border rounded dark:bg-zinc-700 dark:text-white event-node-input focus:outline-none focus:border-blue-500 nodrag"
+                                className="w-full flex-1 p-2 border rounded dark:bg-zinc-700 dark:text-white event-node-input focus:outline-none focus:border-blue-500 nodrag resize-none"
+                                style={{ height: nodeHeight - 100 }}
                                 placeholder="State Update"
                                 autoFocus
                             />
                             <input
                                 type="text"
-                                value={editParams}
-                                onChange={(e) => setEditParams(e.target.value)}
+                                value={editEventParameters}
+                                onChange={(e) =>
+                                    setEditEventParameters(e.target.value)
+                                }
                                 onBlur={handleBlur}
                                 className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input nodrag"
                                 placeholder="Event Parameters (optional)"
                             />
                         </div>
                     ) : (
-                        <div className="space-y-1 flex flex-col items-center justify-center">
+                        <div className="space-y-1 flex flex-col items-center justify-center h-full overflow-hidden">
                             {data?.stateUpdate &&
                             data.stateUpdate.trim() !== "" ? (
                                 data.stateUpdate
@@ -188,21 +206,97 @@ const EventNode = memo(
                 </div>
 
                 {/* Handles */}
-                {id !== "preview" &&
-                    handlePositions.map((handleConfig, index) => {
-                        const handleId = `${id}-${handleConfig.position}-${index}`;
-                        return (
+                {id !== "preview" && (
+                    <>
+                        {/* Top handles */}
+                        {handlePositions.horizontal
+                            .slice(1, -1)
+                            .map((leftPos, index) => (
+                                <Handle
+                                    key={`top-${index}`}
+                                    id={`${id}-top-${index}`}
+                                    type="source"
+                                    position={Position.Top}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: "5px",
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
+
+                        {/* Right handles */}
+                        {handlePositions.vertical.map((topPos, index) => (
                             <Handle
-                                key={handleId}
-                                id={handleId}
+                                key={`right-${index}`}
+                                id={`${id}-right-${index}`}
                                 type="source"
-                                position={handleConfig.position}
-                                style={handleConfig.style}
-                                className="!bg-black dark:!bg-white !w-3 !h-3 !border-2 !border-white dark:!border-zinc-800"
+                                position={Position.Right}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
                                 isConnectable={isConnectable}
+                                style={{
+                                    left: `${nodeWidth - 10}px`,
+                                    top: `${topPos - 10}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
                             />
-                        );
-                    })}
+                        ))}
+
+                        {/* Bottom handles */}
+                        {handlePositions.horizontal
+                            .slice(1, -1)
+                            .map((leftPos, index) => (
+                                <Handle
+                                    key={`bottom-${index}`}
+                                    id={`${id}-bottom-${index}`}
+                                    type="source"
+                                    position={Position.Bottom}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: `${nodeHeight - 10}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
+
+                        {/* Left handles */}
+                        {handlePositions.vertical.map((topPos, index) => (
+                            <Handle
+                                key={`left-${index}`}
+                                id={`${id}-left-${index}`}
+                                type="target"
+                                position={Position.Left}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: "5px",
+                                    top: `${topPos - 10}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
+                    </>
+                )}
             </div>
         );
     },
@@ -232,6 +326,8 @@ const EventNode = memo(
 EventNode.getDefaultData = (): EventNodeData => ({
     stateUpdate: "",
     eventParameters: "",
+    width: 200,
+    height: 120,
 });
 
 EventNode.getGraphType = (): string => "eventBased";

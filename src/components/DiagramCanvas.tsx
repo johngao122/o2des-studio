@@ -36,6 +36,7 @@ import {
     ViewportTransform,
     screenToFlowPosition,
 } from "@/lib/utils/coordinates";
+import { GRID_SIZE } from "@/lib/utils/math";
 import "./diagram-canvas.css";
 
 const viewController = new ViewController();
@@ -64,11 +65,7 @@ const flowOptions = {
     snapToGrid: true,
     zoomOnScroll: true,
     zoomOnPinch: true,
-    snapGrid: [15, 15] as [number, number],
-    translateExtent: [
-        [-1000, -1000],
-        [2000, 2000],
-    ] as [[number, number], [number, number]],
+    snapGrid: [GRID_SIZE, GRID_SIZE] as [number, number],
 } as const;
 
 function FlowCanvas() {

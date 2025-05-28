@@ -1,12 +1,17 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
-import { Handle, Position, NodeProps, XYPosition } from "reactflow";
-import { MathJax } from "better-react-mathjax";
-import { GripIcon } from "lucide-react";
+import { memo, useState, useCallback, useRef } from "react";
+import {
+    Handle,
+    Position,
+    NodeProps,
+    XYPosition,
+    NodeResizer,
+} from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
+import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
@@ -142,96 +147,34 @@ const ActivityNode = memo(
             data?.duration || "op time"
         );
         const [isHovered, setIsHovered] = useState(false);
-        const [isResizing, setIsResizing] = useState(false);
-        const [dimensions, setDimensions] = useState({
-            width: data?.width || 240,
-            height: data?.height || 70,
-        });
 
         const nodeRef = useRef<HTMLDivElement>(null);
-        const initialMousePos = useRef<{ x: number; y: number } | null>(null);
-        const initialDimensions = useRef<{
-            width: number;
-            height: number;
-        } | null>(null);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
+        const storeNode = useStore((state) =>
+            state.nodes.find((n) => n.id === id)
+        );
 
-        const nodeName = node?.name || "Activity Node";
+        const nodeName = storeNode?.name || "Activity Node";
 
-        const snapToGrid = (value: number, gridSize: number = 15) => {
-            return Math.round(value / gridSize) * gridSize;
+        const storeData = storeNode?.data || {};
+        const dimensions = {
+            width: storeData?.width || 240,
+            height: storeData?.height || 70,
         };
 
-        const handleMouseDown = useCallback(
-            (e: React.MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsResizing(true);
-                initialMousePos.current = { x: e.clientX, y: e.clientY };
-                initialDimensions.current = {
-                    width: dimensions.width,
-                    height: dimensions.height,
-                };
-            },
-            [dimensions]
-        );
-
-        const handleMouseMove = useCallback(
-            (e: MouseEvent) => {
-                if (
-                    !isResizing ||
-                    !initialMousePos.current ||
-                    !initialDimensions.current
-                )
-                    return;
-
-                const deltaX = e.clientX - initialMousePos.current.x;
-                const deltaY = e.clientY - initialMousePos.current.y;
-
-                const newWidth = Math.max(
-                    180,
-                    snapToGrid(initialDimensions.current.width + deltaX)
-                );
-                const newHeight = Math.max(
-                    50,
-                    snapToGrid(initialDimensions.current.height + deltaY)
-                );
-
-                setDimensions({ width: newWidth, height: newHeight });
-            },
-            [isResizing]
-        );
-
-        const handleMouseUp = useCallback(() => {
-            if (isResizing) {
-                setIsResizing(false);
-                initialMousePos.current = null;
-                initialDimensions.current = null;
-
+        const handleResize = useCallback(
+            (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
-                        ...data,
-                        width: dimensions.width,
-                        height: dimensions.height,
+                        ...storeData,
+                        width: params.width,
+                        height: params.height,
                     },
                 });
                 commandController.execute(command);
-            }
-        }, [isResizing, dimensions, data, id]);
-
-        useEffect(() => {
-            if (isResizing) {
-                window.addEventListener("mousemove", handleMouseMove);
-                window.addEventListener("mouseup", handleMouseUp);
-                return () => {
-                    window.removeEventListener("mousemove", handleMouseMove);
-                    window.removeEventListener("mouseup", handleMouseUp);
-                };
-            }
-        }, [isResizing, handleMouseMove, handleMouseUp]);
+            },
+            [id, storeData]
+        );
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
@@ -250,37 +193,11 @@ const ActivityNode = memo(
         }, [editDuration, id, data]);
 
         const getHandlePositions = () => {
-            const rectTop = 35;
-            const rectBottom = rectTop + dimensions.height;
-            const rectWidth = dimensions.width;
-            const rectHeight = dimensions.height;
-
-            return {
-                top: [
-                    0,
-                    rectWidth * 0.25,
-                    rectWidth * 0.5,
-                    rectWidth * 0.75,
-                    rectWidth,
-                ],
-                right: [
-                    rectTop + rectHeight * 0.25,
-                    rectTop + rectHeight * 0.5,
-                    rectTop + rectHeight * 0.75,
-                ],
-                bottom: [
-                    rectWidth,
-                    rectWidth * 0.75,
-                    rectWidth * 0.5,
-                    rectWidth * 0.25,
-                    0,
-                ],
-                left: [
-                    rectTop + rectHeight * 0.75,
-                    rectTop + rectHeight * 0.5,
-                    rectTop + rectHeight * 0.25,
-                ],
-            };
+            return getGridAlignedHandlePositions(
+                dimensions.width,
+                dimensions.height,
+                35
+            );
         };
 
         const handlePositions = getHandlePositions();
@@ -314,6 +231,13 @@ const ActivityNode = memo(
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={180}
+                    minHeight={50}
+                    onResize={handleResize}
+                />
+
                 <div className="absolute top-0 left-0 flex flex-wrap gap-1">
                     {renderResourceRectangles(data?.resources || [])}
                 </div>
@@ -332,7 +256,7 @@ const ActivityNode = memo(
                     }}
                 >
                     <div className="text-sm font-medium text-center dark:text-white text-black px-4">
-                        <MathJax>{nodeName}</MathJax>
+                        {nodeName}
                     </div>
                 </div>
 
@@ -356,10 +280,7 @@ const ActivityNode = memo(
                         />
                     ) : (
                         <div className="text-gray-600 dark:text-gray-400">
-                            Duration:{" "}
-                            <MathJax inline>
-                                {data?.duration || "op time"}
-                            </MathJax>
+                            Duration: {data?.duration || "op time"}
                         </div>
                     )}
                 </div>
@@ -450,22 +371,6 @@ const ActivityNode = memo(
                             />
                         ))}
                     </>
-                )}
-
-                {/* Resize handle */}
-                {(selected || isHovered) && (
-                    <div
-                        className="absolute w-6 h-6 cursor-se-resize nodrag flex items-center justify-center bg-white dark:bg-zinc-800 rounded-bl border-l border-t border-gray-300 dark:border-gray-600"
-                        style={{
-                            right: -3,
-                            bottom: -3,
-                            zIndex: 1,
-                            pointerEvents: "auto",
-                        }}
-                        onMouseDown={handleMouseDown}
-                    >
-                        <GripIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 nodrag" />
-                    </div>
                 )}
             </div>
         );
