@@ -257,30 +257,35 @@ const GlobalNode = memo(
                     </div>
                 </div>
 
-                <div
-                    className="absolute text-xs text-center"
-                    style={{
-                        top: `${35 + dimensions.height + 10}px`,
-                        left: "0px",
-                        width: `${dimensions.width}px`,
-                    }}
-                >
-                    {isEditing ? (
-                        <input
-                            type="text"
-                            value={editDuration}
-                            onChange={(e) => setEditDuration(e.target.value)}
-                            onBlur={handleBlur}
-                            className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
-                            placeholder="Duration"
-                            autoFocus
-                        />
-                    ) : (
-                        <div className="text-gray-600 dark:text-gray-400">
-                            Duration: {data?.duration || "op time"}
-                        </div>
-                    )}
-                </div>
+                {/* Duration */}
+                {data?.duration && data.duration.trim() !== "" && (
+                    <div
+                        className="absolute text-xs text-center"
+                        style={{
+                            top: `${35 + dimensions.height + 10}px`,
+                            left: "0px",
+                            width: `${dimensions.width}px`,
+                        }}
+                    >
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                value={editDuration}
+                                onChange={(e) =>
+                                    setEditDuration(e.target.value)
+                                }
+                                onBlur={handleBlur}
+                                className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
+                                placeholder="Duration"
+                                autoFocus
+                            />
+                        ) : (
+                            <div className="text-gray-600 dark:text-gray-400">
+                                Duration: {data?.duration}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {id !== "preview" && (
                     <>
