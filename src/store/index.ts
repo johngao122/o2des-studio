@@ -351,6 +351,11 @@ export const useStore = create<StoreState>((set, get) => ({
                             remainingSelectedNodeIds.length === 0
                                 ? []
                                 : get().selectedProperties,
+                        selectionInfo:
+                            remainingSelectedNodeIds.length === 0 &&
+                            get().selectedElements.edges.length === 0
+                                ? undefined
+                                : get().selectionInfo,
                     });
 
                     const now = new Date().toISOString();
@@ -625,6 +630,11 @@ export const useStore = create<StoreState>((set, get) => ({
                         get().selectedElements.nodes.length === 0
                             ? []
                             : get().selectedProperties,
+                    selectionInfo:
+                        remainingSelectedEdgeIds.length === 0 &&
+                        get().selectedElements.nodes.length === 0
+                            ? undefined
+                            : get().selectionInfo,
                 });
 
                 const command =
