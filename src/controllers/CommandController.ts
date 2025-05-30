@@ -81,6 +81,12 @@ export class CommandController {
         return this.redoStack.length > 0;
     }
 
+    clearHistory(): void {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.dragState.clear();
+    }
+
     createAddNodeCommand(node: BaseNode): Command {
         return {
             execute: () => {
@@ -521,6 +527,51 @@ export class CommandController {
                 if (edgeIds.length > 0) {
                 }
 
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    createBatchAddCommand(
+        operations: Array<
+            | { type: "addNode"; node: BaseNode }
+            | { type: "addEdge"; edge: BaseEdge }
+        >
+    ): Command {
+        const nodesToAdd = operations
+            .filter(
+                (op): op is { type: "addNode"; node: BaseNode } =>
+                    op.type === "addNode"
+            )
+            .map((op) => op.node);
+
+        const edgesToAdd = operations
+            .filter(
+                (op): op is { type: "addEdge"; edge: BaseEdge } =>
+                    op.type === "addEdge"
+            )
+            .map((op) => op.edge);
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    nodes: [...state.nodes, ...nodesToAdd],
+                    edges: [...state.edges, ...edgesToAdd],
+                }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                const nodeIdsToRemove = nodesToAdd.map((n) => n.id);
+                const edgeIdsToRemove = edgesToAdd.map((e) => e.id);
+
+                useStore.setState((state) => ({
+                    nodes: state.nodes.filter(
+                        (n) => !nodeIdsToRemove.includes(n.id)
+                    ),
+                    edges: state.edges.filter(
+                        (e) => !edgeIdsToRemove.includes(e.id)
+                    ),
+                }));
                 this.autosaveService.autosave();
             },
         };

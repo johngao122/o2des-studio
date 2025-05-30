@@ -40,6 +40,7 @@ import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
 
 interface ToolbarProps {
+    onNewProject?: () => void;
     onSave?: () => void;
     onLoad?: (event: ChangeEvent<HTMLInputElement>) => void;
     onZoomIn?: () => void;
@@ -49,9 +50,12 @@ interface ToolbarProps {
     isDarkMode?: boolean;
     lastAction?: string;
     onShowShortcuts?: () => void;
+    onCopy?: () => void;
+    onPaste?: () => void;
 }
 
 export function Toolbar({
+    onNewProject,
     onSave,
     onLoad,
     onZoomIn,
@@ -61,6 +65,8 @@ export function Toolbar({
     isDarkMode,
     lastAction,
     onShowShortcuts,
+    onCopy,
+    onPaste,
 }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const {
@@ -189,6 +195,20 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={onNewProject}>
+                            <div className="flex justify-between w-full items-center">
+                                <div className="flex items-center">
+                                    <FileIcon className="mr-2 h-4 w-4" />
+                                    New Project
+                                </div>
+                                <span className="text-xs text-muted-foreground ml-8">
+                                    {formatShortcut(
+                                        KeyboardShortcuts.NEW_PROJECT
+                                    )}
+                                </span>
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={onSave}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
@@ -263,7 +283,7 @@ export function Toolbar({
                             </div>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onCopy}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Copy className="mr-2 h-4 w-4" />
@@ -285,7 +305,7 @@ export function Toolbar({
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onPaste}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <ClipboardPaste className="mr-2 h-4 w-4" />

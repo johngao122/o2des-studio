@@ -1,4 +1,5 @@
 export const KeyboardShortcuts = {
+    NEW_PROJECT: ["Meta", "N"],
     SAVE: ["Meta", "S"],
     LOAD: ["Meta", "O"],
     UNDO: ["Meta", "Z"],

@@ -29,6 +29,11 @@ export default function DiagramEditor() {
     );
     const projectName = useStore((state) => state.projectName);
     const selectionInfo = useStore((state) => state.selectionInfo);
+    const newProject = useStore((state) => state.newProject);
+    const copySelectedElements = useStore(
+        (state) => state.copySelectedElements
+    );
+    const pasteElements = useStore((state) => state.pasteElements);
 
     const getSerializedState = useStore.getState().getSerializedState;
     const loadSerializedState = useStore.getState().loadSerializedState;
@@ -143,6 +148,20 @@ export default function DiagramEditor() {
         setLastAction("Showing shortcuts");
     }, []);
 
+    const handleNewProject = useCallback(() => {
+        newProject();
+        toast.success("New project created");
+        setLastAction("Created new project");
+    }, [newProject]);
+
+    const handleCopy = useCallback(() => {
+        copySelectedElements();
+    }, [copySelectedElements]);
+
+    const handlePaste = useCallback(() => {
+        pasteElements();
+    }, [pasteElements]);
+
     useKeyboardShortcuts({
         onSave: handleSave,
         onLoad: () => fileInputRef.current?.click(),
@@ -151,11 +170,15 @@ export default function DiagramEditor() {
         onFitView: handleFitView,
         onToggleDarkMode: handleToggleDarkMode,
         onShowShortcuts: handleShowShortcuts,
+        onNewProject: handleNewProject,
+        onCopy: handleCopy,
+        onPaste: handlePaste,
     });
 
     return (
         <div className="w-screen h-screen flex flex-col overflow-hidden">
             <Toolbar
+                onNewProject={handleNewProject}
                 onSave={handleSave}
                 onLoad={handleLoad}
                 onZoomIn={handleZoomIn}
@@ -165,6 +188,8 @@ export default function DiagramEditor() {
                 isDarkMode={isDarkMode}
                 lastAction={lastAction}
                 onShowShortcuts={handleShowShortcuts}
+                onCopy={handleCopy}
+                onPaste={handlePaste}
             />
             <div className="flex-1 flex overflow-hidden">
                 <ComponentDrawer />

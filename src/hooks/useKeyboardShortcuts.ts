@@ -3,6 +3,7 @@ import { useStore } from "@/store";
 import { KeyboardShortcuts } from "@/lib/constants/shortcuts";
 
 interface UseKeyboardShortcutsProps {
+    onNewProject?: () => void;
     onSave?: () => void;
     onLoad?: () => void;
     onZoomIn?: () => void;
@@ -10,9 +11,12 @@ interface UseKeyboardShortcutsProps {
     onFitView?: () => void;
     onToggleDarkMode?: () => void;
     onShowShortcuts?: () => void;
+    onCopy?: () => void;
+    onPaste?: () => void;
 }
 
 export function useKeyboardShortcuts({
+    onNewProject,
     onSave,
     onLoad,
     onZoomIn,
@@ -20,12 +24,13 @@ export function useKeyboardShortcuts({
     onFitView,
     onToggleDarkMode,
     onShowShortcuts,
+    onCopy,
+    onPaste,
 }: UseKeyboardShortcutsProps) {
     const { undo, redo } = useStore();
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Check if the key is pressed with the correct modifier (Command/Control)
             const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
             const modifier = isMac ? event.metaKey : event.ctrlKey;
 
@@ -41,10 +46,17 @@ export function useKeyboardShortcuts({
                         undo();
                     }
                     break;
-                // case "s":
-                //     event.preventDefault();
-                //     onSave?.();
-                //     break;
+
+                case "c":
+                    event.preventDefault();
+                    onCopy?.();
+                    break;
+
+                case "v":
+                    event.preventDefault();
+                    onPaste?.();
+                    break;
+
                 case "o":
                     event.preventDefault();
                     onLoad?.();
@@ -71,12 +83,17 @@ export function useKeyboardShortcuts({
                     event.preventDefault();
                     onShowShortcuts?.();
                     break;
+                case "n":
+                    event.preventDefault();
+                    onNewProject?.();
+                    break;
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [
+        onNewProject,
         onSave,
         onLoad,
         onZoomIn,
@@ -84,6 +101,8 @@ export function useKeyboardShortcuts({
         onFitView,
         onToggleDarkMode,
         onShowShortcuts,
+        onCopy,
+        onPaste,
         undo,
         redo,
     ]);
