@@ -1,0 +1,1295 @@
+{
+    "json": {
+        "projectName": "Depot-Demo",
+        "nodes": [
+            {
+                "position": { "x": 150, "y": 345 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "Aj0vHaLN15YMhdtf7z3lG",
+                "type": "generator",
+                "name": "Truck",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 150, "y": 345 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 420, "y": 330 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "travel from Entry to BA",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "v7_by0aYDfHLERWGTRa-x",
+                "type": "activity",
+                "name": "Arriving at Buffering Area",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 420, "y": 330 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 900, "y": 330 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "",
+                    "width": 510,
+                    "height": 95
+                },
+                "id": "9xj3WPsr59W68nTIFkUWt",
+                "type": "activity",
+                "name": "Unloading",
+                "width": 510,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 900, "y": 330 },
+                "dragging": false,
+                "style": { "width": 510, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 903.75, "y": 690 },
+                "graphType": "rcq",
+                "data": { "width": 150, "height": 90 },
+                "id": "i1UxPHril0EJE7gaXzGs9",
+                "type": "generator",
+                "name": "Container",
+                "width": 150,
+                "height": 90,
+                "selected": false,
+                "positionAbsolute": { "x": 870, "y": 615 },
+                "dragging": false,
+                "style": { "width": 150, "height": 90 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1140, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "op time",
+                    "width": 270,
+                    "height": 95
+                },
+                "id": "t9-lqmKxDeQhJPLD3i0bf",
+                "type": "activity",
+                "name": "Dismounting from Truck by RS (IB)",
+                "width": 270,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1140, "y": 660 },
+                "dragging": false,
+                "style": { "width": 270, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 3075, "y": 390 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "",
+                    "width": 1725,
+                    "height": 95
+                },
+                "id": "YxLtsfq0XW7OoLz6XHKy2",
+                "type": "activity",
+                "name": "Loading ",
+                "width": 1725,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 3090, "y": 525 },
+                "dragging": false,
+                "style": { "width": 1725, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 4920, "y": 390 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "travel from BA to Exit",
+                    "width": 255,
+                    "height": 95
+                },
+                "id": "pbegm5ZaJKzBol57TzNkx",
+                "type": "activity",
+                "name": "Departing",
+                "width": 255,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 4920, "y": 390 },
+                "dragging": false,
+                "style": { "width": 255, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 5265, "y": 405 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "iRG52GIiyhN-iCQGRLN37",
+                "type": "terminator",
+                "name": "Truck",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 5265, "y": 405 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 135, "y": 915 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "_wENYmLkVohArov6NCs0L",
+                "type": "generator",
+                "name": "RS(BA)",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 135, "y": 915 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 420, "y": 900 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "_FyMaEnceGPSVooWP_qqh",
+                "type": "activity",
+                "name": "RS Idling",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 420, "y": 900 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1140, "y": 900 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "unloading",
+                    "width": 270,
+                    "height": 95
+                },
+                "id": "dAA6SiM4NgNwMRnhpiQma",
+                "type": "activity",
+                "name": "Dismounting from Truck by RS (IB)",
+                "width": 270,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1140, "y": 900 },
+                "dragging": false,
+                "style": { "width": 270, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1140, "y": 1215 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "p2A8_8roHn80I5MumVrZB",
+                "type": "terminator",
+                "name": "RS(BA)",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 1140, "y": 1215 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 1530, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "op time",
+                    "width": 270,
+                    "height": 95
+                },
+                "id": "xbh-a_ImPW1pR-NHz0m-W",
+                "type": "activity",
+                "name": "Mounting to AGV by RS (IB)",
+                "width": 270,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1530, "y": 660 },
+                "dragging": false,
+                "style": { "width": 270, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1530, "y": 900 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "loading",
+                    "width": 270,
+                    "height": 95
+                },
+                "id": "rZd6O6RlvwKUYr1slEC6U",
+                "type": "activity",
+                "name": "Dropping to AGV by RS (IB)",
+                "width": 270,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1530, "y": 900 },
+                "dragging": false,
+                "style": { "width": 270, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1905, "y": 900 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "bzf14oKgJh1O1vPodOfMI",
+                "type": "global",
+                "name": "RS Idling",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1905, "y": 900 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1890, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["AGV"],
+                    "duration": "travel from BA to CB",
+                    "width": 270,
+                    "height": 95
+                },
+                "id": "oP1Q3Hq-iZHv1yANdqcDA",
+                "type": "activity",
+                "name": "Transporting to Container Block",
+                "width": 270,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1890, "y": 660 },
+                "dragging": false,
+                "style": { "width": 270, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 2250, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["AGV"],
+                    "duration": "op time",
+                    "width": 270,
+                    "height": 95
+                },
+                "id": "e5jpHNvBjRm57dtsDli-2",
+                "type": "activity",
+                "name": "Dismounting from AGV by Crane (IB)",
+                "width": 270,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 2250, "y": 660 },
+                "dragging": false,
+                "style": { "width": 270, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 2610, "y": 675 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "4kbZlxb4hAY1TDV6JKoXs",
+                "type": "terminator",
+                "name": "Container",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 2610, "y": 675 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 3075, "y": 675 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "jh0F45OwIIb1jOyB6yVwr",
+                "type": "generator",
+                "name": "Container",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 3075, "y": 675 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 3330, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "op time",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "Bg8OBT8D0oOS3yEfSIKt8",
+                "type": "activity",
+                "name": "Retrieving from Container Block",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 3330, "y": 660 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 3630, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "op time",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "tmV73wvK110ccb4DBu2s-",
+                "type": "activity",
+                "name": "Mounting to AGV by Crane (OB)",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 3630, "y": 660 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 3930, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "travel from CB to BA",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "xn8AwRGO7heoIlp6pVva8",
+                "type": "activity",
+                "name": "Transporting to Buffering Area",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 3930, "y": 660 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 3330, "y": 870 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "",
+                    "width": 840,
+                    "height": 95
+                },
+                "id": "b0EaU_fDnc58WikdYGx9R",
+                "type": "activity",
+                "name": "Waiting for AGV",
+                "width": 840,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 3330, "y": 870 },
+                "dragging": false,
+                "style": { "width": 840, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 4245, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "-SBaP1wYlBGRXXfV3L60f",
+                "type": "activity",
+                "name": "Dismounting from AGV by RS (OB)",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 4245, "y": 660 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 4245, "y": 870 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "unloading",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "W_hfSfwMs8lKxbIwqCAGJ",
+                "type": "activity",
+                "name": "Lifting from AGV by RS (OB)",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 4245, "y": 870 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 4560, "y": 660 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)"],
+                    "duration": "",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "tkJd7Bpd9hrBfWpPqqwYW",
+                "type": "activity",
+                "name": "Mounting to Truck by RS (OB)",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 4560, "y": 660 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 4560, "y": 870 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["RS (BA)", "AGV"],
+                    "duration": "loading",
+                    "width": 240,
+                    "height": 80
+                },
+                "id": "idl6SlwVXO8wjZF-2PW9L",
+                "type": "activity",
+                "name": "Dropping to Truck by RS (OB)",
+                "width": 240,
+                "height": 80,
+                "selected": false,
+                "positionAbsolute": { "x": 4560, "y": 870 },
+                "dragging": false,
+                "style": { "width": 240, "height": 80 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 4860, "y": 675 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "QTAceeS9Glo29iyLJux6m",
+                "type": "terminator",
+                "name": "Container",
+                "width": 204,
+                "height": 124,
+                "selected": false,
+                "positionAbsolute": { "x": 4860, "y": 675 },
+                "dragging": false,
+                "style": null
+            },
+            {
+                "position": { "x": 4875, "y": 870 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "kLFqgOoLLIqxTy4CEcQPU",
+                "type": "global",
+                "name": "RS Idling",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 4875, "y": 870 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            }
+        ],
+        "edges": [
+            {
+                "id": "N26kgpnNYPhEkqW8ZanqZ",
+                "source": "Aj0vHaLN15YMhdtf7z3lG",
+                "target": "v7_by0aYDfHLERWGTRa-x",
+                "sourceHandle": "Aj0vHaLN15YMhdtf7z3lG-right-source",
+                "targetHandle": "v7_by0aYDfHLERWGTRa-x-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "g0kchSS-Wr23izt-zkl2f",
+                "source": "v7_by0aYDfHLERWGTRa-x",
+                "target": "9xj3WPsr59W68nTIFkUWt",
+                "sourceHandle": "v7_by0aYDfHLERWGTRa-x-right-0",
+                "targetHandle": "9xj3WPsr59W68nTIFkUWt-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "inbound task = True",
+                    "isDependency": false,
+                    "conditionLabelOffset": {
+                        "x": 14.999996115485828,
+                        "y": -30.000019262989383
+                    }
+                },
+                "selected": false
+            },
+            {
+                "id": "aOuRBj44rpTeDNJa2aPd-",
+                "source": "i1UxPHril0EJE7gaXzGs9",
+                "target": "t9-lqmKxDeQhJPLD3i0bf",
+                "sourceHandle": "i1UxPHril0EJE7gaXzGs9-right-source",
+                "targetHandle": "t9-lqmKxDeQhJPLD3i0bf-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "8nMJu18MeQDIAMBZEMnM6",
+                "source": "v7_by0aYDfHLERWGTRa-x",
+                "target": "YxLtsfq0XW7OoLz6XHKy2",
+                "sourceHandle": "v7_by0aYDfHLERWGTRa-x-right-0",
+                "targetHandle": "YxLtsfq0XW7OoLz6XHKy2-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "smoothstep",
+                    "condition": "inbound task = False",
+                    "isDependency": false,
+                    "controlPoint3": { "x": 1515, "y": 540 },
+                    "controlPoint2": { "x": 1230, "y": 540 },
+                    "controlPoint1": { "x": 765, "y": 540 },
+                    "conditionLabelOffset": { "x": -435, "y": -30 }
+                },
+                "selected": false
+            },
+            {
+                "id": "5TZaw9lG8JUl-euHvu8Wx",
+                "source": "pbegm5ZaJKzBol57TzNkx",
+                "target": "iRG52GIiyhN-iCQGRLN37",
+                "sourceHandle": "pbegm5ZaJKzBol57TzNkx-right-0",
+                "targetHandle": "iRG52GIiyhN-iCQGRLN37-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "bv9luo-4CCBk1WLOEg5J9",
+                "source": "YxLtsfq0XW7OoLz6XHKy2",
+                "target": "pbegm5ZaJKzBol57TzNkx",
+                "sourceHandle": "YxLtsfq0XW7OoLz6XHKy2-right-0",
+                "targetHandle": "pbegm5ZaJKzBol57TzNkx-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "u7k_cK1de1lKjSDKin8v5",
+                "source": "9xj3WPsr59W68nTIFkUWt",
+                "target": "pbegm5ZaJKzBol57TzNkx",
+                "sourceHandle": "9xj3WPsr59W68nTIFkUWt-right-0",
+                "targetHandle": "pbegm5ZaJKzBol57TzNkx-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "smoothstep",
+                    "controlPoint3": { "x": 4785, "y": 300 },
+                    "condition": "True",
+                    "isDependency": false,
+                    "controlPoint2": { "x": 2250, "y": 300 },
+                    "controlPoint1": { "x": 1665, "y": 300 }
+                },
+                "selected": false
+            },
+            {
+                "id": "IHPd_SDsu24z_FdaUIjsW",
+                "source": "9xj3WPsr59W68nTIFkUWt",
+                "target": "i1UxPHril0EJE7gaXzGs9",
+                "sourceHandle": "9xj3WPsr59W68nTIFkUWt-bottom-8",
+                "targetHandle": "i1UxPHril0EJE7gaXzGs9-left-top-source",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "SBu3-bpj-gnDBQuKT7iF0",
+                "source": "t9-lqmKxDeQhJPLD3i0bf",
+                "target": "9xj3WPsr59W68nTIFkUWt",
+                "sourceHandle": "t9-lqmKxDeQhJPLD3i0bf-top-4",
+                "targetHandle": "9xj3WPsr59W68nTIFkUWt-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "vkVl_WfkVZw0vTp85V5L6",
+                "source": "_wENYmLkVohArov6NCs0L",
+                "target": "_FyMaEnceGPSVooWP_qqh",
+                "sourceHandle": "_wENYmLkVohArov6NCs0L-right-source",
+                "targetHandle": "_FyMaEnceGPSVooWP_qqh-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "tPM55Am6K3mctgqFZinTC",
+                "source": "dAA6SiM4NgNwMRnhpiQma",
+                "target": "t9-lqmKxDeQhJPLD3i0bf",
+                "sourceHandle": "dAA6SiM4NgNwMRnhpiQma-top-0",
+                "targetHandle": "t9-lqmKxDeQhJPLD3i0bf-bottom-4",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "daO8ITfr6GvWoHGtnqjN5",
+                "source": "dAA6SiM4NgNwMRnhpiQma",
+                "target": "t9-lqmKxDeQhJPLD3i0bf",
+                "sourceHandle": "dAA6SiM4NgNwMRnhpiQma-top-4",
+                "targetHandle": "t9-lqmKxDeQhJPLD3i0bf-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "FvcU4S0rZpgjOHqIJPdNp",
+                "source": "_FyMaEnceGPSVooWP_qqh",
+                "target": "dAA6SiM4NgNwMRnhpiQma",
+                "sourceHandle": "_FyMaEnceGPSVooWP_qqh-right-0",
+                "targetHandle": "dAA6SiM4NgNwMRnhpiQma-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "inbound task = True",
+                    "isDependency": false
+                },
+                "selected": false
+            },
+            {
+                "id": "yjcIU5HyKgXgo0h0EmUfP",
+                "source": "_FyMaEnceGPSVooWP_qqh",
+                "target": "p2A8_8roHn80I5MumVrZB",
+                "sourceHandle": "_FyMaEnceGPSVooWP_qqh-right-0",
+                "targetHandle": "p2A8_8roHn80I5MumVrZB-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "smoothstep",
+                    "condition": "True",
+                    "isDependency": false,
+                    "controlPoint1": { "x": 840, "y": 1275 },
+                    "controlPoint2": { "x": 900, "y": 1275 },
+                    "controlPoint3": { "x": 1020, "y": 1275 }
+                },
+                "selected": false
+            },
+            {
+                "id": "ouD9Idezu1_gxrqZPT-Lo",
+                "source": "t9-lqmKxDeQhJPLD3i0bf",
+                "target": "xbh-a_ImPW1pR-NHz0m-W",
+                "sourceHandle": "t9-lqmKxDeQhJPLD3i0bf-right-0",
+                "targetHandle": "xbh-a_ImPW1pR-NHz0m-W-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "9Jf0kjt4MUdCA86TF67ik",
+                "source": "rZd6O6RlvwKUYr1slEC6U",
+                "target": "xbh-a_ImPW1pR-NHz0m-W",
+                "sourceHandle": "rZd6O6RlvwKUYr1slEC6U-top-0",
+                "targetHandle": "xbh-a_ImPW1pR-NHz0m-W-bottom-4",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "7D0oRcG-H9WDP3uykMy75",
+                "source": "xbh-a_ImPW1pR-NHz0m-W",
+                "target": "rZd6O6RlvwKUYr1slEC6U",
+                "sourceHandle": "xbh-a_ImPW1pR-NHz0m-W-bottom-4",
+                "targetHandle": "rZd6O6RlvwKUYr1slEC6U-top-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "HeYSdEokNcgVDQUa2MNyO",
+                "source": "rZd6O6RlvwKUYr1slEC6U",
+                "target": "xbh-a_ImPW1pR-NHz0m-W",
+                "sourceHandle": "rZd6O6RlvwKUYr1slEC6U-top-4",
+                "targetHandle": "xbh-a_ImPW1pR-NHz0m-W-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "4Asf0xgCGHrxBtIf2MW7r",
+                "source": "dAA6SiM4NgNwMRnhpiQma",
+                "target": "rZd6O6RlvwKUYr1slEC6U",
+                "sourceHandle": "dAA6SiM4NgNwMRnhpiQma-right-0",
+                "targetHandle": "rZd6O6RlvwKUYr1slEC6U-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "qpg2u3bmGJF3w6hrrFUSU",
+                "source": "rZd6O6RlvwKUYr1slEC6U",
+                "target": "bzf14oKgJh1O1vPodOfMI",
+                "sourceHandle": "rZd6O6RlvwKUYr1slEC6U-right-0",
+                "targetHandle": "bzf14oKgJh1O1vPodOfMI-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "azxBhMQKbFffkkcRBfMcl",
+                "source": "xbh-a_ImPW1pR-NHz0m-W",
+                "target": "oP1Q3Hq-iZHv1yANdqcDA",
+                "sourceHandle": "xbh-a_ImPW1pR-NHz0m-W-right-0",
+                "targetHandle": "oP1Q3Hq-iZHv1yANdqcDA-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "3dNNbaSeDvzNssaKOsr9U",
+                "source": "oP1Q3Hq-iZHv1yANdqcDA",
+                "target": "e5jpHNvBjRm57dtsDli-2",
+                "sourceHandle": "oP1Q3Hq-iZHv1yANdqcDA-right-0",
+                "targetHandle": "e5jpHNvBjRm57dtsDli-2-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "Yu9tKqpg1jFXj3kfO6k2j",
+                "source": "e5jpHNvBjRm57dtsDli-2",
+                "target": "4kbZlxb4hAY1TDV6JKoXs",
+                "sourceHandle": "e5jpHNvBjRm57dtsDli-2-right-0",
+                "targetHandle": "4kbZlxb4hAY1TDV6JKoXs-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "QTfsz21JBWPgCoB2khN9b",
+                "source": "jh0F45OwIIb1jOyB6yVwr",
+                "target": "Bg8OBT8D0oOS3yEfSIKt8",
+                "sourceHandle": "jh0F45OwIIb1jOyB6yVwr-right-source",
+                "targetHandle": "Bg8OBT8D0oOS3yEfSIKt8-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "7Vc-J87lpmbGbK_zLSO2a",
+                "source": "Bg8OBT8D0oOS3yEfSIKt8",
+                "target": "tmV73wvK110ccb4DBu2s-",
+                "sourceHandle": "Bg8OBT8D0oOS3yEfSIKt8-right-0",
+                "targetHandle": "tmV73wvK110ccb4DBu2s--left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "PU7gisA7dOpShg47pidwL",
+                "source": "tmV73wvK110ccb4DBu2s-",
+                "target": "xn8AwRGO7heoIlp6pVva8",
+                "sourceHandle": "tmV73wvK110ccb4DBu2s--right-0",
+                "targetHandle": "xn8AwRGO7heoIlp6pVva8-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "pztNrKY5qQx_AfwKLfr24",
+                "source": "b0EaU_fDnc58WikdYGx9R",
+                "target": "Bg8OBT8D0oOS3yEfSIKt8",
+                "sourceHandle": "b0EaU_fDnc58WikdYGx9R-top-0",
+                "targetHandle": "Bg8OBT8D0oOS3yEfSIKt8-bottom-4",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "ezZwBxzJsxr9ytwbEERCG",
+                "source": "xn8AwRGO7heoIlp6pVva8",
+                "target": "b0EaU_fDnc58WikdYGx9R",
+                "sourceHandle": "xn8AwRGO7heoIlp6pVva8-bottom-0",
+                "targetHandle": "b0EaU_fDnc58WikdYGx9R-top-14",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "AZ4a3UaifKdLmPqCZjUMj",
+                "source": "b0EaU_fDnc58WikdYGx9R",
+                "target": "W_hfSfwMs8lKxbIwqCAGJ",
+                "sourceHandle": "b0EaU_fDnc58WikdYGx9R-right-0",
+                "targetHandle": "W_hfSfwMs8lKxbIwqCAGJ-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "QnSP_RS12psSIzhcrkL3m",
+                "source": "W_hfSfwMs8lKxbIwqCAGJ",
+                "target": "-SBaP1wYlBGRXXfV3L60f",
+                "sourceHandle": "W_hfSfwMs8lKxbIwqCAGJ-top-4",
+                "targetHandle": "-SBaP1wYlBGRXXfV3L60f-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "jnWasR57igSeu1prpeexA",
+                "source": "xn8AwRGO7heoIlp6pVva8",
+                "target": "-SBaP1wYlBGRXXfV3L60f",
+                "sourceHandle": "xn8AwRGO7heoIlp6pVva8-right-0",
+                "targetHandle": "-SBaP1wYlBGRXXfV3L60f-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "ihDU3hGSh67bcgg1faXjg",
+                "source": "-SBaP1wYlBGRXXfV3L60f",
+                "target": "tkJd7Bpd9hrBfWpPqqwYW",
+                "sourceHandle": "-SBaP1wYlBGRXXfV3L60f-right-0",
+                "targetHandle": "tkJd7Bpd9hrBfWpPqqwYW-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "5ZVBlF4OLkyahLiIteX8t",
+                "source": "W_hfSfwMs8lKxbIwqCAGJ",
+                "target": "idl6SlwVXO8wjZF-2PW9L",
+                "sourceHandle": "W_hfSfwMs8lKxbIwqCAGJ-right-0",
+                "targetHandle": "idl6SlwVXO8wjZF-2PW9L-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "ZHUlo5KYD7edTN8IZ07-A",
+                "source": "idl6SlwVXO8wjZF-2PW9L",
+                "target": "tkJd7Bpd9hrBfWpPqqwYW",
+                "sourceHandle": "idl6SlwVXO8wjZF-2PW9L-top-4",
+                "targetHandle": "tkJd7Bpd9hrBfWpPqqwYW-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "eF1bz64nuKDTFjJvaYyld",
+                "source": "tkJd7Bpd9hrBfWpPqqwYW",
+                "target": "QTAceeS9Glo29iyLJux6m",
+                "sourceHandle": "tkJd7Bpd9hrBfWpPqqwYW-right-0",
+                "targetHandle": "QTAceeS9Glo29iyLJux6m-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "REmt96rrXdRUOkI3FweUL",
+                "source": "idl6SlwVXO8wjZF-2PW9L",
+                "target": "kLFqgOoLLIqxTy4CEcQPU",
+                "sourceHandle": "idl6SlwVXO8wjZF-2PW9L-right-0",
+                "targetHandle": "kLFqgOoLLIqxTy4CEcQPU-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "h5qy99gIQeygWBklpfPoA",
+                "source": "YxLtsfq0XW7OoLz6XHKy2",
+                "target": "jh0F45OwIIb1jOyB6yVwr",
+                "sourceHandle": "YxLtsfq0XW7OoLz6XHKy2-bottom-28",
+                "targetHandle": "jh0F45OwIIb1jOyB6yVwr-left-top-source",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "NkORytxRfiTJqEe0boPTV",
+                "source": "tkJd7Bpd9hrBfWpPqqwYW",
+                "target": "YxLtsfq0XW7OoLz6XHKy2",
+                "sourceHandle": "tkJd7Bpd9hrBfWpPqqwYW-top-4",
+                "targetHandle": "YxLtsfq0XW7OoLz6XHKy2-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "bhLQcF01CDzLYsCal4K8X",
+                "source": "_FyMaEnceGPSVooWP_qqh",
+                "target": "b0EaU_fDnc58WikdYGx9R",
+                "sourceHandle": "_FyMaEnceGPSVooWP_qqh-right-0",
+                "targetHandle": "b0EaU_fDnc58WikdYGx9R-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "smoothstep",
+                    "controlPoint3": { "x": 2970, "y": 1140 },
+                    "condition": "inbound task = False",
+                    "isDependency": false,
+                    "controlPoint2": { "x": 2010, "y": 1140 },
+                    "controlPoint1": { "x": 840, "y": 1140 },
+                    "conditionLabelOffset": { "x": -1110, "y": -45 }
+                },
+                "selected": false
+            }
+        ],
+        "metadata": {
+            "version": "1.0.0",
+            "created": "2025-05-30T02:00:46.531Z",
+            "modified": "2025-05-30T02:37:39.463Z",
+            "projectName": "Depot-Demo",
+            "description": "",
+            "author": "",
+            "tags": []
+        }
+    },
+    "meta": {
+        "values": { "nodes.27.style": ["undefined"] },
+        "referentialEqualities": {
+            "nodes.5.data.resources": ["nodes.22.data.resources"],
+            "nodes.14.data.resources": ["nodes.28.data.resources"],
+            "nodes.15.data.resources": ["nodes.16.data.resources"],
+            "nodes.19.data.resources": [
+                "nodes.20.data.resources",
+                "nodes.21.data.resources",
+                "nodes.23.data.resources",
+                "nodes.24.data.resources",
+                "nodes.26.data.resources"
+            ]
+        }
+    }
+}
