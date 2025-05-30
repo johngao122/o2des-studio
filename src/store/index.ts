@@ -77,6 +77,10 @@ interface StoreState {
         zoom: number;
     };
     dragProxy: DragProxyState;
+    clipboard: {
+        nodes: BaseNode[];
+        edges: BaseEdge[];
+    };
     onNodesChange: (changes: NodeChange[]) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
@@ -96,6 +100,8 @@ interface StoreState {
         zoom?: number
     ) => void;
     endDragProxy: (applyChanges: boolean) => void;
+    copySelectedElements: () => void;
+    pasteElements: () => void;
 }
 
 interface SerializedState {
@@ -135,6 +141,10 @@ export const useStore = create<StoreState>((set, get) => ({
         edgesSnapshot: null,
         boundingBox: null,
         centerOffset: null,
+    },
+    clipboard: {
+        nodes: [],
+        edges: [],
     },
 
     onNodesChange: (changes: NodeChange[]) => {
@@ -745,6 +755,10 @@ export const useStore = create<StoreState>((set, get) => ({
                 boundingBox: null,
                 centerOffset: null,
             },
+            clipboard: {
+                nodes: [],
+                edges: [],
+            },
         });
     },
 
@@ -976,5 +990,173 @@ export const useStore = create<StoreState>((set, get) => ({
                 centerOffset: null,
             },
         });
+    },
+
+    copySelectedElements: () => {
+        const { selectedElements, nodes, edges } = get();
+
+        const selectedNodes = selectedElements.nodes
+            .map((id) => nodes.find((n) => n.id === id))
+            .filter((node): node is BaseNode => node !== undefined);
+
+        const selectedEdges = selectedElements.edges
+            .map((id) => edges.find((e) => e.id === id))
+            .filter((edge): edge is BaseEdge => edge !== undefined);
+
+        const clonedNodes = selectedNodes.map((node) => ({
+            ...node,
+            data: node.data ? { ...node.data } : undefined,
+            style: node.style ? { ...node.style } : undefined,
+            position: { ...node.position },
+        }));
+
+        const clonedEdges = selectedEdges.map((edge) => ({
+            ...edge,
+            data: edge.data ? { ...edge.data } : undefined,
+            style: edge.style ? { ...edge.style } : undefined,
+            markerEnd: edge.markerEnd,
+            markerStart: edge.markerStart,
+        }));
+
+        set({
+            clipboard: {
+                nodes: clonedNodes,
+                edges: clonedEdges,
+            },
+        });
+    },
+
+    pasteElements: () => {
+        const { clipboard } = get();
+
+        if (clipboard.nodes.length === 0 && clipboard.edges.length === 0) {
+            return;
+        }
+
+        const nodeIdMap = new Map<string, string>();
+        const newNodes = clipboard.nodes.map((node) => {
+            const newId = nanoid();
+            nodeIdMap.set(node.id, newId);
+
+            return {
+                ...node,
+                id: newId,
+                position: {
+                    x: node.position.x + 20,
+                    y: node.position.y + 20,
+                },
+                data: node.data ? { ...node.data } : undefined,
+                style: node.style ? { ...node.style } : undefined,
+            };
+        });
+
+        const validEdges = clipboard.edges
+            .filter(
+                (edge) =>
+                    nodeIdMap.has(edge.source) && nodeIdMap.has(edge.target)
+            )
+            .map((edge) => {
+                const newSourceId = nodeIdMap.get(edge.source)!;
+                const newTargetId = nodeIdMap.get(edge.target)!;
+
+                let newSourceHandle = edge.sourceHandle;
+                let newTargetHandle = edge.targetHandle;
+
+                if (
+                    edge.sourceHandle &&
+                    edge.sourceHandle.includes(edge.source)
+                ) {
+                    newSourceHandle = edge.sourceHandle.replace(
+                        edge.source,
+                        newSourceId
+                    );
+                }
+
+                if (
+                    edge.targetHandle &&
+                    edge.targetHandle.includes(edge.target)
+                ) {
+                    newTargetHandle = edge.targetHandle.replace(
+                        edge.target,
+                        newTargetId
+                    );
+                }
+
+                return {
+                    ...edge,
+                    id: nanoid(),
+                    source: newSourceId,
+                    target: newTargetId,
+                    sourceHandle: newSourceHandle,
+                    targetHandle: newTargetHandle,
+                    data: edge.data ? { ...edge.data } : undefined,
+                    style: edge.style ? { ...edge.style } : undefined,
+                    markerEnd: edge.markerEnd,
+                    markerStart: edge.markerStart,
+                };
+            });
+
+        const batchOperations = [
+            ...newNodes.map((node) => ({
+                type: "addNode" as const,
+                node,
+            })),
+            ...validEdges.map((edge) => ({
+                type: "addEdge" as const,
+                edge,
+            })),
+        ];
+
+        if (batchOperations.length > 0) {
+            const { selectedElements, onNodesChange, onEdgesChange } = get();
+
+            if (selectedElements.nodes.length > 0) {
+                onNodesChange(
+                    selectedElements.nodes.map((nodeId) => ({
+                        id: nodeId,
+                        type: "select",
+                        selected: false,
+                    }))
+                );
+            }
+
+            if (selectedElements.edges.length > 0) {
+                onEdgesChange(
+                    selectedElements.edges.map((edgeId) => ({
+                        id: edgeId,
+                        type: "select",
+                        selected: false,
+                    }))
+                );
+            }
+
+            const command =
+                commandController.createBatchAddCommand(batchOperations);
+            commandController.execute(command);
+
+            requestAnimationFrame(() => {
+                const { onNodesChange, onEdgesChange } = get();
+
+                if (newNodes.length > 0) {
+                    onNodesChange(
+                        newNodes.map((node) => ({
+                            id: node.id,
+                            type: "select",
+                            selected: true,
+                        }))
+                    );
+                }
+
+                if (validEdges.length > 0) {
+                    onEdgesChange(
+                        validEdges.map((edge) => ({
+                            id: edge.id,
+                            type: "select",
+                            selected: true,
+                        }))
+                    );
+                }
+            });
+        }
     },
 }));

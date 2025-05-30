@@ -50,6 +50,8 @@ interface ToolbarProps {
     isDarkMode?: boolean;
     lastAction?: string;
     onShowShortcuts?: () => void;
+    onCopy?: () => void;
+    onPaste?: () => void;
 }
 
 export function Toolbar({
@@ -63,6 +65,8 @@ export function Toolbar({
     isDarkMode,
     lastAction,
     onShowShortcuts,
+    onCopy,
+    onPaste,
 }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const {
@@ -279,7 +283,7 @@ export function Toolbar({
                             </div>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onCopy}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Copy className="mr-2 h-4 w-4" />
@@ -301,7 +305,7 @@ export function Toolbar({
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onPaste}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <ClipboardPaste className="mr-2 h-4 w-4" />

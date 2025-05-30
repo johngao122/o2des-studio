@@ -11,6 +11,8 @@ interface UseKeyboardShortcutsProps {
     onFitView?: () => void;
     onToggleDarkMode?: () => void;
     onShowShortcuts?: () => void;
+    onCopy?: () => void;
+    onPaste?: () => void;
 }
 
 export function useKeyboardShortcuts({
@@ -22,6 +24,8 @@ export function useKeyboardShortcuts({
     onFitView,
     onToggleDarkMode,
     onShowShortcuts,
+    onCopy,
+    onPaste,
 }: UseKeyboardShortcutsProps) {
     const { undo, redo } = useStore();
 
@@ -41,6 +45,16 @@ export function useKeyboardShortcuts({
                         event.preventDefault();
                         undo();
                     }
+                    break;
+
+                case "c":
+                    event.preventDefault();
+                    onCopy?.();
+                    break;
+
+                case "v":
+                    event.preventDefault();
+                    onPaste?.();
                     break;
 
                 case "o":
@@ -87,6 +101,8 @@ export function useKeyboardShortcuts({
         onFitView,
         onToggleDarkMode,
         onShowShortcuts,
+        onCopy,
+        onPaste,
         undo,
         redo,
     ]);
