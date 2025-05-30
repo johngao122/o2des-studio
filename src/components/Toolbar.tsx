@@ -40,6 +40,7 @@ import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
 
 interface ToolbarProps {
+    onNewProject?: () => void;
     onSave?: () => void;
     onLoad?: (event: ChangeEvent<HTMLInputElement>) => void;
     onZoomIn?: () => void;
@@ -52,6 +53,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
+    onNewProject,
     onSave,
     onLoad,
     onZoomIn,
@@ -189,6 +191,20 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={onNewProject}>
+                            <div className="flex justify-between w-full items-center">
+                                <div className="flex items-center">
+                                    <FileIcon className="mr-2 h-4 w-4" />
+                                    New Project
+                                </div>
+                                <span className="text-xs text-muted-foreground ml-8">
+                                    {formatShortcut(
+                                        KeyboardShortcuts.NEW_PROJECT
+                                    )}
+                                </span>
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={onSave}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">

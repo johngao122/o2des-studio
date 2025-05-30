@@ -23,9 +23,11 @@ import {
     getBoundingBoxFromPositions,
 } from "@/lib/utils/coordinates";
 import { GRID_SIZE } from "@/lib/utils/math";
+import { AutosaveService } from "../services/AutosaveService";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
+const autosaveService = AutosaveService.getInstance();
 
 const DRAG_PROXY_THRESHOLD = 3;
 
@@ -80,6 +82,7 @@ interface StoreState {
     onConnect: (connection: Connection) => void;
     getSerializedState: () => string;
     loadSerializedState: (serialized: string) => void;
+    newProject: () => void;
     undo: () => void;
     redo: () => void;
     canUndo: () => boolean;
@@ -719,6 +722,30 @@ export const useStore = create<StoreState>((set, get) => ({
                 "Failed to load project: Unable to process project structure"
             );
         }
+    },
+
+    newProject: () => {
+        commandController.clearHistory();
+        autosaveService.clearSavedState();
+        set({
+            projectName: "Untitled Project",
+            nodes: [],
+            edges: [],
+            metadata: createDefaultMetadata(),
+            selectedElements: { nodes: [], edges: [] },
+            selectedProperties: [],
+            selectionInfo: undefined,
+            viewportTransform: { x: 0, y: 0, zoom: 1 },
+            dragProxy: {
+                isActive: false,
+                startPosition: null,
+                currentPosition: null,
+                nodesSnapshot: null,
+                edgesSnapshot: null,
+                boundingBox: null,
+                centerOffset: null,
+            },
+        });
     },
 
     undo: () => {

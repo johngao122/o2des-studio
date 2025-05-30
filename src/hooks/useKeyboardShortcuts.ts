@@ -3,6 +3,7 @@ import { useStore } from "@/store";
 import { KeyboardShortcuts } from "@/lib/constants/shortcuts";
 
 interface UseKeyboardShortcutsProps {
+    onNewProject?: () => void;
     onSave?: () => void;
     onLoad?: () => void;
     onZoomIn?: () => void;
@@ -13,6 +14,7 @@ interface UseKeyboardShortcutsProps {
 }
 
 export function useKeyboardShortcuts({
+    onNewProject,
     onSave,
     onLoad,
     onZoomIn,
@@ -25,7 +27,6 @@ export function useKeyboardShortcuts({
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Check if the key is pressed with the correct modifier (Command/Control)
             const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
             const modifier = isMac ? event.metaKey : event.ctrlKey;
 
@@ -41,10 +42,7 @@ export function useKeyboardShortcuts({
                         undo();
                     }
                     break;
-                // case "s":
-                //     event.preventDefault();
-                //     onSave?.();
-                //     break;
+
                 case "o":
                     event.preventDefault();
                     onLoad?.();
@@ -71,12 +69,17 @@ export function useKeyboardShortcuts({
                     event.preventDefault();
                     onShowShortcuts?.();
                     break;
+                case "n":
+                    event.preventDefault();
+                    onNewProject?.();
+                    break;
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [
+        onNewProject,
         onSave,
         onLoad,
         onZoomIn,

@@ -81,6 +81,12 @@ export class CommandController {
         return this.redoStack.length > 0;
     }
 
+    clearHistory(): void {
+        this.undoStack = [];
+        this.redoStack = [];
+        this.dragState.clear();
+    }
+
     createAddNodeCommand(node: BaseNode): Command {
         return {
             execute: () => {
