@@ -38,6 +38,17 @@ import {
 } from "lucide-react";
 import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
+import { useRouter } from "next/navigation";
+import { ProjectExportService } from "@/services/ProjectExportService";
+import { toast } from "sonner";
+import superjson from "superjson";
+
+interface SerializedState {
+    projectName: string;
+    nodes: any[];
+    edges: any[];
+    metadata: any;
+}
 
 interface ToolbarProps {
     onNewProject?: () => void;
@@ -69,6 +80,8 @@ export function Toolbar({
     onPaste,
 }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const router = useRouter();
+    const [isExporting, setIsExporting] = useState(false);
     const {
         undo,
         redo,
@@ -78,6 +91,7 @@ export function Toolbar({
         updateProjectName,
         metadata,
     } = useStore();
+    const getSerializedState = useStore.getState().getSerializedState;
     const [isEditingName, setIsEditingName] = useState(false);
     const [nameValue, setNameValue] = useState(projectName);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -131,6 +145,48 @@ export function Toolbar({
         e.stopPropagation();
         if (fileInputRef.current) {
             fileInputRef.current.click();
+        }
+    };
+
+    const handleExportToSimulator = async () => {
+        setIsExporting(true);
+        try {
+            const diagramData = getSerializedState();
+
+            const parsedState = superjson.parse(diagramData) as SerializedState;
+
+            const exportData = ProjectExportService.convertToStructuredModel({
+                json: {
+                    nodes: parsedState.nodes || [],
+                    edges: parsedState.edges || [],
+                },
+            });
+
+            const exportJson = JSON.stringify(exportData, null, 2);
+
+            sessionStorage.setItem("o2des_export_json", exportJson);
+            sessionStorage.setItem("o2des_diagram_serialized", diagramData);
+
+            const stored = sessionStorage.getItem("o2des_export_json");
+            const storedDiagram = sessionStorage.getItem(
+                "o2des_diagram_serialized"
+            );
+
+            router.push("/export");
+
+            toast.success("Export data prepared successfully");
+        } catch (error) {
+            console.error("Export failed:", error);
+            console.error(
+                "Error stack:",
+                error instanceof Error ? error.stack : "No stack trace"
+            );
+            toast.error("Failed to export diagram", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+            });
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -241,6 +297,16 @@ export function Toolbar({
                         >
                             <FileIcon className="mr-2 h-4 w-4" />
                             Load Example
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onSelect={handleExportToSimulator}
+                            disabled={isExporting}
+                        >
+                            <Settings className="mr-2 h-4 w-4" />
+                            {isExporting
+                                ? "Exporting..."
+                                : "Export to Simulator"}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
