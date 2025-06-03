@@ -1,412 +1,456 @@
 {
-    "model": {
-        "entityRelationships": [
-            {
-                "owner": "Truck",
-                "component": "Container"
-            },
-            {
-                "owner": "Container",
-                "component": "RS(BA)"
-            }
+  "scenario": "",
+  "description": "",
+  "model": {
+    "entityRelationships": [
+      {
+        "owner": "Truck",
+        "component": "Container"
+      },
+      {
+        "owner": "Container",
+        "component": "RS(BA)"
+      }
+    ],
+    "resources": [
+      {
+        "type": "RS (BA)",
+        "group": "RS (BA)",
+        "quantity": 0
+      },
+      {
+        "type": "AGV",
+        "group": "AGV",
+        "quantity": 0
+      }
+    ],
+    "activities": [
+      {
+        "id": "Arriving at Buffering Area",
+        "handlerType": "Truck",
+        "attributes": {
+          "initial": true
+        },
+        "conditions": [],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Unloading",
+        "handlerType": "Truck",
+        "attributes": {},
+        "conditions": [
+          {
+            "attribute": "inbound task",
+            "value": true
+          }
         ],
-        "resources": [
-            {
-                "type": "RS (BA)",
-                "group": "RS (BA)",
-                "quantity": 0
-            },
-            {
-                "type": "AGV",
-                "group": "AGV",
-                "quantity": 0
-            }
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "RS Idling",
+        "handlerType": "RS(BA)",
+        "attributes": {
+          "initial": true
+        },
+        "conditions": [],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Dismounting from Truck by RS (IB)",
+        "handlerType": "Container",
+        "attributes": {
+          "initial": true
+        },
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          },
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
         ],
-        "activities": [
-            {
-                "id": "Arriving at Buffering Area",
-                "handlerType": "Truck",
-                "attributes": {
-                    "initial": true
-                },
-                "conditions": [],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Unloading",
-                "handlerType": "Truck",
-                "attributes": {},
-                "conditions": [
-                    {
-                        "attribute": "inbound task",
-                        "value": true
-                    }
-                ],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Dismounting from Truck by RS (IB)",
-                "handlerType": "Container",
-                "attributes": {
-                    "initial": true
-                },
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Loading ",
-                "handlerType": "Truck",
-                "attributes": {},
-                "conditions": [
-                    {
-                        "attribute": "inbound task",
-                        "value": false
-                    }
-                ],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Departing",
-                "handlerType": "Truck",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "RS Idling",
-                "handlerType": "RS(BA)",
-                "attributes": {
-                    "initial": true
-                },
-                "conditions": [],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Dismounting from Truck by RS (IB)",
-                "handlerType": "RS(BA)",
-                "attributes": {},
-                "conditions": [
-                    {
-                        "attribute": "inbound task",
-                        "value": true
-                    }
-                ],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Mounting to AGV by RS (IB)",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Dropping to AGV by RS (IB)",
-                "handlerType": "RS(BA)",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Transporting to Container Block",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Dismounting from AGV by Crane (IB)",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Retrieving from Container Block",
-                "handlerType": "Container",
-                "attributes": {
-                    "initial": true
-                },
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Mounting to AGV by Crane (OB)",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Transporting to Buffering Area",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Waiting for AGV",
-                "handlerType": "RS(BA)",
-                "attributes": {},
-                "conditions": [
-                    {
-                        "attribute": "inbound task",
-                        "value": false
-                    }
-                ],
-                "requirements": [],
-                "duration": {}
-            },
-            {
-                "id": "Dismounting from AGV by RS (OB)",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Lifting from AGV by RS (OB)",
-                "handlerType": "RS(BA)",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Mounting to Truck by RS (OB)",
-                "handlerType": "Container",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            },
-            {
-                "id": "Dropping to Truck by RS (OB)",
-                "handlerType": "RS(BA)",
-                "attributes": {},
-                "conditions": [],
-                "requirements": [
-                    {
-                        "resourceGroups": ["RS (BA)"],
-                        "quantity": 1
-                    },
-                    {
-                        "resourceGroups": ["AGV"],
-                        "quantity": 1
-                    }
-                ],
-                "duration": {}
-            }
+        "duration": {}
+      },
+      {
+        "id": "Lifting from Truck by RS (IB)",
+        "handlerType": "RS(BA)",
+        "attributes": {},
+        "conditions": [
+          {
+            "attribute": "inbound Task",
+            "value": true
+          }
         ],
-        "connections": [
-            {
-                "type": "",
-                "from": "Truck",
-                "to": "Arriving at Buffering Area"
-            },
-            {
-                "type": "",
-                "from": "Arriving at Buffering Area",
-                "to": "Unloading"
-            },
-            {
-                "type": "",
-                "from": "Container",
-                "to": "Dismounting from Truck by RS (IB)"
-            },
-            {
-                "type": "",
-                "from": "Arriving at Buffering Area",
-                "to": "Loading "
-            },
-            {
-                "type": "",
-                "from": "Loading ",
-                "to": "Departing"
-            },
-            {
-                "type": "",
-                "from": "Unloading",
-                "to": "Departing"
-            },
-            {
-                "type": "",
-                "from": "Dismounting from Truck by RS (IB)",
-                "to": "Unloading"
-            },
-            {
-                "type": "",
-                "from": "RS(BA)",
-                "to": "RS Idling"
-            },
-            {
-                "type": "",
-                "from": "RS Idling",
-                "to": "Dismounting from Truck by RS (IB)"
-            },
-            {
-                "type": "",
-                "from": "Dismounting from Truck by RS (IB)",
-                "to": "Mounting to AGV by RS (IB)"
-            },
-            {
-                "type": "",
-                "from": "Dismounting from Truck by RS (IB)",
-                "to": "Dropping to AGV by RS (IB)"
-            },
-            {
-                "type": "",
-                "from": "Dropping to AGV by RS (IB)",
-                "to": "RS Idling"
-            },
-            {
-                "type": "",
-                "from": "Mounting to AGV by RS (IB)",
-                "to": "Transporting to Container Block"
-            },
-            {
-                "type": "",
-                "from": "Transporting to Container Block",
-                "to": "Dismounting from AGV by Crane (IB)"
-            },
-            {
-                "type": "",
-                "from": "Container",
-                "to": "Retrieving from Container Block"
-            },
-            {
-                "type": "",
-                "from": "Retrieving from Container Block",
-                "to": "Mounting to AGV by Crane (OB)"
-            },
-            {
-                "type": "",
-                "from": "Mounting to AGV by Crane (OB)",
-                "to": "Transporting to Buffering Area"
-            },
-            {
-                "type": "",
-                "from": "Waiting for AGV",
-                "to": "Lifting from AGV by RS (OB)"
-            },
-            {
-                "type": "",
-                "from": "Transporting to Buffering Area",
-                "to": "Dismounting from AGV by RS (OB)"
-            },
-            {
-                "type": "",
-                "from": "Dismounting from AGV by RS (OB)",
-                "to": "Mounting to Truck by RS (OB)"
-            },
-            {
-                "type": "",
-                "from": "Lifting from AGV by RS (OB)",
-                "to": "Dropping to Truck by RS (OB)"
-            },
-            {
-                "type": "",
-                "from": "Dropping to Truck by RS (OB)",
-                "to": "RS Idling"
-            },
-            {
-                "type": "",
-                "from": "RS Idling",
-                "to": "Waiting for AGV"
-            }
-        ]
-    }
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Mounting to AGV by RS (IB)",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          },
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Dropping to AGV by RS (IB)",
+        "handlerType": "RS(BA)",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Transporting to Container Block",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Dismounting from AGV by Crane (IB)",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Loading",
+        "handlerType": "Truck",
+        "attributes": {},
+        "conditions": [
+          {
+            "attribute": "inbound Task",
+            "value": false
+          }
+        ],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Retrieving from Container Block",
+        "handlerType": "Container",
+        "attributes": {
+          "initial": true
+        },
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          },
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Mounting to AGV by Crane (OB)",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          },
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Transporting to Buffering Area",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          },
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Dismounting from AGV by RS (OB)",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          },
+          {
+            "resourceGroups": [
+              "AGV"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Mounting to Truck by RS (OB)",
+        "handlerType": "Container",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [
+          {
+            "resourceGroups": [
+              "RS (BA)"
+            ],
+            "quantity": 1
+          }
+        ],
+        "duration": {}
+      },
+      {
+        "id": "Departing",
+        "handlerType": "Truck",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Waiting for AGV",
+        "handlerType": "RS(BA)",
+        "attributes": {},
+        "conditions": [
+          {
+            "attribute": "inbound Task",
+            "value": false
+          }
+        ],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Lifting from AGV by RS (OB)",
+        "handlerType": "RS(BA)",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [],
+        "duration": {}
+      },
+      {
+        "id": "Dropping to Truck by RS (OB)",
+        "handlerType": "RS(BA)",
+        "attributes": {},
+        "conditions": [],
+        "requirements": [],
+        "duration": {}
+      }
+    ],
+    "connections": [
+      {
+        "type": "StartToInflow",
+        "from": "Unloading",
+        "to": "Dismounting from Truck by RS (IB)"
+      },
+      {
+        "type": "StartToInflow",
+        "from": "Loading",
+        "to": "Retrieving from Container Block"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Dismounting from Truck by RS (IB)",
+        "to": "Unloading"
+      },
+      {
+        "type": "StartToStart",
+        "from": "Lifting from Truck by RS (IB)",
+        "to": "Dismounting from Truck by RS (IB)"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Lifting from Truck by RS (IB)",
+        "to": "Dismounting from Truck by RS (IB)"
+      },
+      {
+        "type": "StartToStart",
+        "from": "Mounting to AGV by RS (IB)",
+        "to": "Dropping to AGV by RS (IB)"
+      },
+      {
+        "type": "StartToStart",
+        "from": "Dropping to AGV by RS (IB)",
+        "to": "Mounting to AGV by RS (IB)"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Dropping to AGV by RS (IB)",
+        "to": "Mounting to AGV by RS (IB)"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Mounting to Truck by RS (OB)",
+        "to": "Loading"
+      },
+      {
+        "type": "StartToStart",
+        "from": "Waiting for AGV",
+        "to": "Retrieving from Container Block"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Transporting to Buffering Area",
+        "to": "Waiting for AGV"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Lifting from AGV by RS (OB)",
+        "to": "Dismounting from AGV by RS (OB)"
+      },
+      {
+        "type": "FinishToFinish",
+        "from": "Dropping to Truck by RS (OB)",
+        "to": "Mounting to Truck by RS (OB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Arriving at Buffering Area",
+        "to": "Unloading"
+      },
+      {
+        "type": "Flow",
+        "from": "RS Idling",
+        "to": "Lifting from Truck by RS (IB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Lifting from Truck by RS (IB)",
+        "to": "Dropping to AGV by RS (IB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Dismounting from Truck by RS (IB)",
+        "to": "Mounting to AGV by RS (IB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Mounting to AGV by RS (IB)",
+        "to": "Transporting to Container Block"
+      },
+      {
+        "type": "Flow",
+        "from": "Transporting to Container Block",
+        "to": "Dismounting from AGV by Crane (IB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Retrieving from Container Block",
+        "to": "Mounting to AGV by Crane (OB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Mounting to AGV by Crane (OB)",
+        "to": "Transporting to Buffering Area"
+      },
+      {
+        "type": "Flow",
+        "from": "Transporting to Buffering Area",
+        "to": "Dismounting from AGV by RS (OB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Dismounting from AGV by RS (OB)",
+        "to": "Mounting to Truck by RS (OB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Loading",
+        "to": "Departing"
+      },
+      {
+        "type": "Flow",
+        "from": "Waiting for AGV",
+        "to": "Lifting from AGV by RS (OB)"
+      },
+      {
+        "type": "Flow",
+        "from": "Lifting from AGV by RS (OB)",
+        "to": "Dropping to Truck by RS (OB)"
+      },
+      {
+        "type": "Flow",
+        "from": "RS Idling",
+        "to": "Waiting for AGV"
+      },
+      {
+        "type": "Flow",
+        "from": "Arriving at Buffering Area",
+        "to": "Loading"
+      },
+      {
+        "type": "Flow",
+        "from": "Unloading",
+        "to": "Departing"
+      }
+    ]
+  }
 }

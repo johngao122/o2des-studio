@@ -293,25 +293,37 @@ const ActivityNode = memo(
                 {id !== "preview" && (
                     <>
                         {/* Top handles */}
-                        {handlePositions.top.map((leftPos, index) => (
-                            <Handle
-                                key={`top-${index}`}
-                                id={`${id}-top-${index}`}
-                                type="source"
-                                position={Position.Top}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${leftPos}px`,
-                                    top: "35px",
-                                    transform: "translate(-50%, -0%)",
-                                }}
-                            />
-                        ))}
+                        {handlePositions.top.map((leftPos, index) => {
+                            let handleId = `${id}-top-${index}`;
+                            if (index === 0) {
+                                handleId = `${id}-top-left-${index}`;
+                            } else if (
+                                index ===
+                                handlePositions.top.length - 1
+                            ) {
+                                handleId = `${id}-top-right-${index}`;
+                            }
+
+                            return (
+                                <Handle
+                                    key={`top-${index}`}
+                                    id={handleId}
+                                    type="source"
+                                    position={Position.Top}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: "35px",
+                                        transform: "translate(-50%, -0%)",
+                                    }}
+                                />
+                            );
+                        })}
 
                         {/* Right handles */}
                         {handlePositions.right.map((topPos, index) => (
@@ -335,25 +347,37 @@ const ActivityNode = memo(
                         ))}
 
                         {/* Bottom handles */}
-                        {handlePositions.bottom.map((leftPos, index) => (
-                            <Handle
-                                key={`bottom-${index}`}
-                                id={`${id}-bottom-${index}`}
-                                type="source"
-                                position={Position.Bottom}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${leftPos}px`,
-                                    top: `${35 + dimensions.height}px`,
-                                    transform: "translate(-50%, -100%)",
-                                }}
-                            />
-                        ))}
+                        {handlePositions.bottom.map((leftPos, index) => {
+                            let handleId = `${id}-bottom-${index}`;
+                            if (index === 0) {
+                                handleId = `${id}-bottom-right-${index}`;
+                            } else if (
+                                index ===
+                                handlePositions.bottom.length - 1
+                            ) {
+                                handleId = `${id}-bottom-left-${index}`;
+                            }
+
+                            return (
+                                <Handle
+                                    key={`bottom-${index}`}
+                                    id={handleId}
+                                    type="source"
+                                    position={Position.Bottom}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${leftPos}px`,
+                                        top: `${35 + dimensions.height}px`,
+                                        transform: "translate(-50%, -100%)",
+                                    }}
+                                />
+                            );
+                        })}
 
                         {/* Left handles */}
                         {handlePositions.left.map((topPos, index) => (

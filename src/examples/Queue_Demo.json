@@ -1,0 +1,366 @@
+{
+    "json": {
+        "projectName": "Queue Demo",
+        "nodes": [
+            {
+                "position": { "x": 555, "y": 225 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "M_a1bzH4_yB-nQmm87Y2U",
+                "type": "generator",
+                "name": "Customer",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 555, "y": 225 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 840, "y": 210 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "travel",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "5cutnJdfBafQ_ij7L7ZBe",
+                "type": "activity",
+                "name": "Arriving",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 840, "y": 210 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1185, "y": 210 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": ["Counter"],
+                    "duration": "",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "GO5_hFkqamfyK4xkcZK8y",
+                "type": "activity",
+                "name": "Processing At Counter",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1185, "y": 210 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1545, "y": 210 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "travel",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "__qOSWk62QWp-AirOZ2Dk",
+                "type": "activity",
+                "name": "Departing",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1545, "y": 210 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1905, "y": 225 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "h-4CRSW_JXQelinC8Vrvm",
+                "type": "terminator",
+                "name": "Customer",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 1905, "y": 225 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 555, "y": 495 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "_W0cYA0OUlQFCSxUrUeHn",
+                "type": "generator",
+                "name": "Counter",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 555, "y": 495 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 825, "y": 480 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "travel",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "RA8VX7CW5iffqzx2xwaBb",
+                "type": "activity",
+                "name": "Idle",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 825, "y": 480 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1185, "y": 480 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "op",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "jpTshvsB0WoD8b2FFI7Yc",
+                "type": "activity",
+                "name": "Processing Customer",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1185, "y": 480 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            },
+            {
+                "position": { "x": 1905, "y": 495 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "AbOD5YY9aHPjdeORhvsQo",
+                "type": "terminator",
+                "name": "Counter",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 1905, "y": 495 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 1545, "y": 480 },
+                "graphType": "rcq",
+                "data": {
+                    "resources": [],
+                    "duration": "op",
+                    "width": 240,
+                    "height": 95
+                },
+                "id": "Nga1WvbJW9VXx4Nyl3yTZ",
+                "type": "global",
+                "name": "Idle",
+                "width": 240,
+                "height": 95,
+                "selected": false,
+                "positionAbsolute": { "x": 1545, "y": 480 },
+                "dragging": false,
+                "style": { "width": 240, "height": 95 },
+                "resizing": false
+            }
+        ],
+        "edges": [
+            {
+                "id": "2XwWXeHnIPcsNKdDTMokA",
+                "source": "M_a1bzH4_yB-nQmm87Y2U",
+                "target": "5cutnJdfBafQ_ij7L7ZBe",
+                "sourceHandle": "M_a1bzH4_yB-nQmm87Y2U-right-source",
+                "targetHandle": "5cutnJdfBafQ_ij7L7ZBe-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "pyJItqnQ-Ne66ksLmj_Rf",
+                "source": "5cutnJdfBafQ_ij7L7ZBe",
+                "target": "GO5_hFkqamfyK4xkcZK8y",
+                "sourceHandle": "5cutnJdfBafQ_ij7L7ZBe-right-0",
+                "targetHandle": "GO5_hFkqamfyK4xkcZK8y-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "2onf07WgkPFJAVDwlCZmz",
+                "source": "GO5_hFkqamfyK4xkcZK8y",
+                "target": "__qOSWk62QWp-AirOZ2Dk",
+                "sourceHandle": "GO5_hFkqamfyK4xkcZK8y-right-0",
+                "targetHandle": "__qOSWk62QWp-AirOZ2Dk-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "dRUTA3yTmewLIkwDeQnxa",
+                "source": "__qOSWk62QWp-AirOZ2Dk",
+                "target": "h-4CRSW_JXQelinC8Vrvm",
+                "sourceHandle": "__qOSWk62QWp-AirOZ2Dk-right-0",
+                "targetHandle": "h-4CRSW_JXQelinC8Vrvm-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "xZpL6v8kti955nuB75hjw",
+                "source": "_W0cYA0OUlQFCSxUrUeHn",
+                "target": "RA8VX7CW5iffqzx2xwaBb",
+                "sourceHandle": "_W0cYA0OUlQFCSxUrUeHn-right-source",
+                "targetHandle": "RA8VX7CW5iffqzx2xwaBb-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "Ap58dIG0O6URLS554eVbl",
+                "source": "RA8VX7CW5iffqzx2xwaBb",
+                "target": "jpTshvsB0WoD8b2FFI7Yc",
+                "sourceHandle": "RA8VX7CW5iffqzx2xwaBb-right-0",
+                "targetHandle": "jpTshvsB0WoD8b2FFI7Yc-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" },
+                "selected": false
+            },
+            {
+                "id": "3f23SGTk8upzBbnYDi13v",
+                "source": "jpTshvsB0WoD8b2FFI7Yc",
+                "target": "GO5_hFkqamfyK4xkcZK8y",
+                "sourceHandle": "jpTshvsB0WoD8b2FFI7Yc-top-0",
+                "targetHandle": "GO5_hFkqamfyK4xkcZK8y-bottom-4",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "ml4sfp6XAQSM3NyDUvP-c",
+                "source": "jpTshvsB0WoD8b2FFI7Yc",
+                "target": "GO5_hFkqamfyK4xkcZK8y",
+                "sourceHandle": "jpTshvsB0WoD8b2FFI7Yc-top-4",
+                "targetHandle": "GO5_hFkqamfyK4xkcZK8y-bottom-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "WF4JaQCxAVoZ-_PZS8UO3",
+                "source": "jpTshvsB0WoD8b2FFI7Yc",
+                "target": "Nga1WvbJW9VXx4Nyl3yTZ",
+                "sourceHandle": "jpTshvsB0WoD8b2FFI7Yc-right-0",
+                "targetHandle": "Nga1WvbJW9VXx4Nyl3yTZ-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "3bhjC01U38ff6hRxhHbhU",
+                "source": "Nga1WvbJW9VXx4Nyl3yTZ",
+                "target": "AbOD5YY9aHPjdeORhvsQo",
+                "sourceHandle": "Nga1WvbJW9VXx4Nyl3yTZ-right-0",
+                "targetHandle": "AbOD5YY9aHPjdeORhvsQo-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            }
+        ],
+        "metadata": {
+            "version": "1.0.0",
+            "created": "2025-06-03T00:32:42.048Z",
+            "modified": "2025-06-03T00:55:01.433Z",
+            "projectName": "Queue Demo",
+            "description": "",
+            "author": "",
+            "tags": []
+        }
+    }
+}

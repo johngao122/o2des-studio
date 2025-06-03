@@ -199,7 +199,7 @@ const GeneratorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-top-center-source`}
+                            id={`${id}-top-right-source`}
                             type="source"
                             position={Position.Top}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
@@ -301,7 +301,7 @@ const GeneratorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-bottom-center-source`}
+                            id={`${id}-bottom-right-source`}
                             type="source"
                             position={Position.Bottom}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${

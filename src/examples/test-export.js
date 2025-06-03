@@ -1,20 +1,32 @@
 const fs = require("fs");
 const path = require("path");
 
-const depotDemoPath = path.join(
-    __dirname,
-    "../data/sample_data/Depot-Demo.json"
-);
+const depotDemoPath = path.join(__dirname, "Queue_Demo.json");
 const depotDemo = JSON.parse(fs.readFileSync(depotDemoPath, "utf8"));
+
+console.log("=== PROJECT ANALYSIS ===");
+console.log("Project Name:", depotDemo.json.metadata?.projectName || "Unknown");
 
 const nodeTypes = {};
 depotDemo.json.nodes.forEach((node) => {
     nodeTypes[node.type] = (nodeTypes[node.type] || 0) + 1;
 });
 
-const generators = depotDemo.json.nodes.filter((n) => n.type === "generator");
+console.log("\n=== NODE TYPES ===");
+console.log(nodeTypes);
 
+const generators = depotDemo.json.nodes.filter((n) => n.type === "generator");
 const activities = depotDemo.json.nodes.filter((n) => n.type === "activity");
+
+console.log("\n=== GENERATORS ===");
+generators.forEach((g) => console.log(`- ${g.name} (${g.id})`));
+
+console.log("\n=== ACTIVITIES ===");
+activities.forEach((a) =>
+    console.log(
+        `- ${a.name} (resources: ${a.data.resources?.join(", ") || "none"})`
+    )
+);
 
 depotDemo.json.edges.forEach((edge) => {
     if (edge.data.condition && edge.data.condition !== "True") {
@@ -147,3 +159,12 @@ Object.entries(finalGroupedActivities).forEach(
         });
     }
 );
+
+console.log("\n=== ACTIVITY TO HANDLER MAPPING ===");
+console.log(graphTraversalHandlerTypes);
+
+console.log("\n=== GROUPED ACTIVITIES BY HANDLER ===");
+console.log(finalGroupedActivities);
+
+console.log("\n=== RESOURCE TYPES ===");
+console.log([...resourceSet]);
