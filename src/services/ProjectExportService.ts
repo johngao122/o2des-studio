@@ -60,6 +60,8 @@ interface Connection {
 }
 
 interface OutputModel {
+    scenario: string;
+    description: string;
     model: {
         entityRelationships: EntityRelationship[];
         resources: Resource[];
@@ -87,6 +89,8 @@ export class ProjectExportService {
         const connections = this.convertConnections(edges, nodes);
 
         return {
+            scenario: "",
+            description: "",
             model: {
                 entityRelationships,
                 resources,
@@ -106,26 +110,13 @@ export class ProjectExportService {
 
         const activityToHandler = new Map<string, string>();
         generators.forEach((generator) => {
-            const directActivities = this.findDirectlyConnectedActivities(
-                generator.id,
-                edges,
-                nodes
-            );
-            directActivities.forEach((activityId) => {
-                activityToHandler.set(activityId, generator.name);
-            });
-        });
-
-        generators.forEach((generator) => {
-            const reachableActivities = this.findReachableActivities(
+            const reachableActivities = this.findAllReachableActivities(
                 generator.id,
                 nodes,
                 edges
             );
             reachableActivities.forEach((activityId) => {
-                if (!activityToHandler.has(activityId)) {
-                    activityToHandler.set(activityId, generator.name);
-                }
+                activityToHandler.set(activityId, generator.name);
             });
         });
 
@@ -271,26 +262,13 @@ export class ProjectExportService {
         const activityToHandler = new Map<string, string>();
 
         generators.forEach((generator) => {
-            const directActivities = this.findDirectlyConnectedActivities(
-                generator.id,
-                edges,
-                nodes
-            );
-            directActivities.forEach((activityId) => {
-                activityToHandler.set(activityId, generator.name);
-            });
-        });
-
-        generators.forEach((generator) => {
-            const reachableActivities = this.findReachableActivities(
+            const reachableActivities = this.findAllReachableActivities(
                 generator.id,
                 nodes,
                 edges
             );
             reachableActivities.forEach((activityId) => {
-                if (!activityToHandler.has(activityId)) {
-                    activityToHandler.set(activityId, generator.name);
-                }
+                activityToHandler.set(activityId, generator.name);
             });
         });
 
@@ -311,27 +289,7 @@ export class ProjectExportService {
         });
     }
 
-    private static findDirectlyConnectedActivities(
-        generatorId: string,
-        edges: ProjectEdge[],
-        nodes: ProjectNode[]
-    ): string[] {
-        const directActivities: string[] = [];
-
-        const outgoingEdges = edges.filter(
-            (edge) => edge.source === generatorId && !edge.data.isDependency
-        );
-        outgoingEdges.forEach((edge) => {
-            const targetNode = nodes.find((n) => n.id === edge.target);
-            if (targetNode?.type === "activity") {
-                directActivities.push(edge.target);
-            }
-        });
-
-        return directActivities;
-    }
-
-    private static findReachableActivities(
+    private static findAllReachableActivities(
         startNodeId: string,
         nodes: ProjectNode[],
         edges: ProjectEdge[]
@@ -354,6 +312,7 @@ export class ProjectExportService {
             const outgoingEdges = edges.filter(
                 (edge) => edge.source === currentId && !edge.data.isDependency
             );
+
             outgoingEdges.forEach((edge) => {
                 const targetNode = nodes.find((n) => n.id === edge.target);
 
@@ -440,11 +399,139 @@ export class ProjectExportService {
     ): Connection[] {
         const connections: Connection[] = [];
 
+        const startToInflowConnections = this.findStartToInflowConnections(
+            edges,
+            nodes
+        );
+        connections.push(...startToInflowConnections);
+
+        const dependencyConnections = this.convertDependencyConnections(
+            edges,
+            nodes
+        );
+        connections.push(...dependencyConnections);
+
+        const flowConnections = this.convertFlowConnections(edges, nodes);
+        connections.push(...flowConnections);
+
+        return connections;
+    }
+
+    private static findStartToInflowConnections(
+        edges: ProjectEdge[],
+        nodes: ProjectNode[]
+    ): Connection[] {
+        const connections: Connection[] = [];
+        const connectionSet = new Set<string>();
+
+        for (const edge1 of edges) {
+            const sourceNode = nodes.find((n) => n.id === edge1.source);
+            const intermediateNode = nodes.find((n) => n.id === edge1.target);
+
+            if (
+                sourceNode?.type === "activity" &&
+                intermediateNode?.type === "generator"
+            ) {
+                for (const edge2 of edges) {
+                    if (edge2.data.isDependency) continue;
+
+                    if (edge2.source === intermediateNode.id) {
+                        const targetNode = nodes.find(
+                            (n) => n.id === edge2.target
+                        );
+
+                        if (targetNode?.type === "activity") {
+                            const connectionKey = `${sourceNode.name}->${targetNode.name}`;
+                            if (!connectionSet.has(connectionKey)) {
+                                connectionSet.add(connectionKey);
+                                connections.push({
+                                    type: "StartToInflow",
+                                    from: sourceNode.name,
+                                    to: targetNode.name,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return connections;
+    }
+
+    private static convertDependencyConnections(
+        edges: ProjectEdge[],
+        nodes: ProjectNode[]
+    ): Connection[] {
+        const connections: Connection[] = [];
+
+        for (const edge of edges) {
+            if (!edge.data.isDependency) continue;
+
+            const sourceNode = nodes.find((n) => n.id === edge.source);
+            const targetNode = nodes.find((n) => n.id === edge.target);
+
+            if (!sourceNode || !targetNode) continue;
+            if (
+                sourceNode.type !== "activity" ||
+                targetNode.type !== "activity"
+            )
+                continue;
+
+            let connectionType = "FinishToFinish";
+
+            const sourceHandle = (edge as any).sourceHandle || "";
+            const targetHandle = (edge as any).targetHandle || "";
+
+            if (
+                this.isLeftHandle(sourceHandle) &&
+                this.isLeftHandle(targetHandle)
+            ) {
+                connectionType = "StartToStart";
+            } else if (
+                this.isRightHandle(sourceHandle) &&
+                this.isRightHandle(targetHandle)
+            ) {
+                connectionType = "FinishToFinish";
+            }
+
+            connections.push({
+                type: connectionType,
+                from: sourceNode.name,
+                to: targetNode.name,
+            });
+        }
+
+        return connections;
+    }
+
+    private static isLeftHandle(handle: string): boolean {
+        const leftIndicators = ["left"];
+        return leftIndicators.some((indicator) =>
+            handle.toLowerCase().includes(indicator)
+        );
+    }
+
+    private static isRightHandle(handle: string): boolean {
+        const rightIndicators = ["right"];
+        return rightIndicators.some((indicator) =>
+            handle.toLowerCase().includes(indicator)
+        );
+    }
+
+    private static convertFlowConnections(
+        edges: ProjectEdge[],
+        nodes: ProjectNode[]
+    ): Connection[] {
+        const connections: Connection[] = [];
+
         for (const edge of edges) {
             const sourceNode = nodes.find((n) => n.id === edge.source);
             const targetNode = nodes.find((n) => n.id === edge.target);
 
             if (!sourceNode || !targetNode) continue;
+
+            if (edge.data.isDependency) continue;
 
             if (
                 sourceNode.type === "terminator" ||
@@ -452,13 +539,22 @@ export class ProjectExportService {
             )
                 continue;
 
-            if (edge.data.isDependency) continue;
+            if (
+                sourceNode.type === "generator" &&
+                targetNode.type === "activity"
+            )
+                continue;
 
-            connections.push({
-                type: "",
-                from: sourceNode.name,
-                to: targetNode.name,
-            });
+            if (
+                sourceNode.type === "activity" &&
+                targetNode.type === "activity"
+            ) {
+                connections.push({
+                    type: "Flow",
+                    from: sourceNode.name,
+                    to: targetNode.name,
+                });
+            }
         }
 
         return connections;
