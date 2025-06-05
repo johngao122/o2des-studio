@@ -13,6 +13,7 @@ import {
 } from "reactflow";
 import { nanoid } from "nanoid";
 import { AutosaveService } from "../services/AutosaveService";
+import { checkAllEdgeControlPointCollisions } from "../lib/utils/collision";
 
 interface Command {
     execute: () => void;
@@ -50,7 +51,65 @@ export class CommandController {
         this.undoStack.push(command);
         this.redoStack = [];
 
+        this.checkAndAdjustControlPointCollisions();
+
         this.autosaveService.autosave();
+    }
+
+    /**
+     * Check all edge control points for collisions with nodes and adjust them
+     * This runs after every command to maintain clean edge routing
+     */
+    private checkAndAdjustControlPointCollisions(
+        distance: number = 50,
+        maxIterations: number = 10
+    ): void {
+        const { edges, nodes } = useStore.getState();
+
+        if (edges.length === 0) {
+            return;
+        }
+
+        const collisionAdjustments = checkAllEdgeControlPointCollisions(
+            edges,
+            nodes,
+            distance,
+            maxIterations
+        );
+
+        if (collisionAdjustments.length > 0) {
+            const adjustmentCommands: Command[] = [];
+
+            for (const adjustment of collisionAdjustments) {
+                const edge = edges.find((e) => e.id === adjustment.edgeId);
+                if (edge) {
+                    const updateCommand = this.createUpdateEdgeCommand(
+                        adjustment.edgeId,
+                        {
+                            data: {
+                                ...edge.data,
+                                controlPoints: adjustment.newControlPoints,
+                            },
+                        }
+                    );
+                    adjustmentCommands.push(updateCommand);
+                }
+            }
+
+            if (adjustmentCommands.length > 0) {
+                this.executeBatchedAdjustments(adjustmentCommands);
+            }
+        }
+    }
+
+    /**
+     * Execute control point adjustments without triggering collision checks
+     * to prevent infinite recursion
+     */
+    private executeBatchedAdjustments(commands: Command[]): void {
+        for (const command of commands) {
+            command.execute();
+        }
     }
 
     undo() {
@@ -58,6 +117,8 @@ export class CommandController {
         if (command) {
             command.undo();
             this.redoStack.push(command);
+
+            this.checkAndAdjustControlPointCollisions();
 
             this.autosaveService.autosave();
         }
@@ -68,6 +129,8 @@ export class CommandController {
         if (command) {
             command.execute();
             this.undoStack.push(command);
+
+            this.checkAndAdjustControlPointCollisions();
 
             this.autosaveService.autosave();
         }
@@ -396,6 +459,48 @@ export class CommandController {
             };
         }
 
+        if (sourceNode && targetNode) {
+            const sourceWidth =
+                (typeof sourceNode.style?.width === "number"
+                    ? sourceNode.style.width
+                    : sourceNode.data?.width) || 200;
+            const sourceHeight =
+                (typeof sourceNode.style?.height === "number"
+                    ? sourceNode.style.height
+                    : sourceNode.data?.height) || 100;
+            const targetWidth =
+                (typeof targetNode.style?.width === "number"
+                    ? targetNode.style.width
+                    : targetNode.data?.width) || 200;
+            const targetHeight =
+                (typeof targetNode.style?.height === "number"
+                    ? targetNode.style.height
+                    : targetNode.data?.height) || 100;
+
+            const sourceX = sourceNode.position.x + sourceWidth;
+            const sourceY = sourceNode.position.y + sourceHeight / 2;
+            const targetX = targetNode.position.x;
+            const targetY = targetNode.position.y + targetHeight / 2;
+
+            const cp1 = {
+                x: sourceX + (targetX - sourceX) * 0.25,
+                y: sourceY + (targetY - sourceY) * 0.25,
+            };
+            const cp2 = {
+                x: sourceX + (targetX - sourceX) * 0.5,
+                y: sourceY + (targetY - sourceY) * 0.5,
+            };
+            const cp3 = {
+                x: sourceX + (targetX - sourceX) * 0.75,
+                y: sourceY + (targetY - sourceY) * 0.75,
+            };
+
+            defaultData = {
+                ...defaultData,
+                controlPoints: [cp1, cp2, cp3],
+            };
+        }
+
         let graphType: string | undefined = undefined;
         if (edgeType === "eventGraph" || edgeType === "initialization") {
             graphType = "eventBased";
@@ -592,5 +697,16 @@ export class CommandController {
                 }
             }
         }
+    }
+
+    /**
+     * Manually trigger collision detection and adjustment for all edge control points
+     * Useful for debugging or one-time cleanup operations
+     */
+    public adjustAllControlPointCollisions(
+        distance: number = 50,
+        maxIterations: number = 10
+    ): void {
+        this.checkAndAdjustControlPointCollisions(distance, maxIterations);
     }
 }

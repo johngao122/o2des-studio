@@ -392,9 +392,29 @@ export function throttle<T extends (...args: any[]) => any>(
 }
 
 /**
- * Grid configuration for consistent snap-to-grid behavior across all nodes
+ * Debounce function
  */
-export const GRID_SIZE = 15;
+export function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+): (...args: Parameters<T>) => void {
+    let timeout: NodeJS.Timeout | null = null;
+
+    return function (...args: Parameters<T>) {
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(() => {
+            func(...args);
+        }, wait);
+    };
+}
+
+/**
+ * Grid configuration
+ */
+export const GRID_SIZE = 10;
 
 /**
  * Snap a value to the nearest grid position
@@ -414,15 +434,12 @@ export function getGridAlignedHandlePositions(
     height: number,
     headerHeight: number = 35
 ) {
-    // Ensure dimensions are grid-aligned
     const alignedWidth = snapToGrid(width);
     const alignedHeight = snapToGrid(height);
 
-    // Calculate handle positions that align to grid
     const topY = headerHeight;
     const bottomY = topY + alignedHeight;
 
-    // For horizontal handles (top and bottom edges)
     const horizontalPositions = [];
     const numHorizontalHandles = Math.max(
         3,
@@ -434,7 +451,6 @@ export function getGridAlignedHandlePositions(
         horizontalPositions.push(snapToGrid(position));
     }
 
-    // For vertical handles (left and right edges) - exclude corners to avoid overlap
     const verticalPositions = [];
     const numVerticalHandles = Math.max(
         2,
@@ -446,7 +462,6 @@ export function getGridAlignedHandlePositions(
         verticalPositions.push(snapToGrid(position));
     }
 
-    // Always include center position for vertical handles if not already included
     const centerY = snapToGrid(topY + alignedHeight * 0.5);
     if (!verticalPositions.includes(centerY)) {
         verticalPositions.push(centerY);
@@ -474,20 +489,19 @@ export function getStandardHandlePositions(
     const alignedWidth = snapToGrid(nodeWidth);
     const alignedHeight = snapToGrid(nodeHeight);
 
-    // Standard positions that work well for most fixed-size nodes
     const horizontalPositions = [
         0,
         snapToGrid(alignedWidth * 0.25),
         snapToGrid(alignedWidth * 0.5),
         snapToGrid(alignedWidth * 0.75),
         alignedWidth,
-    ].filter((pos, index, arr) => index === 0 || pos !== arr[index - 1]); // Remove duplicates
+    ].filter((pos, index, arr) => index === 0 || pos !== arr[index - 1]);
 
     const verticalPositions = [
         snapToGrid(alignedHeight * 0.25),
         snapToGrid(alignedHeight * 0.5),
         snapToGrid(alignedHeight * 0.75),
-    ].filter((pos, index, arr) => index === 0 || pos !== arr[index - 1]); // Remove duplicates
+    ].filter((pos, index, arr) => index === 0 || pos !== arr[index - 1]);
 
     return {
         horizontal: horizontalPositions,
@@ -495,4 +509,20 @@ export function getStandardHandlePositions(
         nodeWidth: alignedWidth,
         nodeHeight: alignedHeight,
     };
+}
+
+/**
+ * Check if three points are collinear (on the same line)
+ */
+export function arePointsCollinear(
+    p1: { x: number; y: number },
+    p2: { x: number; y: number },
+    p3: { x: number; y: number },
+    tolerance: number = 2
+): boolean {
+    const crossProduct = Math.abs(
+        (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x)
+    );
+
+    return crossProduct <= tolerance;
 }

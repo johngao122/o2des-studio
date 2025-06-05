@@ -156,20 +156,28 @@ function FlowCanvas() {
         [onConnect]
     );
 
-    const onDrop = useCallback((event: DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
+    const onDrop = useCallback(
+        (event: DragEvent<HTMLDivElement>) => {
+            event.preventDefault();
 
-        const type = event.dataTransfer.getData("application/reactflow");
-        const reactFlowBounds = event.currentTarget.getBoundingClientRect();
-        const position = {
-            x: event.clientX - reactFlowBounds.left,
-            y: event.clientY - reactFlowBounds.top,
-        };
+            const type = event.dataTransfer.getData("application/reactflow");
+            const reactFlowBounds = event.currentTarget.getBoundingClientRect();
 
-        const newNode = nodeFactory.createNode(type, position);
-        const command = commandController.createAddNodeCommand(newNode);
-        commandController.execute(command);
-    }, []);
+            const viewport = reactFlowInstance.getViewport();
+
+            const screenPosition = {
+                x: event.clientX - reactFlowBounds.left,
+                y: event.clientY - reactFlowBounds.top,
+            };
+
+            const flowPosition = screenToFlowPosition(screenPosition, viewport);
+
+            const newNode = nodeFactory.createNode(type, flowPosition);
+            const command = commandController.createAddNodeCommand(newNode);
+            commandController.execute(command);
+        },
+        [reactFlowInstance]
+    );
 
     const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -282,32 +290,6 @@ function FlowCanvas() {
                     useStore.getState().selectedElements.nodes;
                 const selectedEdgeIds =
                     useStore.getState().selectedElements.edges;
-
-                // Might need this later on
-                /* 
-                const connectedEdges = edges.filter(
-                    (edge) =>
-                        selectedNodeIds.includes(edge.source) ||
-                        selectedNodeIds.includes(edge.target)
-                );
-
-                const edgesToSelect = connectedEdges
-                    .filter((edge) => !selectedEdgeIds.includes(edge.id))
-                    .map((edge) => edge.id);
-
-                if (edgesToSelect.length > 0) {
-                    const { onEdgesChange } = useStore.getState();
-                    requestAnimationFrame(() => {
-                        onEdgesChange(
-                            edgesToSelect.map((id) => ({
-                                id,
-                                type: "select" as const,
-                                selected: true,
-                            }))
-                        );
-                    });
-                }
-                */
 
                 const DRAG_PROXY_THRESHOLD = 3;
                 const selectedNodes = nodes.filter((node) =>
