@@ -472,6 +472,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                     (key === "controlPoint1" ||
                                         key === "controlPoint2" ||
                                         key === "controlPoint3" ||
+                                        key === "controlPoints" ||
                                         key === "conditionLabelOffset")
                                 ) {
                                     return false;
@@ -488,7 +489,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                         options: [
                                             "straight",
                                             "bezier",
-                                            "smoothstep",
+                                            "rounded",
                                         ],
                                     };
                                 }
@@ -516,7 +517,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                 value: "straight",
                                 type: "string" as const,
                                 editable: true,
-                                options: ["straight", "bezier", "smoothstep"],
+                                options: ["straight", "bezier", "rounded"],
                             });
                         }
 
@@ -557,11 +558,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                     value: "straight",
                                     type: "string" as const,
                                     editable: true,
-                                    options: [
-                                        "straight",
-                                        "bezier",
-                                        "smoothstep",
-                                    ],
+                                    options: ["straight", "bezier", "rounded"],
                                 },
                                 {
                                     key: "condition",

@@ -1,6 +1,7 @@
 import EventGraphEdge from "./eventbased/EventGraphEdge";
 import InitializationEdge from "./eventbased/InitializationEdge";
 import RCQEdge from "./activitybased/resourceconstrained/RCQEdge";
+import BaseEdgeComponent from "./BaseEdgeComponent";
 
 export const EDGE_TYPES = {
     EVENT_GRAPH: "eventGraph",
@@ -14,4 +15,4 @@ export const edgeTypes = {
     rcq: RCQEdge,
 } as const;
 
-export { EventGraphEdge, InitializationEdge, RCQEdge };
+export { EventGraphEdge, InitializationEdge, RCQEdge, BaseEdgeComponent };
