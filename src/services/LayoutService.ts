@@ -97,12 +97,13 @@ export class LayoutService {
     ): FlowChain {
         const visited = new Set<string>();
         const flowNodes: BaseNode[] = [];
+        const nodeMap = new Map<string, BaseNode>(nodes.map((node) => [node.id, node]));
 
         const traverse = (nodeId: string, depth: number) => {
             if (visited.has(nodeId)) return depth;
 
             visited.add(nodeId);
-            const node = nodes.find((n) => n.id === nodeId);
+            const node = nodeMap.get(nodeId);
             if (!node) return depth;
 
             flowNodes.push(node);
