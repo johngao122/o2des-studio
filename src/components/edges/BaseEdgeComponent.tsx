@@ -130,7 +130,7 @@ export const BaseEdgeComponent = memo(
                 });
                 commandController.execute(command);
             }
-        }, [hasCustomControlPoints, id, defaultControlPoints, data]);
+        }, [hasCustomControlPoints, id, defaultControlPoints.cp1, defaultControlPoints.cp2, defaultControlPoints.cp3, data]);
 
         const getControlPoint = (index: number) => {
             if (isDragging === index + 1 && tempControlPoints[index]) {
