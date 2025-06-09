@@ -131,7 +131,8 @@ export function adjustEdgeControlPointsForNodeCollisions(
     distance: number = 50,
     maxIterations: number = 10
 ): { x: number; y: number }[] | null {
-    const controlPoints = edge.data?.controlPoints;
+    let controlPoints = edge.data?.controlPoints;
+
     if (!controlPoints || controlPoints.length === 0) {
         return null;
     }

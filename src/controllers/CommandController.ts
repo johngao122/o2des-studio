@@ -51,6 +51,8 @@ export class CommandController {
         this.undoStack.push(command);
         this.redoStack = [];
 
+        this.checkAndAdjustControlPointCollisions();
+
         this.autosaveService.autosave();
     }
 

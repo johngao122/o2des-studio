@@ -114,6 +114,24 @@ export const BaseEdgeComponent = memo(
 
         const currentControlPoints = data?.controlPoints || [];
 
+        useEffect(() => {
+            if (!hasCustomControlPoints && id) {
+                const defaultControlPointsArray = [
+                    defaultControlPoints.cp1,
+                    defaultControlPoints.cp2,
+                    defaultControlPoints.cp3,
+                ];
+
+                const command = commandController.createUpdateEdgeCommand(id, {
+                    data: {
+                        ...data,
+                        controlPoints: defaultControlPointsArray,
+                    },
+                });
+                commandController.execute(command);
+            }
+        }, [hasCustomControlPoints, id, defaultControlPoints, data]);
+
         const getControlPoint = (index: number) => {
             if (isDragging === index + 1 && tempControlPoints[index]) {
                 return tempControlPoints[index];
@@ -648,28 +666,6 @@ export const BaseEdgeComponent = memo(
             targetX,
             targetY,
         ]);
-
-        useEffect(() => {
-            if (
-                (edgeType === "bezier" || edgeType === "rounded") &&
-                !hasCustomControlPoints &&
-                id
-            ) {
-                const newControlPoints = [
-                    defaultControlPoints.cp1,
-                    defaultControlPoints.cp2,
-                    defaultControlPoints.cp3,
-                ];
-
-                const command = commandController.createUpdateEdgeCommand(id, {
-                    data: {
-                        ...data,
-                        controlPoints: newControlPoints,
-                    },
-                });
-                commandController.execute(command);
-            }
-        }, [edgeType, hasCustomControlPoints, id, defaultControlPoints, data]);
 
         useEffect(() => {
             if (isDragging !== null) {
