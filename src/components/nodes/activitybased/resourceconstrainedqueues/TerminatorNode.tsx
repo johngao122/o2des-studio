@@ -176,8 +176,8 @@ const TerminatorNode = memo(
                     <>
                         {/* Top Handles */}
                         <Handle
-                            id={`${id}-top-left-target`}
-                            type="target"
+                            id={`${id}-top-left-source`}
+                            type="source"
                             position={Position.Top}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -192,8 +192,8 @@ const TerminatorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-top-center-target`}
-                            type="target"
+                            id={`${id}-top-center-source`}
+                            type="source"
                             position={Position.Top}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -208,8 +208,8 @@ const TerminatorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-top-right-target`}
-                            type="target"
+                            id={`${id}-top-right-source`}
+                            type="source"
                             position={Position.Top}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -226,8 +226,8 @@ const TerminatorNode = memo(
 
                         {/* Side Handles */}
                         <Handle
-                            id={`${id}-left-target`}
-                            type="target"
+                            id={`${id}-left-source`}
+                            type="source"
                             position={Position.Left}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -242,8 +242,8 @@ const TerminatorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-right-target`}
-                            type="target"
+                            id={`${id}-right-source`}
+                            type="source"
                             position={Position.Right}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -260,8 +260,8 @@ const TerminatorNode = memo(
 
                         {/* Bottom Handles */}
                         <Handle
-                            id={`${id}-bottom-left-target`}
-                            type="target"
+                            id={`${id}-bottom-left-source`}
+                            type="source"
                             position={Position.Bottom}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -276,8 +276,8 @@ const TerminatorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-bottom-center-target`}
-                            type="target"
+                            id={`${id}-bottom-center-source`}
+                            type="source"
                             position={Position.Bottom}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered
@@ -292,8 +292,8 @@ const TerminatorNode = memo(
                             }}
                         />
                         <Handle
-                            id={`${id}-bottom-right-target`}
-                            type="target"
+                            id={`${id}-bottom-right-source`}
+                            type="source"
                             position={Position.Bottom}
                             className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                 selected || isHovered

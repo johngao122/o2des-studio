@@ -526,3 +526,33 @@ export function arePointsCollinear(
 
     return crossProduct <= tolerance;
 }
+
+/**
+ * Get all handle coordinates for a node based on its position and size
+ */
+export function getAllHandleCoordinates(
+    nodePosition: { x: number; y: number },
+    nodeSize: { width: number; height: number },
+    headerHeight: number = 35
+) {
+    const { top, bottom, left, right } = getGridAlignedHandlePositions(
+        nodeSize.width,
+        nodeSize.height,
+        headerHeight
+    );
+
+    const { x: nodeX, y: nodeY } = nodePosition;
+
+    return {
+        top: top.map((x) => ({ x: nodeX + x, y: nodeY + headerHeight })),
+        bottom: bottom.map((x) => ({
+            x: nodeX + x,
+            y: nodeY + headerHeight + nodeSize.height,
+        })),
+        left: left.map((y) => ({ x: nodeX, y: nodeY + y })),
+        right: right.map((y) => ({
+            x: nodeX + nodeSize.width,
+            y: nodeY + y,
+        })),
+    };
+}

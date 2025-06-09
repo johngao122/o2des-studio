@@ -1,5 +1,5 @@
 import { BaseNode, BaseEdge } from "@/types/base";
-import { snapToGrid } from "@/lib/utils/math";
+import { snapToGrid, getAllHandleCoordinates } from "@/lib/utils/math";
 import { redistributeControlPointsEvenly } from "@/lib/utils/edge";
 
 export interface LayoutConfig {
@@ -97,7 +97,9 @@ export class LayoutService {
     ): FlowChain {
         const visited = new Set<string>();
         const flowNodes: BaseNode[] = [];
-        const nodeMap = new Map<string, BaseNode>(nodes.map((node) => [node.id, node]));
+        const nodeMap = new Map<string, BaseNode>(
+            nodes.map((node) => [node.id, node])
+        );
 
         const traverse = (nodeId: string, depth: number) => {
             if (visited.has(nodeId)) return depth;
@@ -210,64 +212,40 @@ export class LayoutService {
         node: BaseNode,
         handleId: string | null | undefined
     ): { x: number; y: number } {
-        const nodeX = node.position.x;
-        const nodeY = node.position.y;
-        const nodeWidth = node.data?.width || 200;
-        const nodeHeight = node.data?.height || 120;
+        const nodeWidth = node.data?.width || 240;
+        const nodeHeight = node.data?.height || 70;
 
         if (!handleId) {
-            return {
-                x: nodeX + nodeWidth / 2,
-                y: nodeY + nodeHeight / 2,
+            const centerCoords = {
+                x: node.position.x + nodeWidth / 2,
+                y: node.position.y + nodeHeight / 2,
             };
+            return centerCoords;
         }
+
+        const allHandles = getAllHandleCoordinates(
+            node.position,
+            { width: nodeWidth, height: nodeHeight },
+            35
+        );
 
         const parts = handleId.split("-");
-        const side = parts[1];
-        const position = parts[2];
+        const side = parts[1] as "top" | "bottom" | "left" | "right";
+        const index = parseInt(parts[parts.length - 1]) || 0;
 
-        const headerHeight = 35;
+        const sideHandles = allHandles[side];
 
-        switch (side) {
-            case "top":
-                if (position === "left") {
-                    return { x: nodeX, y: nodeY };
-                } else if (position === "right") {
-                    return { x: nodeX + nodeWidth, y: nodeY };
-                } else {
-                    return { x: nodeX + nodeWidth / 2, y: nodeY };
-                }
-
-            case "bottom":
-                if (position === "left") {
-                    return { x: nodeX, y: nodeY + headerHeight + nodeHeight };
-                } else if (position === "right") {
-                    return {
-                        x: nodeX + nodeWidth,
-                        y: nodeY + headerHeight + nodeHeight,
-                    };
-                } else {
-                    return {
-                        x: nodeX + nodeWidth / 2,
-                        y: nodeY + headerHeight + nodeHeight,
-                    };
-                }
-
-            case "left":
-                return { x: nodeX, y: nodeY + (headerHeight + nodeHeight) / 2 };
-
-            case "right":
-                return {
-                    x: nodeX + nodeWidth,
-                    y: nodeY + (headerHeight + nodeHeight) / 2,
-                };
-
-            default:
-                return {
-                    x: nodeX + nodeWidth / 2,
-                    y: nodeY + (headerHeight + nodeHeight) / 2,
-                };
+        if (sideHandles && index < sideHandles.length) {
+            const handleCoords = sideHandles[index];
+            return handleCoords;
         }
+
+        const fallbackCoords = {
+            x: node.position.x + nodeWidth / 2,
+            y: node.position.y + nodeHeight / 2,
+        };
+
+        return fallbackCoords;
     }
 
     /**

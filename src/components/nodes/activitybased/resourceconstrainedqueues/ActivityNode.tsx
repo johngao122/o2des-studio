@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useRef } from "react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
 import {
     Handle,
     Position,
@@ -11,7 +11,11 @@ import {
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
+import {
+    snapToGrid,
+    getGridAlignedHandlePositions,
+    getAllHandleCoordinates,
+} from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
@@ -435,6 +439,8 @@ const ActivityNode = memo(
 ActivityNode.getDefaultData = (): ActivityNodeData => ({
     resources: [],
     duration: "op time",
+    width: 240,
+    height: 70,
 });
 
 ActivityNode.getGraphType = (): string => "rcq";

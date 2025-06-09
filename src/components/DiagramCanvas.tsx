@@ -4,6 +4,7 @@ import React, {
     useMemo,
     useEffect,
     useRef,
+    useState,
 } from "react";
 import ReactFlow, {
     Background,
@@ -77,6 +78,10 @@ function FlowCanvas() {
     const dragTimeoutRef = useRef<number | null>(null);
     const viewportRef = useRef<HTMLDivElement | null>(null);
     const mouseStartPositionRef = useRef<{ x: number; y: number } | null>(null);
+    const [mouseCoordinates, setMouseCoordinates] = useState<{
+        screen: { x: number; y: number };
+        flow: { x: number; y: number };
+    } | null>(null);
 
     const updateViewport = useCallback(
         (x: number, y: number, zoom: number) => {
@@ -409,6 +414,26 @@ function FlowCanvas() {
         []
     );
 
+    const handleMouseMove = useCallback(
+        (event: React.MouseEvent) => {
+            const reactFlowBounds = event.currentTarget.getBoundingClientRect();
+            const viewport = reactFlowInstance.getViewport();
+
+            const screenPosition = {
+                x: event.clientX - reactFlowBounds.left,
+                y: event.clientY - reactFlowBounds.top,
+            };
+
+            const flowPosition = screenToFlowPosition(screenPosition, viewport);
+
+            setMouseCoordinates({
+                screen: screenPosition,
+                flow: flowPosition,
+            });
+        },
+        [reactFlowInstance]
+    );
+
     useEffect(() => {
         return () => {
             if (dragTimeoutRef.current !== null) {
@@ -448,6 +473,7 @@ function FlowCanvas() {
                 onSelectionChange={handleSelectionChange}
                 onMoveEnd={onMoveEnd}
                 onEdgeClick={handleEdgeClick}
+                onMouseMove={handleMouseMove}
                 {...flowOptions}
                 nodesDraggable={!dragProxy.isActive}
                 deleteKeyCode={["Backspace", "Delete"]}
@@ -477,6 +503,27 @@ function FlowCanvas() {
                             for multi-select
                         </div>
                     </div>
+                </Panel>
+                <Panel
+                    position="bottom-left"
+                    className="bg-white/80 dark:bg-zinc-800/80 p-2 rounded shadow-lg text-xs font-mono"
+                >
+                    {mouseCoordinates ? (
+                        <div className="text-gray-600 dark:text-gray-300 space-y-1">
+                            <div>
+                                Screen: ({mouseCoordinates.screen.x.toFixed(0)},{" "}
+                                {mouseCoordinates.screen.y.toFixed(0)})
+                            </div>
+                            <div>
+                                Flow: ({mouseCoordinates.flow.x.toFixed(1)},{" "}
+                                {mouseCoordinates.flow.y.toFixed(1)})
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-gray-400 dark:text-gray-500">
+                            Move mouse to see coordinates
+                        </div>
+                    )}
                 </Panel>
             </ReactFlow>
         </div>
