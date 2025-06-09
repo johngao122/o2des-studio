@@ -14,6 +14,7 @@ import {
 import { nanoid } from "nanoid";
 import { AutosaveService } from "../services/AutosaveService";
 import { checkAllEdgeControlPointCollisions } from "../lib/utils/collision";
+import { LayoutService, LayoutConfig } from "../services/LayoutService";
 
 interface Command {
     execute: () => void;
@@ -32,9 +33,11 @@ export class CommandController {
     private redoStack: Command[] = [];
     private dragState: Map<string, DragState> = new Map();
     private autosaveService: AutosaveService;
+    private layoutService: LayoutService;
 
     private constructor() {
         this.autosaveService = AutosaveService.getInstance();
+        this.layoutService = LayoutService.getInstance();
     }
 
     public static getInstance(): CommandController {
@@ -664,12 +667,88 @@ export class CommandController {
 
     /**
      * Manually trigger collision detection and adjustment for all edge control points
-     * Useful for debugging or one-time cleanup operations
      */
     public adjustAllControlPointCollisions(
         distance: number = 50,
         maxIterations: number = 10
     ): void {
         this.checkAndAdjustControlPointCollisions(distance, maxIterations);
+    }
+
+    /**
+     * Create a command to apply automatic layout to nodes and straighten edges
+     */
+    createLayoutCommand(
+        selectedNodeIds: string[] = [],
+        config: Partial<LayoutConfig> = {}
+    ): Command {
+        const { nodes, edges } = useStore.getState();
+
+        const originalPositions = new Map<string, { x: number; y: number }>();
+        const originalEdges = new Map<string, BaseEdge>();
+
+        nodes.forEach((node) => {
+            originalPositions.set(node.id, { ...node.position });
+        });
+
+        edges.forEach((edge) => {
+            originalEdges.set(edge.id, {
+                ...edge,
+                data: { ...edge.data },
+            });
+        });
+
+        const layoutResult = this.layoutService.autoLayout(
+            nodes,
+            edges,
+            selectedNodeIds,
+            config
+        );
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    nodes: state.nodes.map((node) => {
+                        const layoutedNode = layoutResult.nodes.find(
+                            (n) => n.id === node.id
+                        );
+                        return layoutedNode || node;
+                    }),
+                    edges: state.edges.map((edge) => {
+                        const layoutedEdge = layoutResult.edges.find(
+                            (e) => e.id === edge.id
+                        );
+                        return layoutedEdge || edge;
+                    }),
+                }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                useStore.setState((state) => ({
+                    nodes: state.nodes.map((node) => {
+                        const originalPosition = originalPositions.get(node.id);
+                        return originalPosition
+                            ? { ...node, position: originalPosition }
+                            : node;
+                    }),
+                    edges: state.edges.map((edge) => {
+                        const originalEdge = originalEdges.get(edge.id);
+                        return originalEdge || edge;
+                    }),
+                }));
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    /**
+     * Apply automatic layout to selected nodes or all nodes
+     */
+    applyLayout(
+        selectedNodeIds: string[] = [],
+        config: Partial<LayoutConfig> = {}
+    ): void {
+        const command = this.createLayoutCommand(selectedNodeIds, config);
+        this.execute(command);
     }
 }

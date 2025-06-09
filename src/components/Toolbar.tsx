@@ -40,6 +40,7 @@ import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { ProjectExportService } from "@/services/ProjectExportService";
+import { CommandController } from "@/controllers/CommandController";
 import { toast } from "sonner";
 import superjson from "superjson";
 
@@ -92,6 +93,7 @@ export function Toolbar({
         metadata,
     } = useStore();
     const getSerializedState = useStore.getState().getSerializedState;
+    const commandController = CommandController.getInstance();
     const [isEditingName, setIsEditingName] = useState(false);
     const [nameValue, setNameValue] = useState(projectName);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -129,6 +131,16 @@ export function Toolbar({
     const handleNameSubmit = () => {
         updateProjectName(nameValue);
         setIsEditingName(false);
+    };
+
+    const handleAlign = () => {
+        try {
+            commandController.applyLayout();
+            toast.success("Layout applied successfully");
+        } catch (error) {
+            console.error("Error applying layout:", error);
+            toast.error("Failed to apply layout");
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -455,9 +467,9 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleAlign}>
                             <LayoutGrid className="mr-2 h-4 w-4" />
-                            Align
+                            Auto Layout
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
