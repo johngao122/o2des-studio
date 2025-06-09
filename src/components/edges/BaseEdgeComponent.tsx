@@ -649,7 +649,6 @@ export const BaseEdgeComponent = memo(
             targetY,
         ]);
 
-        // Auto-create control points for bezier/rounded edges that don't have them
         useEffect(() => {
             if (
                 (edgeType === "bezier" || edgeType === "rounded") &&
