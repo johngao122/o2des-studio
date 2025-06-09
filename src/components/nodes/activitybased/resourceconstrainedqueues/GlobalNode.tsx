@@ -432,6 +432,8 @@ const GlobalNode = memo(
 GlobalNode.getDefaultData = (): GlobalNodeData => ({
     resources: [],
     duration: "op time",
+    width: 240,
+    height: 70,
 });
 
 GlobalNode.getGraphType = (): string => "rcq";
