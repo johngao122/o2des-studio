@@ -212,31 +212,14 @@ export class LayoutService {
         node: BaseNode,
         handleId: string | null | undefined
     ): { x: number; y: number } {
-        console.log(
-            `getHandleCoordinates called for node ${node.id} with handleId: ${handleId}`
-        );
-
-        console.log(`Raw node.data:`, node.data);
-        console.log(`node.data?.width:`, node.data?.width);
-        console.log(`node.data?.height:`, node.data?.height);
-
         const nodeWidth = node.data?.width || 240;
         const nodeHeight = node.data?.height || 70;
-
-        console.log(
-            `Node dimensions: width=${nodeWidth}, height=${nodeHeight}, position=`,
-            node.position
-        );
 
         if (!handleId) {
             const centerCoords = {
                 x: node.position.x + nodeWidth / 2,
                 y: node.position.y + nodeHeight / 2,
             };
-            console.log(
-                `No handleId provided, returning center:`,
-                centerCoords
-            );
             return centerCoords;
         }
 
@@ -246,23 +229,14 @@ export class LayoutService {
             35
         );
 
-        console.log(`All handles calculated:`, allHandles);
-
         const parts = handleId.split("-");
         const side = parts[1] as "top" | "bottom" | "left" | "right";
         const index = parseInt(parts[parts.length - 1]) || 0;
 
-        console.log(
-            `Parsed handleId "${handleId}": side=${side}, index=${index}, parts=`,
-            parts
-        );
-
         const sideHandles = allHandles[side];
-        console.log(`Handles for side "${side}":`, sideHandles);
 
         if (sideHandles && index < sideHandles.length) {
             const handleCoords = sideHandles[index];
-            console.log(`Found handle at index ${index}:`, handleCoords);
             return handleCoords;
         }
 
@@ -270,10 +244,7 @@ export class LayoutService {
             x: node.position.x + nodeWidth / 2,
             y: node.position.y + nodeHeight / 2,
         };
-        console.log(
-            `Handle not found, returning fallback center:`,
-            fallbackCoords
-        );
+
         return fallbackCoords;
     }
 
