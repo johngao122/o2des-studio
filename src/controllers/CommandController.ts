@@ -14,6 +14,7 @@ import {
 import { nanoid } from "nanoid";
 import { AutosaveService } from "../services/AutosaveService";
 import { checkAllEdgeControlPointCollisions } from "../lib/utils/collision";
+import { LayoutService, LayoutConfig } from "../services/LayoutService";
 
 interface Command {
     execute: () => void;
@@ -32,9 +33,11 @@ export class CommandController {
     private redoStack: Command[] = [];
     private dragState: Map<string, DragState> = new Map();
     private autosaveService: AutosaveService;
+    private layoutService: LayoutService;
 
     private constructor() {
         this.autosaveService = AutosaveService.getInstance();
+        this.layoutService = LayoutService.getInstance();
     }
 
     public static getInstance(): CommandController {
@@ -118,8 +121,6 @@ export class CommandController {
             command.undo();
             this.redoStack.push(command);
 
-            this.checkAndAdjustControlPointCollisions();
-
             this.autosaveService.autosave();
         }
     }
@@ -129,8 +130,6 @@ export class CommandController {
         if (command) {
             command.execute();
             this.undoStack.push(command);
-
-            this.checkAndAdjustControlPointCollisions();
 
             this.autosaveService.autosave();
         }
@@ -222,18 +221,27 @@ export class CommandController {
         edgeId: string,
         updates: Partial<BaseEdge>
     ): Command {
-        const { edges } = useStore.getState();
+        const { edges, nodes } = useStore.getState();
         const edge = edges.find((e) => e.id === edgeId);
 
         if (!edge) {
             throw new Error(`Edge with id ${edgeId} not found`);
         }
 
+        let modifiedUpdates = { ...updates };
+        if (
+            updates.data?.edgeType &&
+            updates.data.edgeType !== edge.data?.edgeType
+        ) {
+            const newEdgeType = updates.data.edgeType;
+            const currentEdgeType = edge.data?.edgeType;
+        }
+
         return {
             execute: () => {
                 useStore.setState((state) => ({
                     edges: state.edges.map((e) =>
-                        e.id === edgeId ? { ...e, ...updates } : e
+                        e.id === edgeId ? { ...e, ...modifiedUpdates } : e
                     ),
                 }));
                 this.autosaveService.autosave();
@@ -459,48 +467,6 @@ export class CommandController {
             };
         }
 
-        if (sourceNode && targetNode) {
-            const sourceWidth =
-                (typeof sourceNode.style?.width === "number"
-                    ? sourceNode.style.width
-                    : sourceNode.data?.width) || 200;
-            const sourceHeight =
-                (typeof sourceNode.style?.height === "number"
-                    ? sourceNode.style.height
-                    : sourceNode.data?.height) || 100;
-            const targetWidth =
-                (typeof targetNode.style?.width === "number"
-                    ? targetNode.style.width
-                    : targetNode.data?.width) || 200;
-            const targetHeight =
-                (typeof targetNode.style?.height === "number"
-                    ? targetNode.style.height
-                    : targetNode.data?.height) || 100;
-
-            const sourceX = sourceNode.position.x + sourceWidth;
-            const sourceY = sourceNode.position.y + sourceHeight / 2;
-            const targetX = targetNode.position.x;
-            const targetY = targetNode.position.y + targetHeight / 2;
-
-            const cp1 = {
-                x: sourceX + (targetX - sourceX) * 0.25,
-                y: sourceY + (targetY - sourceY) * 0.25,
-            };
-            const cp2 = {
-                x: sourceX + (targetX - sourceX) * 0.5,
-                y: sourceY + (targetY - sourceY) * 0.5,
-            };
-            const cp3 = {
-                x: sourceX + (targetX - sourceX) * 0.75,
-                y: sourceY + (targetY - sourceY) * 0.75,
-            };
-
-            defaultData = {
-                ...defaultData,
-                controlPoints: [cp1, cp2, cp3],
-            };
-        }
-
         let graphType: string | undefined = undefined;
         if (edgeType === "eventGraph" || edgeType === "initialization") {
             graphType = "eventBased";
@@ -701,12 +667,88 @@ export class CommandController {
 
     /**
      * Manually trigger collision detection and adjustment for all edge control points
-     * Useful for debugging or one-time cleanup operations
      */
     public adjustAllControlPointCollisions(
         distance: number = 50,
         maxIterations: number = 10
     ): void {
         this.checkAndAdjustControlPointCollisions(distance, maxIterations);
+    }
+
+    /**
+     * Create a command to apply automatic layout to nodes and straighten edges
+     */
+    createLayoutCommand(
+        selectedNodeIds: string[] = [],
+        config: Partial<LayoutConfig> = {}
+    ): Command {
+        const { nodes, edges } = useStore.getState();
+
+        const originalPositions = new Map<string, { x: number; y: number }>();
+        const originalEdges = new Map<string, BaseEdge>();
+
+        nodes.forEach((node) => {
+            originalPositions.set(node.id, { ...node.position });
+        });
+
+        edges.forEach((edge) => {
+            originalEdges.set(edge.id, {
+                ...edge,
+                data: { ...edge.data },
+            });
+        });
+
+        const layoutResult = this.layoutService.autoLayout(
+            nodes,
+            edges,
+            selectedNodeIds,
+            config
+        );
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    nodes: state.nodes.map((node) => {
+                        const layoutedNode = layoutResult.nodes.find(
+                            (n) => n.id === node.id
+                        );
+                        return layoutedNode || node;
+                    }),
+                    edges: state.edges.map((edge) => {
+                        const layoutedEdge = layoutResult.edges.find(
+                            (e) => e.id === edge.id
+                        );
+                        return layoutedEdge || edge;
+                    }),
+                }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                useStore.setState((state) => ({
+                    nodes: state.nodes.map((node) => {
+                        const originalPosition = originalPositions.get(node.id);
+                        return originalPosition
+                            ? { ...node, position: originalPosition }
+                            : node;
+                    }),
+                    edges: state.edges.map((edge) => {
+                        const originalEdge = originalEdges.get(edge.id);
+                        return originalEdge || edge;
+                    }),
+                }));
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    /**
+     * Apply automatic layout to selected nodes or all nodes
+     */
+    applyLayout(
+        selectedNodeIds: string[] = [],
+        config: Partial<LayoutConfig> = {}
+    ): void {
+        const command = this.createLayoutCommand(selectedNodeIds, config);
+        this.execute(command);
     }
 }

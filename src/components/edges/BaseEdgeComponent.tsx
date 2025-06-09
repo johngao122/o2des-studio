@@ -114,6 +114,24 @@ export const BaseEdgeComponent = memo(
 
         const currentControlPoints = data?.controlPoints || [];
 
+        useEffect(() => {
+            if (!hasCustomControlPoints && id) {
+                const defaultControlPointsArray = [
+                    defaultControlPoints.cp1,
+                    defaultControlPoints.cp2,
+                    defaultControlPoints.cp3,
+                ];
+
+                const command = commandController.createUpdateEdgeCommand(id, {
+                    data: {
+                        ...data,
+                        controlPoints: defaultControlPointsArray,
+                    },
+                });
+                commandController.execute(command);
+            }
+        }, [hasCustomControlPoints, id, defaultControlPoints.cp1, defaultControlPoints.cp2, defaultControlPoints.cp3, data]);
+
         const getControlPoint = (index: number) => {
             if (isDragging === index + 1 && tempControlPoints[index]) {
                 return tempControlPoints[index];
@@ -148,11 +166,9 @@ export const BaseEdgeComponent = memo(
                 const controlPoints =
                     isDragging !== null && tempControlPoints.length > 0
                         ? tempControlPoints
-                        : data?.controlPoints || [
-                              controlPoint1,
-                              controlPoint2,
-                              controlPoint3,
-                          ];
+                        : data?.controlPoints && data.controlPoints.length > 0
+                        ? data.controlPoints
+                        : [controlPoint1, controlPoint2, controlPoint3];
                 const bezierSegments = [];
 
                 const [segment1] = getBezierPath({
@@ -196,7 +212,9 @@ export const BaseEdgeComponent = memo(
                 const roundedControlPoints =
                     isDragging !== null && tempControlPoints.length > 0
                         ? tempControlPoints
-                        : data?.controlPoints || [];
+                        : data?.controlPoints && data.controlPoints.length > 0
+                        ? data.controlPoints
+                        : [controlPoint1, controlPoint2, controlPoint3];
 
                 if (isSimpleMode && !isCenterDragging) {
                     const [simplePath] = getStraightPath({

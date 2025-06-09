@@ -221,3 +221,63 @@ export function calculateOffsetPointForEdge(
 
     return { x: offsetPoint.x, y: offsetPoint.y, flipped: flipOffset };
 }
+
+/**
+ * Places control points at fixed percentage marks along a straight line between source and target handles.
+ * Uses 25%, 50%, and 75% positions regardless of the number of existing control points.
+ */
+export function spreadControlPointsEvenly(
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+    numberOfControlPoints: number
+): { x: number; y: number }[] {
+    if (numberOfControlPoints <= 0) {
+        return [];
+    }
+
+    const controlPoints: { x: number; y: number }[] = [];
+
+    const percentageMarks = [0.25, 0.5, 0.75];
+
+    const pointsToPlace = Math.min(
+        numberOfControlPoints,
+        percentageMarks.length
+    );
+
+    for (let i = 0; i < pointsToPlace; i++) {
+        const t = percentageMarks[i];
+
+        const x = sourceX + (targetX - sourceX) * t;
+        const y = sourceY + (targetY - sourceY) * t;
+
+        controlPoints.push({ x, y });
+    }
+
+    return controlPoints;
+}
+
+/**
+ * Redistributes existing control points evenly along the straight line between source and target.
+ * Maintains the same number of control points but spreads them evenly.
+ */
+export function redistributeControlPointsEvenly(
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+    existingControlPoints: { x: number; y: number }[]
+): { x: number; y: number }[] {
+    if (existingControlPoints.length === 0) {
+        return [];
+    }
+
+    return spreadControlPointsEvenly(
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        existingControlPoints.length
+    );
+}
