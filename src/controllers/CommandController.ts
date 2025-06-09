@@ -51,8 +51,6 @@ export class CommandController {
         this.undoStack.push(command);
         this.redoStack = [];
 
-        this.checkAndAdjustControlPointCollisions();
-
         this.autosaveService.autosave();
     }
 
@@ -118,8 +116,6 @@ export class CommandController {
             command.undo();
             this.redoStack.push(command);
 
-            this.checkAndAdjustControlPointCollisions();
-
             this.autosaveService.autosave();
         }
     }
@@ -129,8 +125,6 @@ export class CommandController {
         if (command) {
             command.execute();
             this.undoStack.push(command);
-
-            this.checkAndAdjustControlPointCollisions();
 
             this.autosaveService.autosave();
         }
@@ -222,18 +216,27 @@ export class CommandController {
         edgeId: string,
         updates: Partial<BaseEdge>
     ): Command {
-        const { edges } = useStore.getState();
+        const { edges, nodes } = useStore.getState();
         const edge = edges.find((e) => e.id === edgeId);
 
         if (!edge) {
             throw new Error(`Edge with id ${edgeId} not found`);
         }
 
+        let modifiedUpdates = { ...updates };
+        if (
+            updates.data?.edgeType &&
+            updates.data.edgeType !== edge.data?.edgeType
+        ) {
+            const newEdgeType = updates.data.edgeType;
+            const currentEdgeType = edge.data?.edgeType;
+        }
+
         return {
             execute: () => {
                 useStore.setState((state) => ({
                     edges: state.edges.map((e) =>
-                        e.id === edgeId ? { ...e, ...updates } : e
+                        e.id === edgeId ? { ...e, ...modifiedUpdates } : e
                     ),
                 }));
                 this.autosaveService.autosave();
@@ -456,48 +459,6 @@ export class CommandController {
         } else if (edgeType === "rcq") {
             defaultData = {
                 edgeType: "straight",
-            };
-        }
-
-        if (sourceNode && targetNode) {
-            const sourceWidth =
-                (typeof sourceNode.style?.width === "number"
-                    ? sourceNode.style.width
-                    : sourceNode.data?.width) || 200;
-            const sourceHeight =
-                (typeof sourceNode.style?.height === "number"
-                    ? sourceNode.style.height
-                    : sourceNode.data?.height) || 100;
-            const targetWidth =
-                (typeof targetNode.style?.width === "number"
-                    ? targetNode.style.width
-                    : targetNode.data?.width) || 200;
-            const targetHeight =
-                (typeof targetNode.style?.height === "number"
-                    ? targetNode.style.height
-                    : targetNode.data?.height) || 100;
-
-            const sourceX = sourceNode.position.x + sourceWidth;
-            const sourceY = sourceNode.position.y + sourceHeight / 2;
-            const targetX = targetNode.position.x;
-            const targetY = targetNode.position.y + targetHeight / 2;
-
-            const cp1 = {
-                x: sourceX + (targetX - sourceX) * 0.25,
-                y: sourceY + (targetY - sourceY) * 0.25,
-            };
-            const cp2 = {
-                x: sourceX + (targetX - sourceX) * 0.5,
-                y: sourceY + (targetY - sourceY) * 0.5,
-            };
-            const cp3 = {
-                x: sourceX + (targetX - sourceX) * 0.75,
-                y: sourceY + (targetY - sourceY) * 0.75,
-            };
-
-            defaultData = {
-                ...defaultData,
-                controlPoints: [cp1, cp2, cp3],
             };
         }
 

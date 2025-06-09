@@ -148,11 +148,9 @@ export const BaseEdgeComponent = memo(
                 const controlPoints =
                     isDragging !== null && tempControlPoints.length > 0
                         ? tempControlPoints
-                        : data?.controlPoints || [
-                              controlPoint1,
-                              controlPoint2,
-                              controlPoint3,
-                          ];
+                        : data?.controlPoints && data.controlPoints.length > 0
+                        ? data.controlPoints
+                        : [controlPoint1, controlPoint2, controlPoint3];
                 const bezierSegments = [];
 
                 const [segment1] = getBezierPath({
@@ -196,7 +194,9 @@ export const BaseEdgeComponent = memo(
                 const roundedControlPoints =
                     isDragging !== null && tempControlPoints.length > 0
                         ? tempControlPoints
-                        : data?.controlPoints || [];
+                        : data?.controlPoints && data.controlPoints.length > 0
+                        ? data.controlPoints
+                        : [controlPoint1, controlPoint2, controlPoint3];
 
                 if (isSimpleMode && !isCenterDragging) {
                     const [simplePath] = getStraightPath({
@@ -648,6 +648,29 @@ export const BaseEdgeComponent = memo(
             targetX,
             targetY,
         ]);
+
+        // Auto-create control points for bezier/rounded edges that don't have them
+        useEffect(() => {
+            if (
+                (edgeType === "bezier" || edgeType === "rounded") &&
+                !hasCustomControlPoints &&
+                id
+            ) {
+                const newControlPoints = [
+                    defaultControlPoints.cp1,
+                    defaultControlPoints.cp2,
+                    defaultControlPoints.cp3,
+                ];
+
+                const command = commandController.createUpdateEdgeCommand(id, {
+                    data: {
+                        ...data,
+                        controlPoints: newControlPoints,
+                    },
+                });
+                commandController.execute(command);
+            }
+        }, [edgeType, hasCustomControlPoints, id, defaultControlPoints, data]);
 
         useEffect(() => {
             if (isDragging !== null) {
