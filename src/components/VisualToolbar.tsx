@@ -1,6 +1,4 @@
-"use client";
-
-import React, { ChangeEvent, useRef, useState, useEffect } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -37,175 +35,28 @@ import {
     Download,
     BookOpen,
 } from "lucide-react";
-import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
-import { useStore } from "@/store";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ProjectExportService } from "@/services/ProjectExportService";
-import { CommandController } from "@/controllers/CommandController";
-import { toast } from "sonner";
-import superjson from "superjson";
 
-interface SerializedState {
-    projectName: string;
-    nodes: any[];
-    edges: any[];
-    metadata: any;
-}
-
-interface ToolbarProps {
-    onNewProject?: () => void;
-    onSave?: () => void;
-    onLoad?: (event: ChangeEvent<HTMLInputElement>) => void;
-    onZoomIn?: () => void;
-    onZoomOut?: () => void;
-    onFitView?: () => void;
-    onToggleDarkMode?: () => void;
-    isDarkMode?: boolean;
+interface VisualToolbarProps {
+    className?: string;
+    projectName?: string;
     lastAction?: string;
-    onShowShortcuts?: () => void;
-    onCopy?: () => void;
-    onPaste?: () => void;
+    isDarkMode?: boolean;
+    showModifiedDate?: boolean;
 }
 
-export function Toolbar({
-    onNewProject,
-    onSave,
-    onLoad,
-    onZoomIn,
-    onZoomOut,
-    onFitView,
-    onToggleDarkMode,
-    isDarkMode,
-    lastAction,
-    onShowShortcuts,
-    onCopy,
-    onPaste,
-}: ToolbarProps) {
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const router = useRouter();
-    const [isExporting, setIsExporting] = useState(false);
-    const {
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        projectName,
-        updateProjectName,
-        metadata,
-    } = useStore();
-    const getSerializedState = useStore.getState().getSerializedState;
-    const commandController = CommandController.getInstance();
-    const [isEditingName, setIsEditingName] = useState(false);
-    const [nameValue, setNameValue] = useState(projectName);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const [formattedDate, setFormattedDate] = useState<string>("");
-
-    useEffect(() => {
-        setNameValue(projectName);
-    }, [projectName]);
-
-    useEffect(() => {
-        if (isEditingName && inputRef.current) {
-            inputRef.current.focus();
-        }
-    }, [isEditingName]);
-
-    useEffect(() => {
-        if (metadata?.modified) {
-            try {
-                const date = new Date(metadata.modified);
-                setFormattedDate(
-                    date.toLocaleString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    })
-                );
-            } catch (e) {
-                setFormattedDate("Unknown");
-            }
-        }
-    }, [metadata?.modified]);
-
-    const handleNameSubmit = () => {
-        updateProjectName(nameValue);
-        setIsEditingName(false);
-    };
-
-    const handleAlign = () => {
-        try {
-            commandController.applyLayout();
-            toast.success("Layout applied successfully");
-        } catch (error) {
-            console.error("Error applying layout:", error);
-            toast.error("Failed to apply layout");
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter") {
-            handleNameSubmit();
-        } else if (e.key === "Escape") {
-            setNameValue(projectName);
-            setIsEditingName(false);
-        }
-    };
-
-    const handleFileUploadClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (fileInputRef.current) {
-            fileInputRef.current.click();
-        }
-    };
-
-    const handleExportToSimulator = async () => {
-        setIsExporting(true);
-        try {
-            const diagramData = getSerializedState();
-
-            const parsedState = superjson.parse(diagramData) as SerializedState;
-
-            const exportData = ProjectExportService.convertToStructuredModel({
-                json: {
-                    nodes: parsedState.nodes || [],
-                    edges: parsedState.edges || [],
-                },
-            });
-
-            const exportJson = JSON.stringify(exportData, null, 2);
-
-            sessionStorage.setItem("o2des_export_json", exportJson);
-            sessionStorage.setItem("o2des_diagram_serialized", diagramData);
-
-            const stored = sessionStorage.getItem("o2des_export_json");
-            const storedDiagram = sessionStorage.getItem(
-                "o2des_diagram_serialized"
-            );
-
-            router.push("/export");
-
-            toast.success("Export data prepared successfully");
-        } catch (error) {
-            console.error("Export failed:", error);
-            console.error(
-                "Error stack:",
-                error instanceof Error ? error.stack : "No stack trace"
-            );
-            toast.error("Failed to export diagram", {
-                description:
-                    error instanceof Error ? error.message : "Unknown error",
-            });
-        } finally {
-            setIsExporting(false);
-        }
-    };
+export function VisualToolbar({
+    className = "",
+    projectName = "Sample Project",
+    lastAction = "All changes saved",
+    isDarkMode = true,
+    showModifiedDate = true,
+}: VisualToolbarProps) {
+    const formattedDate = "Dec 15, 2:30 PM";
 
     return (
-        <div className="flex items-center h-10 px-2 border-b bg-background">
+        <div
+            className={`flex items-center h-10 px-2 border-b bg-background ${className}`}
+        >
             <div className="flex items-center space-x-1">
                 {/* Logo */}
                 <div className="w-6 h-6 bg-orange-500 flex items-center justify-center rounded">
@@ -214,47 +65,22 @@ export function Toolbar({
 
                 {/* Project Name */}
                 <div className="flex items-center mr-4 h-8">
-                    {isEditingName ? (
-                        <div className="flex items-center bg-secondary/30 rounded px-2">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={nameValue}
-                                onChange={(e) => setNameValue(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                onBlur={handleNameSubmit}
-                                className="border-none bg-transparent focus:outline-none focus:ring-1 focus:ring-primary h-8 px-2 text-sm font-medium w-48"
-                                aria-label="Project name"
-                            />
-                            <Button
-                                onClick={handleNameSubmit}
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 ml-1"
-                                aria-label="Save project name"
-                            >
-                                <Check className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ) : (
-                        <div
-                            className="flex items-center cursor-pointer hover:bg-secondary/30 rounded px-2 h-8 transition-colors"
-                            onClick={() => setIsEditingName(true)}
-                            title="Click to edit project name"
+                    <div
+                        className="flex items-center cursor-pointer hover:bg-secondary/30 rounded px-2 h-8 transition-colors"
+                        title="Click to edit project name"
+                    >
+                        <span className="text-sm font-medium text-foreground">
+                            {projectName}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-1 opacity-50 hover:opacity-100 transition-opacity"
+                            aria-label="Edit project name"
                         >
-                            <span className="text-sm font-medium text-foreground">
-                                {projectName}
-                            </span>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 ml-1 opacity-50 hover:opacity-100 transition-opacity"
-                                aria-label="Edit project name"
-                            >
-                                <Pencil className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
+                            <Pencil className="h-3 w-3" />
+                        </Button>
+                    </div>
                 </div>
 
                 {/* File Menu */}
@@ -265,72 +91,51 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={onNewProject}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <FileIcon className="mr-2 h-4 w-4" />
                                     New Project
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(
-                                        KeyboardShortcuts.NEW_PROJECT
-                                    )}
+                                    Ctrl+N
                                 </span>
                             </div>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={onSave}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Download className="mr-2 h-4 w-4" />
                                     Save Project
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.SAVE)}
+                                    Ctrl+S
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleFileUploadClick}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Upload className="mr-2 h-4 w-4" />
                                     Load Project
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.LOAD)}
+                                    Ctrl+O
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onSelect={() => {
-                                const event = new CustomEvent(
-                                    "loadExampleDiagram"
-                                );
-                                window.dispatchEvent(event);
-                            }}
-                        >
+                        <DropdownMenuItem>
                             <FileIcon className="mr-2 h-4 w-4" />
                             Load Example
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                            onSelect={handleExportToSimulator}
-                            disabled={isExporting}
-                        >
+                        <DropdownMenuItem>
                             <Settings className="mr-2 h-4 w-4" />
-                            {isExporting
-                                ? "Exporting..."
-                                : "Export to Simulator"}
+                            Export to Simulator
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept=".json"
-                    onChange={onLoad}
-                />
 
                 {/* Edit Menu */}
                 <DropdownMenu>
@@ -340,37 +145,37 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={undo} disabled={!canUndo()}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Undo className="mr-2 h-4 w-4" />
                                     Undo
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.UNDO)}
+                                    Ctrl+Z
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={redo} disabled={!canRedo()}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Redo className="mr-2 h-4 w-4" />
                                     Redo
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.REDO)}
+                                    Ctrl+Y
                                 </span>
                             </div>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={onCopy}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Copy className="mr-2 h-4 w-4" />
                                     Copy
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.COPY)}
+                                    Ctrl+C
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -381,18 +186,18 @@ export function Toolbar({
                                     Cut
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.CUT)}
+                                    Ctrl+X
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={onPaste}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <ClipboardPaste className="mr-2 h-4 w-4" />
                                     Paste
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.PASTE)}
+                                    Ctrl+V
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -407,41 +212,41 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => onZoomIn?.()}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <ZoomIn className="mr-2 h-4 w-4" />
                                     Zoom In
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.ZOOM_IN)}
+                                    Ctrl++
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onZoomOut?.()}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <ZoomOut className="mr-2 h-4 w-4" />
                                     Zoom Out
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.ZOOM_OUT)}
+                                    Ctrl+-
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={onFitView}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Maximize className="mr-2 h-4 w-4" />
                                     Fit to View
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(KeyboardShortcuts.FIT_VIEW)}
+                                    Ctrl+0
                                 </span>
                             </div>
                         </DropdownMenuItem>
                         <Separator className="my-1" />
-                        <DropdownMenuItem onSelect={onToggleDarkMode}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     {isDarkMode ? (
@@ -452,9 +257,7 @@ export function Toolbar({
                                     {isDarkMode ? "Light Mode" : "Dark Mode"}
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(
-                                        KeyboardShortcuts.TOGGLE_DARK_MODE
-                                    )}
+                                    Ctrl+D
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -469,7 +272,7 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={handleAlign}>
+                        <DropdownMenuItem>
                             <LayoutGrid className="mr-2 h-4 w-4" />
                             Auto Layout
                         </DropdownMenuItem>
@@ -495,9 +298,7 @@ export function Toolbar({
                                     Toggle Sidebar
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(
-                                        KeyboardShortcuts.TOGGLE_SIDEBAR
-                                    )}
+                                    Ctrl+B
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -508,9 +309,7 @@ export function Toolbar({
                                     Toggle Minimap
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(
-                                        KeyboardShortcuts.TOGGLE_MINIMAP
-                                    )}
+                                    Ctrl+M
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -521,9 +320,7 @@ export function Toolbar({
                                     Toggle Controls
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(
-                                        KeyboardShortcuts.TOGGLE_CONTROLS
-                                    )}
+                                    Ctrl+Shift+C
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -538,26 +335,19 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem asChild>
-                            <Link
-                                href="/user-guide"
-                                className="flex items-center w-full"
-                            >
-                                <BookOpen className="mr-2 h-4 w-4" />
-                                User Guide
-                            </Link>
+                        <DropdownMenuItem>
+                            <BookOpen className="mr-2 h-4 w-4" />
+                            User Guide
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={onShowShortcuts}>
+                        <DropdownMenuItem>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Keyboard className="mr-2 h-4 w-4" />
                                     Keyboard Shortcuts
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
-                                    {formatShortcut(
-                                        KeyboardShortcuts.SHOW_SHORTCUTS
-                                    )}
+                                    ?
                                 </span>
                             </div>
                         </DropdownMenuItem>
@@ -571,14 +361,14 @@ export function Toolbar({
 
             <div className="ml-auto flex items-center space-x-2">
                 {/* Last modified info */}
-                {formattedDate && (
+                {showModifiedDate && (
                     <div className="text-xs text-muted-foreground flex items-center mr-2">
                         <span className="mr-1">Last modified:</span>
                         <span className="font-medium">{formattedDate}</span>
                     </div>
                 )}
                 <span className="text-xs text-muted-foreground">
-                    {lastAction || "All changes saved"}
+                    {lastAction}
                 </span>
             </div>
         </div>
