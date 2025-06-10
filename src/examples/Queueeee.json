@@ -1,0 +1,337 @@
+{
+    "json": {
+        "projectName": "Queueeee",
+        "nodes": [
+            {
+                "position": { "x": 270, "y": 270 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "2ekHvUXJ48-pdehm2HuUU",
+                "type": "generator",
+                "name": "Customer",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 270, "y": 270 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 270, "y": 470 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "genyLqdxCrt3KctBkYybN",
+                "type": "generator",
+                "name": "Counter",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 270, "y": 470 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 560, "y": 260 },
+                "graphType": "rcq",
+                "data": { "resources": [], "duration": "travel" },
+                "id": "A3oPUkLqnalPfjm1f7h4M",
+                "type": "activity",
+                "name": "Arriving",
+                "width": 240,
+                "height": 140,
+                "selected": false,
+                "positionAbsolute": { "x": 560, "y": 260 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 560, "y": 460 },
+                "graphType": "rcq",
+                "data": { "resources": [], "duration": "" },
+                "id": "gr94FA4L_5HPI-HQsxd0m",
+                "type": "activity",
+                "name": "Idle",
+                "width": 240,
+                "height": 140,
+                "selected": false,
+                "positionAbsolute": { "x": 560, "y": 460 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 940, "y": 260 },
+                "graphType": "rcq",
+                "data": { "resources": [], "duration": "" },
+                "id": "Vkksr2kVAM4wYIn7NDMgm",
+                "type": "activity",
+                "name": "Processing At Counter",
+                "width": 244,
+                "height": 144,
+                "selected": false,
+                "positionAbsolute": { "x": 940, "y": 260 },
+                "dragging": false,
+                "style": null
+            },
+            {
+                "position": { "x": 940, "y": 460 },
+                "graphType": "rcq",
+                "data": { "resources": [], "duration": "op" },
+                "id": "gnzsBXAkHEkjevYjNm4kr",
+                "type": "activity",
+                "name": "Processing Counter",
+                "width": 244,
+                "height": 144,
+                "selected": false,
+                "positionAbsolute": { "x": 940, "y": 460 },
+                "dragging": false,
+                "style": null
+            },
+            {
+                "position": { "x": 1320, "y": 260 },
+                "graphType": "rcq",
+                "data": { "resources": [], "duration": "travel" },
+                "id": "_TNyH2_Swyok8sO2bfsGR",
+                "type": "activity",
+                "name": "Departing",
+                "width": 244,
+                "height": 144,
+                "selected": false,
+                "positionAbsolute": { "x": 1320, "y": 260 },
+                "dragging": false,
+                "style": null
+            },
+            {
+                "position": { "x": 1320, "y": 460 },
+                "graphType": "rcq",
+                "data": { "resources": [], "duration": "" },
+                "id": "XDokOSCUArPCE6yxhOGDi",
+                "type": "global",
+                "name": "Idle",
+                "width": 240,
+                "height": 140,
+                "selected": false,
+                "positionAbsolute": { "x": 1320, "y": 460 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 1680, "y": 270 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "selLLNrt0TFdFHajTgmM7",
+                "type": "terminator",
+                "name": "Customer",
+                "width": 200,
+                "height": 120,
+                "selected": false,
+                "positionAbsolute": { "x": 1680, "y": 270 },
+                "dragging": false
+            },
+            {
+                "position": { "x": 1680, "y": 470 },
+                "graphType": "rcq",
+                "data": { "width": 200, "height": 120 },
+                "id": "D4lgM6NbQgCNtTZiTyJiY",
+                "type": "terminator",
+                "name": "Counter",
+                "width": 204,
+                "height": 124,
+                "selected": false,
+                "positionAbsolute": { "x": 1680, "y": 470 },
+                "dragging": false,
+                "style": null
+            }
+        ],
+        "edges": [
+            {
+                "id": "WsVeMZZDSCRhhKwK17nV5",
+                "source": "2ekHvUXJ48-pdehm2HuUU",
+                "target": "A3oPUkLqnalPfjm1f7h4M",
+                "sourceHandle": "2ekHvUXJ48-pdehm2HuUU-right-source",
+                "targetHandle": "A3oPUkLqnalPfjm1f7h4M-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "09gQVMvVTCcgeXmfSPbT4",
+                "source": "A3oPUkLqnalPfjm1f7h4M",
+                "target": "Vkksr2kVAM4wYIn7NDMgm",
+                "sourceHandle": "A3oPUkLqnalPfjm1f7h4M-right-0",
+                "targetHandle": "Vkksr2kVAM4wYIn7NDMgm-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "gQ9OApnM3lDtIy5ZR9GvW",
+                "source": "Vkksr2kVAM4wYIn7NDMgm",
+                "target": "_TNyH2_Swyok8sO2bfsGR",
+                "sourceHandle": "Vkksr2kVAM4wYIn7NDMgm-right-0",
+                "targetHandle": "_TNyH2_Swyok8sO2bfsGR-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "19WDYs_N7t9S0VzP6ADVY",
+                "source": "_TNyH2_Swyok8sO2bfsGR",
+                "target": "selLLNrt0TFdFHajTgmM7",
+                "sourceHandle": "_TNyH2_Swyok8sO2bfsGR-right-0",
+                "targetHandle": "selLLNrt0TFdFHajTgmM7-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "K0PheqHu8tPwPgdkjS1W6",
+                "source": "XDokOSCUArPCE6yxhOGDi",
+                "target": "D4lgM6NbQgCNtTZiTyJiY",
+                "sourceHandle": "XDokOSCUArPCE6yxhOGDi-right-0",
+                "targetHandle": "D4lgM6NbQgCNtTZiTyJiY-left-target",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "ODinv16YzmmCsn39dwDcb",
+                "source": "gnzsBXAkHEkjevYjNm4kr",
+                "target": "XDokOSCUArPCE6yxhOGDi",
+                "sourceHandle": "gnzsBXAkHEkjevYjNm4kr-right-0",
+                "targetHandle": "XDokOSCUArPCE6yxhOGDi-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "eKYNaMhLLrMRYKZ_sdzzv",
+                "source": "gr94FA4L_5HPI-HQsxd0m",
+                "target": "gnzsBXAkHEkjevYjNm4kr",
+                "sourceHandle": "gr94FA4L_5HPI-HQsxd0m-right-0",
+                "targetHandle": "gnzsBXAkHEkjevYjNm4kr-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "rsU224gTs2BSEhFuz4fQ8",
+                "source": "genyLqdxCrt3KctBkYybN",
+                "target": "gr94FA4L_5HPI-HQsxd0m",
+                "sourceHandle": "genyLqdxCrt3KctBkYybN-right-source",
+                "targetHandle": "gr94FA4L_5HPI-HQsxd0m-left-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": { "edgeType": "straight" }
+            },
+            {
+                "id": "ckf0kIj8_s2qugkKIdFX7",
+                "source": "gnzsBXAkHEkjevYjNm4kr",
+                "target": "Vkksr2kVAM4wYIn7NDMgm",
+                "sourceHandle": "gnzsBXAkHEkjevYjNm4kr-top-left-0",
+                "targetHandle": "Vkksr2kVAM4wYIn7NDMgm-bottom-left-6",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            },
+            {
+                "id": "QQt2P1nRtJ-etWMiuifXg",
+                "source": "gnzsBXAkHEkjevYjNm4kr",
+                "target": "Vkksr2kVAM4wYIn7NDMgm",
+                "sourceHandle": "gnzsBXAkHEkjevYjNm4kr-top-right-6",
+                "targetHandle": "Vkksr2kVAM4wYIn7NDMgm-bottom-right-0",
+                "type": "rcq",
+                "graphType": "rcq",
+                "markerEnd": {
+                    "type": "arrowclosed",
+                    "width": 20,
+                    "height": 20
+                },
+                "conditions": [],
+                "data": {
+                    "edgeType": "straight",
+                    "condition": "True",
+                    "isDependency": true
+                },
+                "selected": false
+            }
+        ],
+        "metadata": {
+            "version": "1.0.0",
+            "created": "2025-06-09T02:19:42.629Z",
+            "modified": "2025-06-09T02:23:36.691Z",
+            "projectName": "Queueeee",
+            "description": "",
+            "author": "",
+            "tags": []
+        }
+    },
+    "meta": {
+        "values": {
+            "nodes.4.style": ["undefined"],
+            "nodes.5.style": ["undefined"],
+            "nodes.6.style": ["undefined"],
+            "nodes.9.style": ["undefined"]
+        },
+        "referentialEqualities": {
+            "nodes.2.data.resources": [
+                "nodes.4.data.resources",
+                "nodes.5.data.resources",
+                "nodes.6.data.resources"
+            ]
+        }
+    }
+}
