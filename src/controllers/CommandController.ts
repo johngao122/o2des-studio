@@ -549,6 +549,14 @@ export class CommandController {
             }
         });
 
+        const originalEdgeData = new Map<string, any>();
+        edgeIds.forEach((id) => {
+            const edge = originalEdges.find((e) => e.id === id);
+            if (edge) {
+                originalEdgeData.set(id, { ...edge.data });
+            }
+        });
+
         return {
             execute: () => {
                 if (nodeOperations.length > 0) {
@@ -571,6 +579,25 @@ export class CommandController {
                 }
 
                 if (edgeOperations.length > 0) {
+                    useStore.setState((state) => {
+                        const updatedEdges = state.edges.map((edge) => {
+                            const operation = edgeOperations.find(
+                                (op) => op.id === edge.id
+                            );
+                            if (operation && operation.changes.data) {
+                                return {
+                                    ...edge,
+                                    data: {
+                                        ...edge.data,
+                                        ...operation.changes.data,
+                                    },
+                                };
+                            }
+                            return edge;
+                        });
+
+                        return { edges: updatedEdges };
+                    });
                 }
 
                 this.autosaveService.autosave();
@@ -596,6 +623,20 @@ export class CommandController {
                 }
 
                 if (edgeIds.length > 0) {
+                    useStore.setState((state) => {
+                        const restoredEdges = state.edges.map((edge) => {
+                            const originalData = originalEdgeData.get(edge.id);
+                            if (originalData) {
+                                return {
+                                    ...edge,
+                                    data: originalData,
+                                };
+                            }
+                            return edge;
+                        });
+
+                        return { edges: restoredEdges };
+                    });
                 }
 
                 this.autosaveService.autosave();
