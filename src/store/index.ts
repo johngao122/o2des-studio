@@ -981,6 +981,51 @@ export const useStore = create<StoreState>((set, get) => ({
                 };
             });
 
+            if (dragProxy.edgesSnapshot) {
+                const edgeOperations = dragProxy.edgesSnapshot
+                    .filter((edge) => {
+                        return (
+                            edge.data &&
+                            ((edge.data.controlPoints &&
+                                edge.data.controlPoints.length > 0) ||
+                                edge.data.conditionLabelOffset)
+                        );
+                    })
+                    .map((edge) => {
+                        const updatedData = { ...edge.data };
+
+                        if (
+                            edge.data?.controlPoints &&
+                            edge.data.controlPoints.length > 0
+                        ) {
+                            updatedData.controlPoints =
+                                edge.data.controlPoints.map(
+                                    (cp: { x: number; y: number }) => ({
+                                        x: cp.x + deltaX,
+                                        y: cp.y + deltaY,
+                                    })
+                                );
+                        }
+
+                        if (edge.data?.conditionLabelOffset) {
+                            updatedData.conditionLabelOffset = {
+                                x: edge.data.conditionLabelOffset.x + deltaX,
+                                y: edge.data.conditionLabelOffset.y + deltaY,
+                            };
+                        }
+
+                        return {
+                            type: "edge",
+                            id: edge.id,
+                            changes: {
+                                data: updatedData,
+                            },
+                        };
+                    });
+
+                batchOperations.push(...(edgeOperations as any));
+            }
+
             const command =
                 commandController.createBatchCommand(batchOperations);
             commandController.execute(command);
