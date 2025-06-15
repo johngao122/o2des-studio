@@ -15,13 +15,14 @@ import { toast } from "sonner";
 import { ExportJsonAutosaveService } from "@/services/ExportJsonAutosaveService";
 import { useStore } from "@/store";
 import { ReadOnlyDiagramCanvas } from "@/components/ReadOnlyDiagramCanvas";
+import { BaseNode, BaseEdge } from "@/types/base";
 
 interface ExportData {
     model: {
-        entityRelationships: any[];
-        resources: any[];
-        activities: any[];
-        connections: any[];
+        entityRelationships: unknown[];
+        resources: unknown[];
+        activities: unknown[];
+        connections: unknown[];
     };
 }
 
@@ -30,18 +31,16 @@ export default function ExportPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [exportData, setExportData] = useState<ExportData | null>(null);
     const [diagramData, setDiagramData] = useState<{
-        nodes: any[];
-        edges: any[];
+        nodes: BaseNode[];
+        edges: BaseEdge[];
     } | null>(null);
     const [isLoadingDiagram, setIsLoadingDiagram] = useState(false);
 
-    const {
-        loadSerializedState,
-        nodes: storeNodes,
-        edges: storeEdges,
-        metadata,
-        updateMetadata,
-    } = useStore();
+    const storeNodes = useStore((state) => state.nodes);
+    const storeEdges = useStore((state) => state.edges);
+    const metadata = useStore((state) => state.metadata);
+    const loadSerializedState = useStore.getState().loadSerializedState;
+    const updateMetadata = useStore.getState().updateMetadata;
 
     const autosaveService = ExportJsonAutosaveService.getInstance();
 
@@ -75,7 +74,7 @@ export default function ExportPage() {
                         minute: "2-digit",
                     })
                 );
-            } catch (e) {
+            } catch {
                 setFormattedDate("Unknown");
             }
         }
@@ -141,7 +140,7 @@ export default function ExportPage() {
         };
 
         loadData();
-    }, [router, loadSerializedState]);
+    }, [router, loadSerializedState, autosaveService]);
 
     useEffect(() => {
         return () => {};
@@ -328,7 +327,7 @@ export default function ExportPage() {
                                                 modified:
                                                     new Date().toISOString(),
                                             });
-                                        } catch (error) {}
+                                        } catch {}
                                     }}
                                 />
                             </div>

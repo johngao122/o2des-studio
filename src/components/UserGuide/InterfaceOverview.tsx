@@ -12,7 +12,7 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
             <h2 className="text-3xl font-bold mb-8">Learning the Interface</h2>
             <p className="text-muted-foreground mb-8 text-lg">
                 This tutorial will teach you how to use each part of O²DES
-                Studio's interface effectively. Follow along to learn the
+                Studio&apos;s interface effectively. Follow along to learn the
                 essential skills for building simulation models.
             </p>
 
@@ -53,20 +53,20 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                             <ul className="space-y-2 text-sm text-muted-foreground">
                                 <li>
                                     <strong>Click the project name</strong>{" "}
-                                    (currently "My Simulation Project") to
-                                    rename it
+                                    (currently &quot;My Simulation
+                                    Project&quot;) to rename it
                                 </li>
                                 <li>
-                                    <strong>Use "New"</strong> to start a fresh
-                                    simulation model
+                                    <strong>Use &quot;New&quot;</strong> to
+                                    start a fresh simulation model
                                 </li>
                                 <li>
-                                    <strong>Click "Save"</strong> regularly to
-                                    preserve your work
+                                    <strong>Click &quot;Save&quot;</strong>{" "}
+                                    regularly to preserve your work
                                 </li>
                                 <li>
-                                    <strong>Use "Load"</strong> to open
-                                    previously saved models
+                                    <strong>Use &quot;Load&quot;</strong> to
+                                    open previously saved models
                                 </li>
                             </ul>
                         </div>
@@ -201,7 +201,7 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                                 </li>
                                 <li>
                                     <strong>3.</strong> Release to place the
-                                    component
+                                    component where you want it
                                 </li>
                                 <li>
                                     <strong>4.</strong> The component appears
@@ -340,9 +340,10 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                         </div>
 
                         <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                            <p className="text-sm">
-                                <strong>Tip:</strong> The edge type is
-                                determined automatically
+                            <p className="text-sm text-muted-foreground">
+                                <strong>💡 Tip:</strong> You can&apos;t connect
+                                incompatible components - the system will guide
+                                you to make valid connections only.
                             </p>
                         </div>
                     </div>
@@ -359,8 +360,8 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                                 Configuring Component Properties
                             </h3>
                             <p className="text-muted-foreground">
-                                Learn how to customize your components' behavior
-                                and settings
+                                Learn how to customize your components&apos;
+                                behavior and settings
                             </p>
                         </div>
                     </div>
@@ -413,7 +414,7 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                             <ul className="space-y-2 text-sm text-muted-foreground">
                                 <li>
                                     <strong>Name:</strong> Change the
-                                    component's display name
+                                    component&apos;s display name
                                 </li>
                                 <li>
                                     <strong>ID:</strong> Unique identifier
@@ -421,7 +422,7 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                                 </li>
                                 <li>
                                     <strong>Description:</strong> Add notes
-                                    about this component's purpose
+                                    about this component&apos;s purpose
                                 </li>
                                 <li>
                                     <strong>Position:</strong> Exact X,Y
@@ -453,6 +454,32 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                                 </li>
                             </ol>
                         </div>
+
+                        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                            <p className="text-sm text-muted-foreground">
+                                <strong>💡 Pro tip:</strong> Right-click on any
+                                component to access additional options like
+                                duplication and deletion.
+                            </p>
+                        </div>
+
+                        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                            <p className="text-sm text-muted-foreground">
+                                <strong>💡 Tip:</strong> The properties panel
+                                updates automatically when you select different
+                                components, so you can quickly switch between
+                                configuring multiple elements.
+                            </p>
+                        </div>
+
+                        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                            <p className="text-sm text-muted-foreground">
+                                <strong>💡 Tip:</strong> You can&apos;t select
+                                components that are incompatible with your
+                                current selection - this helps prevent
+                                configuration errors.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -464,12 +491,12 @@ export function InterfaceOverview({ modKey }: InterfaceOverviewProps) {
                     </div>
                     <div>
                         <h3 className="font-medium mb-2">
-                            You're Ready for the Next Step!
+                            You&apos;re Ready for the Next Step!
                         </h3>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Now that you understand the interface, you're ready
-                            to build your first complete simulation model. The
-                            next section will guide you through creating a
+                            Now that you understand the interface, you&apos;re
+                            ready to build your first complete simulation model.
+                            The next section will guide you through creating a
                             simple but functional simulation step by step.
                         </p>
                     </div>

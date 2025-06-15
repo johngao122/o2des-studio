@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useLayoutEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@/store";
-import { useReactFlow } from "reactflow";
-import { Position, ViewportTransform } from "@/lib/utils/coordinates";
 import { createPortal } from "react-dom";
 
 /**
@@ -14,8 +12,7 @@ import { createPortal } from "react-dom";
  * All operations are batched into a single undo/redo stack entry.
  */
 export const DragProxy = () => {
-    const { dragProxy } = useStore();
-    const reactFlowInstance = useReactFlow();
+    const dragProxy = useStore((state) => state.dragProxy);
     const proxyRef = useRef<HTMLDivElement>(null);
     const [viewportElement, setViewportElement] = useState<HTMLElement | null>(
         null
@@ -55,8 +52,6 @@ export const DragProxy = () => {
 
     const safeWidth = Math.max(1, width);
     const safeHeight = Math.max(1, height);
-
-    const viewport = reactFlowInstance.getViewport();
 
     const topPosition = dragProxy.currentPosition.y - safeHeight / 2;
     const leftPosition = dragProxy.currentPosition.x - safeWidth / 2;

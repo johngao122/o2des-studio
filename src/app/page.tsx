@@ -10,14 +10,11 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ViewController } from "@/controllers/ViewController";
 import { PropertiesBar } from "@/components/PropertiesBar";
 import { toast } from "sonner";
-import { SerializationService } from "@/services/SerializationService";
 import { AutosaveService } from "@/services/AutosaveService";
-import superjson from "superjson";
 import { NodeController } from "@/controllers/NodeController";
 import { EdgeController } from "@/controllers/EdgeController";
 
 const viewController = new ViewController();
-const serializationService = new SerializationService();
 const autosaveService = AutosaveService.getInstance();
 const nodeController = new NodeController();
 const edgeController = new EdgeController();
@@ -121,7 +118,7 @@ export default function DiagramEditor() {
             reader.readAsText(file);
             event.target.value = "";
         },
-        []
+        [loadSerializedState]
     );
 
     const handleZoomIn = useCallback(() => {

@@ -13,7 +13,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useStore } from "@/store";
-import { nodeTypes } from "@/components/nodes";
 import ActivityNode from "@/components/nodes/activitybased/resourceconstrainedqueues/ActivityNode";
 import GlobalNode from "@/components/nodes/activitybased/resourceconstrainedqueues/GlobalNode";
 import { CommandController } from "@/controllers/CommandController";
@@ -48,7 +47,6 @@ export function PropertiesBar({
     selectionInfo,
 }: PropertiesBarProps) {
     const [newResourceInput, setNewResourceInput] = useState("");
-    const selectedElements = useStore((state) => state.selectedElements);
 
     const handleAddResource = () => {
         if (newResourceInput.trim() === "") return;

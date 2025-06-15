@@ -124,7 +124,7 @@ const createDefaultMetadata = (): ProjectMetadata => {
     };
 };
 
-export const useStore = create<StoreState>((set, get) => ({
+const store = create<StoreState>((set, get) => ({
     projectName: "Untitled Project",
     nodes: [],
     edges: [],
@@ -1212,3 +1212,12 @@ export const useStore = create<StoreState>((set, get) => ({
         }
     },
 }));
+
+export const useStore = Object.assign(
+    <T>(selector: (state: StoreState) => T) => store(selector),
+    {
+        getState: store.getState,
+        setState: store.setState,
+        subscribe: store.subscribe,
+    }
+);

@@ -1,5 +1,4 @@
 import { Zap, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export function Introduction() {
     return (
@@ -22,7 +21,7 @@ export function Introduction() {
                 <p className="text-muted-foreground mb-6 leading-relaxed">
                     O²DES Studio is a powerful web-based simulation platform
                     designed to help you create, visualize, and analyze discrete
-                    event systems. Whether you're modeling manufacturing
+                    event systems. Whether you&apos;re modeling manufacturing
                     processes, service systems, or complex workflows, O²DES
                     Studio provides the tools you need to build accurate
                     simulations and gain valuable insights.
@@ -84,10 +83,10 @@ export function Introduction() {
                             New to Discrete Event Simulation?
                         </h3>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Don't worry! This guide will walk you through the
-                            basics of discrete event modeling and show you how
-                            to leverage O²DES Studio's powerful features to
-                            create your first simulation.
+                            Don&apos;t worry! This guide will walk you through
+                            the basics of discrete event modeling and show you
+                            how to leverage O²DES Studio&apos;s powerful
+                            features to create your first simulation.
                         </p>
                     </div>
                 </div>

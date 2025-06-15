@@ -14,8 +14,8 @@ export function FirstModelTutorial() {
             </h2>
             <p className="text-muted-foreground mb-8 text-lg">
                 Follow this step-by-step tutorial to create your first complete
-                simulation model. We'll build a simple server system and export
-                it for simulation.
+                simulation model. We&apos;ll build a simple server system and
+                export it for simulation.
             </p>
 
             <div className="space-y-8">
@@ -41,7 +41,7 @@ export function FirstModelTutorial() {
                     <div className="space-y-6">
                         <div className="border-l-4 border-emerald-500/50 pl-4">
                             <h4 className="font-medium mb-3">
-                                What you'll build:
+                                What you&apos;ll build:
                             </h4>
                             <p className="text-sm text-muted-foreground mb-4">
                                 A simple queue model with a generator creating
@@ -148,10 +148,10 @@ export function FirstModelTutorial() {
 
                         <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                             <p className="text-sm">
-                                <strong>💡 Pro tip:</strong> Don't worry about
-                                perfect alignment yet - we'll fix that in Step
-                                2! Focus on getting all components placed and
-                                connected properly.
+                                <strong>💡 Pro tip:</strong> Don&apos;t worry
+                                about perfect alignment yet - we&apos;ll fix
+                                that in Step 2! Focus on getting all components
+                                placed and connected properly.
                             </p>
                         </div>
                     </div>
@@ -171,8 +171,8 @@ export function FirstModelTutorial() {
                                 (Optional)
                             </h3>
                             <p className="text-muted-foreground">
-                                Use O²DES Studio's auto-layout feature to create
-                                a clean, professional-looking model
+                                Use O²DES Studio&apos;s auto-layout feature to
+                                create a clean, professional-looking model
                             </p>
                         </div>
                     </div>
@@ -189,7 +189,8 @@ export function FirstModelTutorial() {
                                     </span>
                                     <div>
                                         <strong>
-                                            Click the "Auto Layout" button
+                                            Click the &quot;Auto Layout&quot;
+                                            button
                                         </strong>{" "}
                                         in the toolbar at the top of the screen
                                     </div>
@@ -287,7 +288,7 @@ export function FirstModelTutorial() {
                                     <div>
                                         <strong>Save your model first</strong>{" "}
                                         using Ctrl+S (Cmd+S on Mac) to ensure
-                                        you don't lose your work
+                                        you don&apos;t lose your work
                                     </div>
                                 </li>
                                 <li className="flex items-start gap-3">
@@ -296,7 +297,7 @@ export function FirstModelTutorial() {
                                     </span>
                                     <div>
                                         <strong>
-                                            Click the "Export" button
+                                            Click the &quot;Export&quot; button
                                         </strong>{" "}
                                         in the top toolbar (usually shows a
                                         download or arrow icon)
@@ -333,11 +334,11 @@ export function FirstModelTutorial() {
 
                         <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                             <p className="text-sm">
-                                <strong>⚡ What's next:</strong> After export,
-                                you'll have a JSON file containing all your
-                                model's structure and parameters. This file can
-                                be loaded into simulation engines or modified as
-                                needed.
+                                <strong>⚡ What&apos;s next:</strong> After
+                                export, you&apos;ll have a JSON file containing
+                                all your model&apos;s structure and parameters.
+                                This file can be imported into the O²DES
+                                simulation engine for execution and analysis.
                             </p>
                         </div>
                     </div>
@@ -479,11 +480,9 @@ export function FirstModelTutorial() {
 
                         <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                             <p className="text-sm">
-                                <strong>🎉 Congratulations!</strong> You've
-                                successfully created, refined, and exported your
-                                first simulation model. Your JSON file is now
-                                ready to be loaded into a simulation engine for
-                                execution and analysis.
+                                <strong>🎉 Congratulations!</strong> You&apos;ve
+                                successfully created and exported your first
+                                simulation model using O²DES Studio.
                             </p>
                         </div>
                     </div>
@@ -491,14 +490,14 @@ export function FirstModelTutorial() {
             </div>
 
             {/* Summary and Next Steps */}
-            <div className="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/20 rounded-lg p-6 mt-8">
+            <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-6 mt-8">
                 <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center flex-shrink-0">
                         <Zap className="h-4 w-4 text-emerald-500" />
                     </div>
                     <div>
                         <h3 className="font-medium mb-2">
-                            What You've Accomplished
+                            What You&apos;ve Accomplished
                         </h3>
                         <ul className="text-sm text-muted-foreground space-y-1">
                             <li>
@@ -518,11 +517,11 @@ export function FirstModelTutorial() {
                                 structure
                             </li>
                         </ul>
-                        <p className="text-sm text-muted-foreground mt-3">
-                            You're now ready to explore more advanced features
-                            like complex routing, multiple servers, and detailed
-                            analytics. The next sections will cover these topics
-                            in depth.
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            You&apos;re now ready to explore more advanced
+                            features like complex routing, resource constraints,
+                            and statistical analysis. The next sections will
+                            guide you through these advanced capabilities.
                         </p>
                     </div>
                 </div>

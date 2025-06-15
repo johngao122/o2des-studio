@@ -1,6 +1,5 @@
 import { DragEvent, MouseEvent } from "react";
-import { NODE_TYPES, nodeTypes, NODE_GROUPS } from "./nodes";
-import { useStore } from "@/store";
+import { NODE_TYPES, NODE_GROUPS } from "./nodes";
 import { NodeFactory } from "@/factories/NodeFactory";
 import { ViewController } from "@/controllers/ViewController";
 import { CommandController } from "@/controllers/CommandController";
@@ -25,7 +24,6 @@ import { GeneratorNodePreview } from "./nodes/activitybased/resourceconstrainedq
 import { ActivityNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/ActivityNode";
 import { TerminatorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/TerminatorNode";
 import { GlobalNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GlobalNode";
-import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
     initialization: "Initial state setup",

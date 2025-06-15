@@ -10,14 +10,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
     FileIcon,
-    Edit,
     Eye,
     LayoutGrid,
     Plus,
     Settings,
     HelpCircle,
-    ChevronDown,
-    Save,
     Undo,
     Redo,
     Copy,
@@ -31,7 +28,6 @@ import {
     Sun,
     Keyboard,
     Pencil,
-    Check,
     Download,
     BookOpen,
 } from "lucide-react";

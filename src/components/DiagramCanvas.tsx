@@ -11,16 +11,15 @@ import ReactFlow, {
     Controls,
     MiniMap,
     Panel,
-    Node,
     Viewport,
     NodeChange,
     ReactFlowProvider,
     ConnectionMode,
     Edge,
-    applyNodeChanges,
     useReactFlow,
     OnSelectionChangeParams,
     SelectionMode,
+    Connection,
 } from "reactflow";
 import { useStore } from "@/store";
 import { nodeTypes } from "@/components/nodes";
@@ -29,14 +28,9 @@ import { NodeFactory } from "@/factories/NodeFactory";
 import { ViewController } from "@/controllers/ViewController";
 import { NodeController } from "@/controllers/NodeController";
 import { CommandController } from "@/controllers/CommandController";
-import { BaseNode } from "@/types/base";
 import { AutosaveService } from "@/services/AutosaveService";
 import { DragProxy } from "./DragProxy";
-import {
-    Position,
-    ViewportTransform,
-    screenToFlowPosition,
-} from "@/lib/utils/coordinates";
+import { screenToFlowPosition } from "@/lib/utils/coordinates";
 import { GRID_SIZE } from "@/lib/utils/math";
 import "./diagram-canvas.css";
 
@@ -70,13 +64,17 @@ const flowOptions = {
 } as const;
 
 function FlowCanvas() {
-    const { nodes, edges, onEdgesChange, onConnect, viewportTransform } =
-        useStore();
+    const nodes = useStore((state) => state.nodes);
+    const edges = useStore((state) => state.edges);
+    const viewportTransform = useStore((state) => state.viewportTransform);
+    const dragProxy = useStore((state) => state.dragProxy);
+    const onEdgesChange = useStore.getState().onEdgesChange;
+    const onConnect = useStore.getState().onConnect;
+    const startDragProxy = useStore.getState().startDragProxy;
+    const updateDragProxy = useStore.getState().updateDragProxy;
+    const endDragProxy = useStore.getState().endDragProxy;
     const reactFlowInstance = useReactFlow();
-    const { startDragProxy, updateDragProxy, endDragProxy, dragProxy } =
-        useStore();
     const dragTimeoutRef = useRef<number | null>(null);
-    const viewportRef = useRef<HTMLDivElement | null>(null);
     const mouseStartPositionRef = useRef<{ x: number; y: number } | null>(null);
     const [mouseCoordinates, setMouseCoordinates] = useState<{
         screen: { x: number; y: number };
@@ -100,15 +98,18 @@ function FlowCanvas() {
         }
     }, [reactFlowInstance, viewportTransform]);
 
-    const handleNodeDataUpdate = useCallback((nodeId: string, newData: any) => {
-        const node = nodeController.getNode(nodeId);
-        if (node) {
-            nodeController.updateNode(nodeId, {
-                ...node,
-                data: { ...node.data, ...newData },
-            });
-        }
-    }, []);
+    const handleNodeDataUpdate = useCallback(
+        (nodeId: string, newData: Record<string, unknown>) => {
+            const node = nodeController.getNode(nodeId);
+            if (node) {
+                nodeController.updateNode(nodeId, {
+                    ...node,
+                    data: { ...node.data, ...newData },
+                });
+            }
+        },
+        []
+    );
 
     const nodesWithData = useMemo(() => {
         const sortedNodes = [...nodes].sort((a, b) => {
@@ -140,10 +141,10 @@ function FlowCanvas() {
                 },
             };
         });
-    }, [nodes, handleNodeDataUpdate, dragProxy.isActive]);
+    }, [nodes, handleNodeDataUpdate]);
 
     const handleConnect = useCallback(
-        (params: any) => {
+        (params: Connection) => {
             const connection = {
                 source: params.source,
                 sourceHandle: params.sourceHandle,
@@ -297,23 +298,21 @@ function FlowCanvas() {
                     useStore.getState().selectedElements.edges;
 
                 const DRAG_PROXY_THRESHOLD = 3;
+                const shouldUseDragProxy =
+                    selectedNodeIds.length >= DRAG_PROXY_THRESHOLD;
+
+                const isDragProxyActive = dragProxy.isActive;
+
+                const startingDrag = positionChanges.some(
+                    (change) =>
+                        change.type === "position" &&
+                        change.dragging === true &&
+                        selectedNodeIds.includes(change.id)
+                );
+
                 const selectedNodes = nodes.filter((node) =>
                     selectedNodeIds.includes(node.id)
                 );
-                const selectedEdgesCount = selectedEdgeIds.length;
-                const totalSelectedComponents =
-                    selectedNodes.length + selectedEdgesCount;
-                const shouldUseDragProxy =
-                    totalSelectedComponents >= DRAG_PROXY_THRESHOLD;
-
-                const startingDrag = positionChanges.some(
-                    (change) => change.dragging === true
-                );
-                const endingDrag = positionChanges.some(
-                    (change) => change.dragging === false
-                );
-
-                const isDragProxyActive = dragProxy.isActive;
 
                 if (isDragProxyActive) {
                     const firstChange = positionChanges[0];
@@ -322,22 +321,18 @@ function FlowCanvas() {
                         "position" in firstChange &&
                         firstChange.position
                     ) {
-                        const viewport = reactFlowInstance.getViewport();
-                        const viewportTransform: ViewportTransform = viewport;
-
-                        const currentMousePosition = firstChange.position;
-
-                        updateDragProxy(currentMousePosition, viewport.zoom);
+                        updateDragProxy(firstChange.position);
                     }
 
-                    if (endingDrag) {
-                        if (dragTimeoutRef.current !== null) {
-                            clearTimeout(dragTimeoutRef.current);
-                            dragTimeoutRef.current = null;
-                        }
+                    const isDragEnd = positionChanges.some(
+                        (change) =>
+                            change.type === "position" &&
+                            change.dragging === false
+                    );
 
-                        mouseStartPositionRef.current = null;
+                    if (isDragEnd) {
                         endDragProxy(true);
+                        mouseStartPositionRef.current = null;
                     }
 
                     return;

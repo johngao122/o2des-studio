@@ -12,14 +12,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
     FileIcon,
-    Edit,
     Eye,
     LayoutGrid,
     Plus,
     Settings,
     HelpCircle,
-    ChevronDown,
-    Save,
     Undo,
     Redo,
     Copy,
@@ -45,12 +42,13 @@ import { ProjectExportService } from "@/services/ProjectExportService";
 import { CommandController } from "@/controllers/CommandController";
 import { toast } from "sonner";
 import superjson from "superjson";
+import { BaseNode, BaseEdge } from "@/types/base";
 
 interface SerializedState {
     projectName: string;
-    nodes: any[];
-    edges: any[];
-    metadata: any;
+    nodes: BaseNode[];
+    edges: BaseEdge[];
+    metadata: Record<string, unknown>;
 }
 
 interface ToolbarProps {
@@ -85,15 +83,13 @@ export function Toolbar({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
     const [isExporting, setIsExporting] = useState(false);
-    const {
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        projectName,
-        updateProjectName,
-        metadata,
-    } = useStore();
+    const projectName = useStore((state) => state.projectName);
+    const metadata = useStore((state) => state.metadata);
+    const undo = useStore.getState().undo;
+    const redo = useStore.getState().redo;
+    const canUndo = useStore.getState().canUndo;
+    const canRedo = useStore.getState().canRedo;
+    const updateProjectName = useStore.getState().updateProjectName;
     const getSerializedState = useStore.getState().getSerializedState;
     const commandController = CommandController.getInstance();
     const [isEditingName, setIsEditingName] = useState(false);
@@ -124,7 +120,7 @@ export function Toolbar({
                         minute: "2-digit",
                     })
                 );
-            } catch (e) {
+            } catch {
                 setFormattedDate("Unknown");
             }
         }
@@ -172,7 +168,13 @@ export function Toolbar({
             const exportData = ProjectExportService.convertToStructuredModel({
                 json: {
                     nodes: parsedState.nodes || [],
-                    edges: parsedState.edges || [],
+                    edges: (parsedState.edges || []).map((edge) => ({
+                        id: edge.id,
+                        source: edge.source,
+                        target: edge.target,
+                        type: edge.type || "default",
+                        data: edge.data || {},
+                    })),
                 },
             });
 
@@ -180,11 +182,6 @@ export function Toolbar({
 
             sessionStorage.setItem("o2des_export_json", exportJson);
             sessionStorage.setItem("o2des_diagram_serialized", diagramData);
-
-            const stored = sessionStorage.getItem("o2des_export_json");
-            const storedDiagram = sessionStorage.getItem(
-                "o2des_diagram_serialized"
-            );
 
             router.push("/export");
 
