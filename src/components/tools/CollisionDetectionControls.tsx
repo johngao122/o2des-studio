@@ -9,7 +9,10 @@ const commandController = CommandController.getInstance();
 export const CollisionDetectionControls: React.FC = () => {
     const [distance, setDistance] = useState(50);
     const [maxIterations, setMaxIterations] = useState(10);
-    const { edges, nodes } = useStore();
+    const { edges, nodes } = useStore((state) => ({
+        edges: state.edges,
+        nodes: state.nodes,
+    }));
 
     const handleManualAdjustment = () => {
         commandController.adjustAllControlPointCollisions(

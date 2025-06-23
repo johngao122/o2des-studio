@@ -11,7 +11,6 @@ import React, {
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
-import { useStore } from "@/store";
 import {
     parseTransformMatrix,
     clientToFlowPosition,
@@ -20,7 +19,6 @@ import {
 } from "@/lib/utils/math";
 import BaseEdgeComponent, {
     BaseEdgeData,
-    EdgeTypeOption,
 } from "@/components/edges/BaseEdgeComponent";
 
 const commandController = CommandController.getInstance();
@@ -34,16 +32,11 @@ interface ExtendedEdgeProps extends EdgeProps<RCQEdgeData> {
     onClick?: () => void;
 }
 
-interface RCQEdgeComponent
-    extends React.NamedExoticComponent<ExtendedEdgeProps> {
-    getDefaultData?: () => RCQEdgeData;
-    getGraphType?: () => string;
-    displayName?: string;
-}
-
 const RCQEdge = memo(
     ({
         id,
+        source,
+        target,
         sourceX,
         sourceY,
         targetX,
@@ -130,6 +123,7 @@ const RCQEdge = memo(
             }
         };
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         const handleConditionDrag = useCallback(
             throttle((e: MouseEvent) => {
                 if (!isConditionDragging || !dragOffsetRef.current) return;
@@ -200,14 +194,14 @@ const RCQEdge = memo(
                     }
                 }
 
-                const newOffset = {
+                const newConditionLabelOffset = {
                     x: tempConditionPosition.x - conditionMarkerX,
                     y: tempConditionPosition.y - conditionMarkerY,
                 };
 
                 const updatedData = {
                     ...data,
-                    conditionLabelOffset: newOffset,
+                    conditionLabelOffset: newConditionLabelOffset,
                 };
 
                 const command = commandController.createUpdateEdgeCommand(id, {
@@ -235,14 +229,14 @@ const RCQEdge = memo(
             if (isConditionDragging) {
                 window.addEventListener(
                     "mousemove",
-                    handleConditionDrag as any
+                    handleConditionDrag as unknown as EventListener
                 );
                 window.addEventListener("mouseup", handleConditionDragEnd);
 
                 return () => {
                     window.removeEventListener(
                         "mousemove",
-                        handleConditionDrag as any
+                        handleConditionDrag as unknown as EventListener
                     );
                     window.removeEventListener(
                         "mouseup",
@@ -255,6 +249,8 @@ const RCQEdge = memo(
         return (
             <BaseEdgeComponent
                 id={id}
+                source={source}
+                target={target}
                 sourceX={sourceX}
                 sourceY={sourceY}
                 targetX={targetX}
@@ -463,7 +459,11 @@ const RCQEdge = memo(
             </BaseEdgeComponent>
         );
     }
-) as any;
+) as React.NamedExoticComponent<ExtendedEdgeProps> & {
+    getDefaultData?: () => RCQEdgeData;
+    getGraphType?: () => string;
+    displayName?: string;
+};
 
 RCQEdge.getDefaultData = (): RCQEdgeData => ({
     edgeType: "straight",

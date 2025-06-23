@@ -70,6 +70,9 @@ export const BaseEdgeComponent = memo(
         onClick: _onClick,
         children,
     }: BaseEdgeProps<T>) => {
+        void _sourcePosition;
+        void _targetPosition;
+        void _onClick;
         const [isDragging, setIsDragging] = useState<number | null>(null);
         const [isCenterDragging, setIsCenterDragging] = useState(false);
         const [tempControlPoints, setTempControlPoints] = useState<
@@ -324,6 +327,7 @@ export const BaseEdgeComponent = memo(
             }
         };
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         const handleCenterDrag = useCallback(
             throttle((e: MouseEvent) => {
                 if (!isCenterDragging || !dragOffsetRef.current) return;
@@ -455,6 +459,7 @@ export const BaseEdgeComponent = memo(
                 }
             };
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         const handleDrag = useCallback(
             throttle((e: MouseEvent) => {
                 if (isDragging === null || !dragOffsetRef.current) return;

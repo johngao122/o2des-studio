@@ -27,7 +27,10 @@ export function useKeyboardShortcuts({
     onCopy,
     onPaste,
 }: UseKeyboardShortcutsProps) {
-    const { undo, redo } = useStore();
+    const { undo, redo } = useStore((state) => ({
+        undo: state.undo,
+        redo: state.redo,
+    }));
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {

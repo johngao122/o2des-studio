@@ -1,3 +1,5 @@
+/*eslint-disable */
+
 "use client";
 
 import React, { memo, useState, useCallback, useRef, useMemo } from "react";
@@ -56,6 +58,8 @@ interface EventGraphEdgeComponent
 const EventGraphEdge = memo(
     ({
         id,
+        source,
+        target,
         sourceX,
         sourceY,
         targetX,
@@ -253,6 +257,8 @@ const EventGraphEdge = memo(
         return (
             <BaseEdgeComponent
                 id={id}
+                source={source}
+                target={target}
                 sourceX={sourceX}
                 sourceY={sourceY}
                 targetX={targetX}

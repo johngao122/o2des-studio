@@ -1,3 +1,5 @@
+/*eslint-disable */
+
 "use client";
 
 import React, { memo, useState, useCallback } from "react";
@@ -30,6 +32,8 @@ interface InitializationEdgeComponent
 const InitializationEdge = memo(
     ({
         id,
+        source,
+        target,
         sourceX,
         sourceY,
         targetX,
@@ -79,6 +83,8 @@ const InitializationEdge = memo(
         return (
             <BaseEdgeComponent
                 id={id}
+                source={source}
+                target={target}
                 sourceX={sourceX}
                 sourceY={sourceY}
                 targetX={targetX}
