@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import MathJaxProvider from "@/components/MathJaxProvider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
-import dynamic from "next/dynamic";
-
-const MathJaxProvider = dynamic(() => import("@/components/MathJaxProvider"), {
-    ssr: false,
-});
 
 const inter = Inter({ subsets: ["latin"] });
 
