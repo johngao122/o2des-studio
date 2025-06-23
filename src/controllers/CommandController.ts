@@ -14,7 +14,11 @@ import {
 import { nanoid } from "nanoid";
 import { AutosaveService } from "../services/AutosaveService";
 import { checkAllEdgeControlPointCollisions } from "../lib/utils/collision";
-import { LayoutService, LayoutConfig } from "../services/LayoutService";
+import {
+    DagreLayoutService,
+    DagreLayoutConfig,
+    FlowDirection,
+} from "../services/DagreLayoutService";
 
 interface Command {
     execute: () => void;
@@ -33,11 +37,11 @@ export class CommandController {
     private redoStack: Command[] = [];
     private dragState: Map<string, DragState> = new Map();
     private autosaveService: AutosaveService;
-    private layoutService: LayoutService;
+    private dagreLayoutService: DagreLayoutService;
 
     private constructor() {
         this.autosaveService = AutosaveService.getInstance();
-        this.layoutService = LayoutService.getInstance();
+        this.dagreLayoutService = DagreLayoutService.getInstance();
     }
 
     public static getInstance(): CommandController {
@@ -717,79 +721,63 @@ export class CommandController {
     }
 
     /**
-     * Create a command to apply automatic layout to nodes and straighten edges
+     * Create a Dagre layout command for selected nodes or all nodes
      */
-    createLayoutCommand(
-        selectedNodeIds: string[] = [],
-        config: Partial<LayoutConfig> = {}
+    createDagreLayoutCommand(
+        direction: FlowDirection = "LR",
+        selectedNodeIds: string[] = []
     ): Command {
         const { nodes, edges } = useStore.getState();
 
-        const originalPositions = new Map<string, { x: number; y: number }>();
-        const originalEdges = new Map<string, BaseEdge>();
-
-        nodes.forEach((node) => {
-            originalPositions.set(node.id, { ...node.position });
-        });
-
-        edges.forEach((edge) => {
-            originalEdges.set(edge.id, {
-                ...edge,
-                data: { ...edge.data },
-            });
-        });
-
-        const layoutResult = this.layoutService.autoLayout(
-            nodes,
-            edges,
-            selectedNodeIds,
-            config
-        );
+        const originalNodes = nodes.map((node) => ({
+            ...node,
+            position: { ...node.position },
+        }));
+        const originalEdges = edges.map((edge) => ({
+            ...edge,
+            data: { ...edge.data },
+        }));
 
         return {
             execute: () => {
-                useStore.setState((state) => ({
-                    nodes: state.nodes.map((node) => {
-                        const layoutedNode = layoutResult.nodes.find(
-                            (n) => n.id === node.id
-                        );
-                        return layoutedNode || node;
-                    }),
-                    edges: state.edges.map((edge) => {
-                        const layoutedEdge = layoutResult.edges.find(
-                            (e) => e.id === edge.id
-                        );
-                        return layoutedEdge || edge;
-                    }),
-                }));
-                this.autosaveService.autosave();
+                const config = this.dagreLayoutService.getOptimalConfig(
+                    nodes,
+                    edges,
+                    direction
+                );
+                const { nodes: layoutedNodes, edges: layoutedEdges } =
+                    this.dagreLayoutService.autoLayout(
+                        nodes,
+                        edges,
+                        selectedNodeIds,
+                        config
+                    );
+
+                useStore.setState({
+                    nodes: layoutedNodes,
+                    edges: layoutedEdges,
+                });
             },
             undo: () => {
-                useStore.setState((state) => ({
-                    nodes: state.nodes.map((node) => {
-                        const originalPosition = originalPositions.get(node.id);
-                        return originalPosition
-                            ? { ...node, position: originalPosition }
-                            : node;
-                    }),
-                    edges: state.edges.map((edge) => {
-                        const originalEdge = originalEdges.get(edge.id);
-                        return originalEdge || edge;
-                    }),
-                }));
-                this.autosaveService.autosave();
+                useStore.setState({
+                    nodes: originalNodes,
+                    edges: originalEdges,
+                });
             },
         };
     }
 
     /**
-     * Apply automatic layout to selected nodes or all nodes
+     * Apply Dagre layout with specified direction
      */
-    applyLayout(
-        selectedNodeIds: string[] = [],
-        config: Partial<LayoutConfig> = {}
+    applyDagreLayout(
+        direction: FlowDirection = "LR",
+        selectedNodeIds: string[] = []
     ): void {
-        const command = this.createLayoutCommand(selectedNodeIds, config);
+        const command = this.createDagreLayoutCommand(
+            direction,
+            selectedNodeIds
+        );
         this.execute(command);
     }
 }

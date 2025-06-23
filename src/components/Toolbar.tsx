@@ -36,6 +36,8 @@ import {
     Check,
     Download,
     BookOpen,
+    ArrowRight,
+    ArrowDown,
 } from "lucide-react";
 import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
@@ -45,6 +47,7 @@ import { ProjectExportService } from "@/services/ProjectExportService";
 import { CommandController } from "@/controllers/CommandController";
 import { toast } from "sonner";
 import superjson from "superjson";
+import { FlowDirection } from "@/services/DagreLayoutService";
 
 interface SerializedState {
     projectName: string;
@@ -101,6 +104,7 @@ export function Toolbar({
     const inputRef = useRef<HTMLInputElement>(null);
 
     const [formattedDate, setFormattedDate] = useState<string>("");
+    const [flowDirection, setFlowDirection] = useState<FlowDirection>("LR");
 
     useEffect(() => {
         setNameValue(projectName);
@@ -135,10 +139,15 @@ export function Toolbar({
         setIsEditingName(false);
     };
 
-    const handleAlign = () => {
+    const handleDirectionalLayout = (direction: FlowDirection) => {
         try {
-            commandController.applyLayout();
-            toast.success("Layout applied successfully");
+            setFlowDirection(direction);
+            commandController.applyDagreLayout(direction);
+            toast.success(
+                `${
+                    direction === "LR" ? "Horizontal" : "Vertical"
+                } layout applied successfully`
+            );
         } catch (error) {
             console.error("Error applying layout:", error);
             toast.error("Failed to apply layout");
@@ -461,17 +470,25 @@ export function Toolbar({
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Arrange Menu */}
+                {/* Layout Menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 px-2">
-                            Arrange
+                            Layout
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={handleAlign}>
-                            <LayoutGrid className="mr-2 h-4 w-4" />
-                            Auto Layout
+                        <DropdownMenuItem
+                            onSelect={() => handleDirectionalLayout("LR")}
+                        >
+                            <ArrowRight className="mr-2 h-4 w-4" />
+                            Horizontal Flow
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() => handleDirectionalLayout("TB")}
+                        >
+                            <ArrowDown className="mr-2 h-4 w-4" />
+                            Vertical Flow
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
