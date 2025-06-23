@@ -61,13 +61,13 @@ export const BaseEdgeComponent = memo(
         sourceY,
         targetX,
         targetY,
-        sourcePosition,
-        targetPosition,
+        sourcePosition: _sourcePosition,
+        targetPosition: _targetPosition,
         style = {},
         data = {} as T,
         markerEnd,
         selected,
-        onClick,
+        onClick: _onClick,
         children,
     }: BaseEdgeProps<T>) => {
         const [isDragging, setIsDragging] = useState<number | null>(null);
@@ -130,7 +130,14 @@ export const BaseEdgeComponent = memo(
                 });
                 commandController.execute(command);
             }
-        }, [hasCustomControlPoints, id, defaultControlPoints.cp1, defaultControlPoints.cp2, defaultControlPoints.cp3, data]);
+        }, [
+            hasCustomControlPoints,
+            id,
+            defaultControlPoints.cp1,
+            defaultControlPoints.cp2,
+            defaultControlPoints.cp3,
+            data,
+        ]);
 
         const getControlPoint = (index: number) => {
             if (isDragging === index + 1 && tempControlPoints[index]) {
@@ -156,10 +163,8 @@ export const BaseEdgeComponent = memo(
         const controlPoint3 = getControlPoint(2);
 
         let edgePath: string;
-        let labelX: number, labelY: number;
-
-        labelX = controlPoint2.x;
-        labelY = controlPoint2.y;
+        const labelX: number = controlPoint2.x;
+        const labelY: number = controlPoint2.y;
 
         switch (edgeType) {
             case "bezier":
@@ -488,7 +493,7 @@ export const BaseEdgeComponent = memo(
                         y: snapToGrid(rawPosition.y),
                     };
 
-                    setTempControlPoints((prev) => {
+                    setTempControlPoints(() => {
                         const currentControlPoints = data?.controlPoints || [];
                         const newControlPoints = [...currentControlPoints];
 
@@ -669,11 +674,17 @@ export const BaseEdgeComponent = memo(
 
         useEffect(() => {
             if (isDragging !== null) {
-                window.addEventListener("mousemove", handleDrag as any);
+                window.addEventListener(
+                    "mousemove",
+                    handleDrag as unknown as EventListener
+                );
                 window.addEventListener("mouseup", handleDragEnd);
 
                 return () => {
-                    window.removeEventListener("mousemove", handleDrag as any);
+                    window.removeEventListener(
+                        "mousemove",
+                        handleDrag as unknown as EventListener
+                    );
                     window.removeEventListener("mouseup", handleDragEnd);
                 };
             }
@@ -681,13 +692,16 @@ export const BaseEdgeComponent = memo(
 
         useEffect(() => {
             if (isCenterDragging) {
-                window.addEventListener("mousemove", handleCenterDrag as any);
+                window.addEventListener(
+                    "mousemove",
+                    handleCenterDrag as unknown as EventListener
+                );
                 window.addEventListener("mouseup", handleCenterDragEnd);
 
                 return () => {
                     window.removeEventListener(
                         "mousemove",
-                        handleCenterDrag as any
+                        handleCenterDrag as unknown as EventListener
                     );
                     window.removeEventListener("mouseup", handleCenterDragEnd);
                 };
@@ -811,7 +825,9 @@ export const BaseEdgeComponent = memo(
             </>
         );
     }
-) as any;
+) as React.ForwardRefExoticComponent<
+    BaseEdgeProps<BaseEdgeData> & React.RefAttributes<unknown>
+>;
 
 export const getDefaultBaseEdgeData = (): BaseEdgeData => ({
     edgeType: "straight",
