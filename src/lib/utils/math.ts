@@ -528,6 +528,103 @@ export function arePointsCollinear(
 }
 
 /**
+ * Get a point and perpendicular angle at parameter t along an SVG path
+ * Uses actual path geometry for accurate positioning and rotation
+ */
+export function getPointAndAngleOnPath(
+    path: string,
+    t: number,
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number
+): { x: number; y: number; angle: number } {
+    try {
+        const svg = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg"
+        );
+        const pathElement = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+        );
+        pathElement.setAttribute("d", path);
+        svg.appendChild(pathElement);
+        document.body.appendChild(svg);
+
+        const totalLength = pathElement.getTotalLength();
+        const point = pathElement.getPointAtLength(totalLength * t);
+
+        const offset = Math.min(1, totalLength * 0.01);
+        const nextT = Math.min(1, t + offset / totalLength);
+        const prevT = Math.max(0, t - offset / totalLength);
+
+        const nextPoint = pathElement.getPointAtLength(totalLength * nextT);
+        const prevPoint = pathElement.getPointAtLength(totalLength * prevT);
+
+        const dx = nextPoint.x - prevPoint.x;
+        const dy = nextPoint.y - prevPoint.y;
+        const tangentAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        const perpendicularAngle = tangentAngle + 90;
+
+        document.body.removeChild(svg);
+
+        return { x: point.x, y: point.y, angle: perpendicularAngle };
+    } catch (error) {
+        const dx = targetX - sourceX;
+        const dy = targetY - sourceY;
+        const tangentAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const perpendicularAngle = tangentAngle + 90;
+
+        return {
+            x: sourceX + dx * t,
+            y: sourceY + dy * t,
+            angle: perpendicularAngle,
+        };
+    }
+}
+
+/**
+ * Calculate edge positions for multiple points along an edge
+ * Returns both path-based positions (for markers) and simple edge points (for dragging)
+ */
+export function calculateEdgePositions(
+    edgePath: string,
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+    positions: number[],
+    isSimpleMode: boolean,
+    centerX: number,
+    centerY: number
+): {
+    pathPoints: Array<{ x: number; y: number; angle: number }>;
+    edgePoints: Array<{ x: number; y: number }>;
+} {
+    const pathPoints = positions.map((t) =>
+        getPointAndAngleOnPath(edgePath, t, sourceX, sourceY, targetX, targetY)
+    );
+
+    let edgePoints: Array<{ x: number; y: number }>;
+
+    if (isSimpleMode) {
+        const dx = targetX - sourceX;
+        const dy = targetY - sourceY;
+
+        edgePoints = positions.map((t) => ({
+            x: sourceX + dx * t,
+            y: sourceY + dy * t,
+        }));
+    } else {
+        edgePoints = positions.map(() => ({ x: centerX, y: centerY }));
+    }
+
+    return { pathPoints, edgePoints };
+}
+
+/**
  * Get all handle coordinates for a node based on its position and size
  */
 export function getAllHandleCoordinates(

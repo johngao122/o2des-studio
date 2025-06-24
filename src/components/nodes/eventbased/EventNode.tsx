@@ -51,6 +51,15 @@ const EventNode = memo(
         const [isHovered, setIsHovered] = useState(false);
         const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+        const storeNode = useStore((state) =>
+            state.nodes.find((n: BaseNode) => n.id === id)
+        );
+
+        const nodeName = storeNode?.name || "Event Node";
+        const storeData = storeNode?.data || {};
+        const nodeWidth = storeData?.width || 200;
+        const nodeHeight = storeData?.height || 120;
+
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
             setEditStateUpdate(data?.stateUpdate || "");
@@ -81,14 +90,14 @@ const EventNode = memo(
             (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
-                        ...data,
+                        ...storeData,
                         width: params.width,
                         height: params.height,
                     },
                 });
                 commandController.execute(command);
             },
-            [id, data]
+            [id, storeData]
         );
 
         const handleMouseEnter = useCallback(() => {
@@ -105,14 +114,6 @@ const EventNode = memo(
             }, 200);
         }, []);
 
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
-
-        const nodeName = node?.name || "Event Node";
-
-        const nodeWidth = data?.width || 200;
-        const nodeHeight = data?.height || 120;
         const handlePositions = getStandardHandlePositions(
             nodeWidth,
             nodeHeight
@@ -140,6 +141,8 @@ const EventNode = memo(
                     minWidth={200}
                     minHeight={120}
                     onResize={handleResize}
+                    handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
+                    lineClassName="!border-blue-500 !border-2"
                 />
 
                 {/* Node Name/Title */}
@@ -318,7 +321,9 @@ const EventNode = memo(
             prev.isConnectable === next.isConnectable &&
             prevName === nextName &&
             prev.data.stateUpdate === next.data.stateUpdate &&
-            prev.data.eventParameters === next.data.eventParameters
+            prev.data.eventParameters === next.data.eventParameters &&
+            prev.data.width === next.data.width &&
+            prev.data.height === next.data.height
         );
     }
 ) as any;

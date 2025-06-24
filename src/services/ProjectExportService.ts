@@ -7,6 +7,9 @@ interface ProjectNode {
         duration?: string;
         width?: number;
         height?: number;
+        initializations?: string[];
+        stateUpdate?: string;
+        eventParameters?: string;
     };
     position: { x: number; y: number };
 }
@@ -20,6 +23,9 @@ interface ProjectEdge {
         edgeType?: string;
         condition?: string;
         isDependency?: boolean;
+        initialDelay?: string;
+        delay?: string;
+        parameter?: string;
     };
 }
 
@@ -63,10 +69,36 @@ interface OutputModel {
     scenario: string;
     description: string;
     model: {
-        entityRelationships: EntityRelationship[];
-        resources: Resource[];
-        activities: Activity[];
-        connections: Connection[];
+        entityRelationships?: EntityRelationship[];
+        resources?: Resource[];
+        activities?: Activity[];
+        connections?: Connection[];
+        nodes?: EventBasedNode[];
+        edges?: EventBasedEdge[];
+    };
+}
+
+interface EventBasedNode {
+    id: string;
+    type: string;
+    name: string;
+    data: {
+        initializations?: string[];
+        stateUpdate?: string;
+        eventParameters?: string;
+    };
+}
+
+interface EventBasedEdge {
+    id: string;
+    type: string;
+    source: string;
+    target: string;
+    data: {
+        initialDelay?: string;
+        condition?: string;
+        delay?: string;
+        parameter?: string;
     };
 }
 
@@ -76,6 +108,111 @@ export class ProjectExportService {
     }): OutputModel {
         const { nodes, edges } = projectData.json;
 
+        const isEventBased = this.isEventBasedModel(nodes, edges);
+
+        if (isEventBased) {
+            return this.convertEventBasedModel(nodes, edges);
+        } else {
+            return this.convertActivityBasedModel(nodes, edges);
+        }
+    }
+
+    private static isEventBasedModel(
+        nodes: ProjectNode[],
+        edges: ProjectEdge[]
+    ): boolean {
+        const eventBasedTypes = ["initialization", "event", "tableau"];
+        const hasEventBasedNodes = nodes.some((node) =>
+            eventBasedTypes.includes(node.type)
+        );
+
+        const eventBasedEdgeTypes = ["initialization_edge", "event_graph_edge"];
+        const hasEventBasedEdges = edges.some((edge) =>
+            eventBasedEdgeTypes.includes(edge.type)
+        );
+
+        return hasEventBasedNodes || hasEventBasedEdges;
+    }
+
+    private static convertEventBasedModel(
+        nodes: ProjectNode[],
+        edges: ProjectEdge[]
+    ): OutputModel {
+        const exportNodes = nodes.filter((node) => node.type !== "tableau");
+
+        const convertedNodes: EventBasedNode[] = exportNodes.map((node) => {
+            const baseNode: EventBasedNode = {
+                id: node.id,
+                type: node.type,
+                name: node.name,
+                data: {},
+            };
+
+            if (node.type === "initialization" && node.data.initializations) {
+                baseNode.data.initializations = Array.isArray(
+                    node.data.initializations
+                )
+                    ? node.data.initializations
+                    : [];
+            }
+
+            if (node.type === "event") {
+                if (node.data.stateUpdate) {
+                    baseNode.data.stateUpdate = node.data.stateUpdate;
+                }
+                if (node.data.eventParameters) {
+                    baseNode.data.eventParameters = node.data.eventParameters;
+                }
+            }
+
+            return baseNode;
+        });
+
+        const convertedEdges: EventBasedEdge[] = edges.map((edge) => {
+            const baseEdge: EventBasedEdge = {
+                id: edge.id,
+                type: edge.type,
+                source: edge.source,
+                target: edge.target,
+                data: {},
+            };
+
+            if (
+                edge.type === "initialization_edge" &&
+                edge.data.initialDelay !== undefined
+            ) {
+                baseEdge.data.initialDelay = edge.data.initialDelay;
+            }
+
+            if (edge.type === "event_graph_edge") {
+                if (edge.data.condition !== undefined) {
+                    baseEdge.data.condition = edge.data.condition;
+                }
+                if (edge.data.delay !== undefined) {
+                    baseEdge.data.delay = edge.data.delay;
+                }
+                if (edge.data.parameter !== undefined) {
+                    baseEdge.data.parameter = edge.data.parameter;
+                }
+            }
+
+            return baseEdge;
+        });
+
+        return {
+            scenario: "",
+            description: "",
+            model: {
+                nodes: convertedNodes,
+                edges: convertedEdges,
+            },
+        };
+    }
+
+    private static convertActivityBasedModel(
+        nodes: ProjectNode[],
+        edges: ProjectEdge[]
+    ): OutputModel {
         const generators = nodes.filter((node) => node.type === "generator");
         const activities = nodes.filter((node) => node.type === "activity");
         const terminators = nodes.filter((node) => node.type === "terminator");

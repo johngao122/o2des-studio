@@ -1,0 +1,51 @@
+{
+    "scenario": "Event-based Model",
+    "description": "Event graph representation",
+    "model": {
+        "nodes": [
+            {
+                "id": "init_1",
+                "type": "initialization",
+                "name": "Initialize",
+                "data": {
+                    "initializations": [
+                        "$q_k = 0$",
+                        "$s_k = 0$",
+                        "$\\forall k \\in \\{1, ..., K\\}$"
+                    ]
+                }
+            },
+            {
+                "id": "event_1",
+                "type": "event",
+                "name": "Arrive",
+                "data": {
+                    "stateUpdate": "$q_k++$",
+                    "eventParameters": "k"
+                }
+            }
+        ],
+        "edges": [
+            {
+                "id": "init_edge_1",
+                "type": "initialization_edge",
+                "source": "init_1",
+                "target": "event_1",
+                "data": {
+                    "initialDelay": "0"
+                }
+            },
+            {
+                "id": "event_edge_1",
+                "type": "event_graph_edge",
+                "source": "event_1",
+                "target": "event_2",
+                "data": {
+                    "condition": "$s_k < n_k$",
+                    "delay": "0",
+                    "parameter": "k"
+                }
+            }
+        ]
+    }
+}

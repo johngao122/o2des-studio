@@ -1,25 +1,18 @@
 "use client";
 
-import React, { memo, useState, useCallback, useRef, useMemo } from "react";
+import React, { memo, useCallback, useRef, useEffect } from "react";
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
 import { MathJax } from "better-react-mathjax";
 import { CommandController } from "@/controllers/CommandController";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import {
     getBezierPoint,
-    getBezierTangent,
-    isCurveFlipped,
-    getOffsetPoint,
-    calculateDynamicOffset,
+    parseTransformMatrix,
+    clientToFlowPosition,
+    throttle,
+    snapToGrid,
+    getPointAndAngleOnPath,
+    calculateEdgePositions,
 } from "@/lib/utils/math";
-import { calculateOffsetPointForEdge } from "@/lib/utils/edge";
 import BaseEdgeComponent, {
     BaseEdgeData,
     BaseEdgeProps,
@@ -27,19 +20,16 @@ import BaseEdgeComponent, {
 
 const commandController = CommandController.getInstance();
 
-const DELAY_LABEL_CONFIG = {
-    baseOffset: 50,
-    minScaleFactor: 0.1,
-    maxScaleFactor: 1.5,
-    connectorDashArray: "3 2",
-};
-
 interface EventGraphEdgeData extends BaseEdgeData {
     condition?: string;
     delay?: string;
     parameter?: string;
+    conditionPosition?: number;
     delayPosition?: number;
     parameterPosition?: number;
+    conditionLabelOffset?: { x: number; y: number };
+    delayLabelOffset?: { x: number; y: number };
+    parameterLabelOffset?: { x: number; y: number };
 }
 
 interface ExtendedEdgeProps extends BaseEdgeProps<EventGraphEdgeData> {
@@ -68,109 +58,341 @@ const EventGraphEdge = memo(
         selected,
         onClick,
     }: ExtendedEdgeProps) => {
-        const [isEditing, setIsEditing] = useState(false);
-        const [editCondition, setEditCondition] = useState(
-            data?.condition || "True"
-        );
-        const [editDelay, setEditDelay] = useState(data?.delay || "");
-        const [editParameter, setEditParameter] = useState(
-            data?.parameter || ""
-        );
+        const [isConditionDragging, setIsConditionDragging] =
+            React.useState(false);
+        const [isDelayDragging, setIsDelayDragging] = React.useState(false);
+        const [isParamDragging, setIsParamDragging] = React.useState(false);
 
-        const [hasCondition, setHasCondition] = useState(!!data?.condition);
-        const [hasDelay, setHasDelay] = useState(
-            !!data?.delay && data.delay.trim() !== ""
-        );
-        const [hasParameter, setHasParameter] = useState(
-            !!data?.parameter && data.parameter.trim() !== ""
-        );
+        const [tempConditionPosition, setTempConditionPosition] =
+            React.useState<{
+                x: number;
+                y: number;
+            } | null>(null);
+        const [tempDelayPosition, setTempDelayPosition] = React.useState<{
+            x: number;
+            y: number;
+        } | null>(null);
+        const [tempParamPosition, setTempParamPosition] = React.useState<{
+            x: number;
+            y: number;
+        } | null>(null);
 
-        const [isDelayDragging, setIsDelayDragging] = useState(false);
-        const [isParamDragging, setIsParamDragging] = useState(false);
+        const conditionLabelRef = useRef<HTMLDivElement>(null);
         const delayLabelRef = useRef<HTMLDivElement>(null);
         const paramLabelRef = useRef<HTMLDivElement>(null);
+        const flowPaneRef = useRef<Element | null>(null);
+        const transformMatrixRef = useRef<ReturnType<
+            typeof parseTransformMatrix
+        > | null>(null);
+        const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
 
-        const [tempDelayPosition, setTempDelayPosition] = useState<
-            number | null
-        >(null);
-        const [tempParamPosition, setTempParamPosition] = useState<
-            number | null
-        >(null);
+        const hasCondition = !!(
+            data?.condition && data.condition.trim() !== ""
+        );
+        const hasDelay = !!(data?.delay && data.delay.trim() !== "");
+        const hasParameter = !!(
+            data?.parameter && data.parameter.trim() !== ""
+        );
 
-        const handleDoubleClick = () => {
-            setIsEditing(true);
-            setEditCondition(data?.condition || "True");
-            setEditDelay(data?.delay || "");
-            setEditParameter(data?.parameter || "");
-        };
+        const createDragStartHandler =
+            (
+                type: "condition" | "delay" | "parameter",
+                setDragging: (dragging: boolean) => void
+            ) =>
+            (e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
 
-        const handleSave = useCallback(() => {
-            const updatedData: EventGraphEdgeData = {
-                ...data,
+                flowPaneRef.current = document.querySelector(
+                    ".react-flow__viewport"
+                );
+
+                if (flowPaneRef.current) {
+                    const transformStyle = window.getComputedStyle(
+                        flowPaneRef.current
+                    ).transform;
+                    transformMatrixRef.current =
+                        parseTransformMatrix(transformStyle);
+
+                    const edgeType = data?.edgeType || "straight";
+                    const hasCustomControlPoints =
+                        data?.controlPoints && data.controlPoints.length > 0;
+                    const isSimpleMode =
+                        edgeType === "straight" && !hasCustomControlPoints;
+
+                    let position: number;
+                    let defaultOffset: { x: number; y: number };
+                    let currentOffset: { x: number; y: number } | undefined;
+
+                    switch (type) {
+                        case "condition":
+                            position = data?.conditionPosition ?? 0.5;
+                            defaultOffset = { x: 0, y: -40 };
+                            currentOffset = data?.conditionLabelOffset;
+                            break;
+                        case "delay":
+                            position = data?.delayPosition ?? 0.25;
+                            defaultOffset = { x: 0, y: -30 };
+                            currentOffset = data?.delayLabelOffset;
+                            break;
+                        case "parameter":
+                            position = data?.parameterPosition ?? 0.75;
+                            defaultOffset = { x: 0, y: -50 };
+                            currentOffset = data?.parameterLabelOffset;
+                            break;
+                    }
+
+                    let edgePoint: { x: number; y: number };
+
+                    if (isSimpleMode) {
+                        const dx = targetX - sourceX;
+                        const dy = targetY - sourceY;
+                        edgePoint = {
+                            x: sourceX + dx * position,
+                            y: sourceY + dy * position,
+                        };
+                    } else {
+                        const centerX = (sourceX + targetX) / 2;
+                        const centerY = (sourceY + targetY) / 2;
+                        edgePoint = { x: centerX, y: centerY };
+                    }
+
+                    const labelOffset = currentOffset || defaultOffset;
+                    const labelX = edgePoint.x + labelOffset.x;
+                    const labelY = edgePoint.y + labelOffset.y;
+
+                    const mousePosition = clientToFlowPosition(
+                        e.clientX,
+                        e.clientY,
+                        transformMatrixRef.current
+                    );
+
+                    const offsetX = labelX - mousePosition.x;
+                    const offsetY = labelY - mousePosition.y;
+
+                    dragOffsetRef.current = { x: offsetX, y: offsetY };
+                    setDragging(true);
+                    document.body.style.cursor = "grabbing";
+                }
             };
 
-            if (hasCondition && editCondition.trim() !== "") {
-                updatedData.condition = editCondition.trim();
-            } else {
-                updatedData.condition = undefined;
+        const createDragHandler = (
+            type: "condition" | "delay" | "parameter",
+            isDragging: boolean,
+            setTempPosition: (pos: { x: number; y: number } | null) => void
+        ) =>
+            useCallback(
+                throttle((e: MouseEvent) => {
+                    if (!isDragging || !dragOffsetRef.current) return;
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (!flowPaneRef.current) {
+                        flowPaneRef.current = document.querySelector(
+                            ".react-flow__viewport"
+                        );
+                    }
+
+                    if (flowPaneRef.current) {
+                        if (!transformMatrixRef.current) {
+                            const transformStyle = window.getComputedStyle(
+                                flowPaneRef.current
+                            ).transform;
+                            transformMatrixRef.current =
+                                parseTransformMatrix(transformStyle);
+                        }
+
+                        const mousePosition = clientToFlowPosition(
+                            e.clientX,
+                            e.clientY,
+                            transformMatrixRef.current
+                        );
+
+                        const rawPosition = {
+                            x: mousePosition.x + dragOffsetRef.current.x,
+                            y: mousePosition.y + dragOffsetRef.current.y,
+                        };
+
+                        const snappedPosition = {
+                            x: snapToGrid(rawPosition.x),
+                            y: snapToGrid(rawPosition.y),
+                        };
+
+                        setTempPosition(snappedPosition);
+                    }
+                }, 16),
+                [isDragging]
+            );
+
+        const createDragEndHandler = (
+            type: "condition" | "delay" | "parameter",
+            isDragging: boolean,
+            tempPosition: { x: number; y: number } | null,
+            setDragging: (dragging: boolean) => void,
+            setTempPosition: (pos: { x: number; y: number } | null) => void
+        ) =>
+            useCallback(() => {
+                if (isDragging && tempPosition) {
+                    const edgeType = data?.edgeType || "straight";
+                    const hasCustomControlPoints =
+                        data?.controlPoints && data.controlPoints.length > 0;
+                    const isSimpleMode =
+                        edgeType === "straight" && !hasCustomControlPoints;
+
+                    let position: number;
+                    switch (type) {
+                        case "condition":
+                            position = data?.conditionPosition ?? 0.5;
+                            break;
+                        case "delay":
+                            position = data?.delayPosition ?? 0.25;
+                            break;
+                        case "parameter":
+                            position = data?.parameterPosition ?? 0.75;
+                            break;
+                    }
+
+                    let edgePoint: { x: number; y: number };
+
+                    if (isSimpleMode) {
+                        const dx = targetX - sourceX;
+                        const dy = targetY - sourceY;
+                        edgePoint = {
+                            x: sourceX + dx * position,
+                            y: sourceY + dy * position,
+                        };
+                    } else {
+                        const centerX = (sourceX + targetX) / 2;
+                        const centerY = (sourceY + targetY) / 2;
+                        edgePoint = { x: centerX, y: centerY };
+                    }
+
+                    const offset = {
+                        x: tempPosition.x - edgePoint.x,
+                        y: tempPosition.y - edgePoint.y,
+                    };
+
+                    const offsetKey =
+                        `${type}LabelOffset` as keyof EventGraphEdgeData;
+
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                [offsetKey]: offset,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
+                }
+
+                setDragging(false);
+                setTempPosition(null);
+                dragOffsetRef.current = null;
+                document.body.style.cursor = "";
+            }, [
+                isDragging,
+                tempPosition,
+                data,
+                id,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                type,
+            ]);
+
+        const handleConditionDragStart = createDragStartHandler(
+            "condition",
+            setIsConditionDragging
+        );
+        const handleDelayDragStart = createDragStartHandler(
+            "delay",
+            setIsDelayDragging
+        );
+        const handleParamDragStart = createDragStartHandler(
+            "parameter",
+            setIsParamDragging
+        );
+
+        const handleConditionDrag = createDragHandler(
+            "condition",
+            isConditionDragging,
+            setTempConditionPosition
+        );
+        const handleDelayDrag = createDragHandler(
+            "delay",
+            isDelayDragging,
+            setTempDelayPosition
+        );
+        const handleParamDrag = createDragHandler(
+            "parameter",
+            isParamDragging,
+            setTempParamPosition
+        );
+
+        const handleConditionDragEnd = createDragEndHandler(
+            "condition",
+            isConditionDragging,
+            tempConditionPosition,
+            setIsConditionDragging,
+            setTempConditionPosition
+        );
+        const handleDelayDragEnd = createDragEndHandler(
+            "delay",
+            isDelayDragging,
+            tempDelayPosition,
+            setIsDelayDragging,
+            setTempDelayPosition
+        );
+        const handleParamDragEnd = createDragEndHandler(
+            "parameter",
+            isParamDragging,
+            tempParamPosition,
+            setIsParamDragging,
+            setTempParamPosition
+        );
+
+        useEffect(() => {
+            if (isConditionDragging) {
+                window.addEventListener("mousemove", handleConditionDrag);
+                window.addEventListener("mouseup", handleConditionDragEnd);
+                return () => {
+                    window.removeEventListener(
+                        "mousemove",
+                        handleConditionDrag
+                    );
+                    window.removeEventListener(
+                        "mouseup",
+                        handleConditionDragEnd
+                    );
+                };
             }
+        }, [isConditionDragging, handleConditionDrag, handleConditionDragEnd]);
 
-            if (hasDelay && editDelay.trim() !== "") {
-                updatedData.delay = editDelay.trim();
-            } else {
-                updatedData.delay = undefined;
+        useEffect(() => {
+            if (isDelayDragging) {
+                window.addEventListener("mousemove", handleDelayDrag);
+                window.addEventListener("mouseup", handleDelayDragEnd);
+                return () => {
+                    window.removeEventListener("mousemove", handleDelayDrag);
+                    window.removeEventListener("mouseup", handleDelayDragEnd);
+                };
             }
+        }, [isDelayDragging, handleDelayDrag, handleDelayDragEnd]);
 
-            if (hasParameter && editParameter.trim() !== "") {
-                updatedData.parameter = editParameter.trim();
-            } else {
-                updatedData.parameter = undefined;
+        useEffect(() => {
+            if (isParamDragging) {
+                window.addEventListener("mousemove", handleParamDrag);
+                window.addEventListener("mouseup", handleParamDragEnd);
+                return () => {
+                    window.removeEventListener("mousemove", handleParamDrag);
+                    window.removeEventListener("mouseup", handleParamDragEnd);
+                };
             }
-
-            const command = commandController.createUpdateEdgeCommand(id, {
-                data: updatedData,
-            });
-            commandController.execute(command);
-            setIsEditing(false);
-        }, [
-            id,
-            data,
-            editCondition,
-            editDelay,
-            editParameter,
-            hasCondition,
-            hasDelay,
-            hasParameter,
-        ]);
-
-        const handleKeyDown = (e: React.KeyboardEvent) => {
-            if (e.key === "Enter") {
-                handleSave();
-            } else if (e.key === "Escape") {
-                setIsEditing(false);
-                setEditCondition(data?.condition || "True");
-                setEditDelay(data?.delay || "");
-                setEditParameter(data?.parameter || "");
-            }
-        };
-
-        const handleContainerBlur = () => {
-            handleSave();
-        };
-
-        const handleDelayDragStart = (e: React.MouseEvent) => {
-            e.stopPropagation();
-            e.preventDefault();
-            setIsDelayDragging(true);
-            document.body.style.cursor = "ew-resize";
-        };
-
-        const handleParamDragStart = (e: React.MouseEvent) => {
-            e.stopPropagation();
-            e.preventDefault();
-            setIsParamDragging(true);
-            document.body.style.cursor = "ew-resize";
-        };
+        }, [isParamDragging, handleParamDrag, handleParamDragEnd]);
 
         const calculatePositions = (
             edgePath: string,
@@ -179,75 +401,43 @@ const EventGraphEdge = memo(
             centerX: number,
             centerY: number
         ) => {
-            const delayPosition =
-                tempDelayPosition ?? data?.delayPosition ?? 0.25;
-            const parameterPosition =
-                tempParamPosition ?? data?.parameterPosition ?? 0.75;
+            const conditionPosition = data?.conditionPosition ?? 0.5;
+            const delayPosition = data?.delayPosition ?? 0.25;
+            const parameterPosition = data?.parameterPosition ?? 0.75;
 
-            let delayPoint: { x: number; y: number };
-            let paramPoint: { x: number; y: number };
-            let conditionPoint: { x: number; y: number };
+            const positions = [
+                conditionPosition,
+                delayPosition,
+                parameterPosition,
+            ];
 
-            if (isSimpleMode) {
-                const dx = targetX - sourceX;
-                const dy = targetY - sourceY;
+            const { pathPoints, edgePoints } = calculateEdgePositions(
+                edgePath,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                positions,
+                isSimpleMode,
+                centerX,
+                centerY
+            );
 
-                delayPoint = {
-                    x: sourceX + dx * delayPosition,
-                    y: sourceY + dy * delayPosition,
-                };
+            const [conditionData, delayData, paramData] = pathPoints;
+            const [conditionEdgePoint, delayEdgePoint, paramEdgePoint] =
+                edgePoints;
 
-                paramPoint = {
-                    x: sourceX + dx * parameterPosition,
-                    y: sourceY + dy * parameterPosition,
-                };
-
-                conditionPoint = {
-                    x: sourceX + dx * 0.5,
-                    y: sourceY + dy * 0.5,
-                };
-            } else {
-                if (
-                    data?.edgeType === "bezier" &&
-                    currentControlPoints.length > 0
-                ) {
-                    delayPoint = getBezierPoint(
-                        sourceX,
-                        sourceY,
-                        currentControlPoints[0]?.x || centerX,
-                        currentControlPoints[0]?.y || centerY,
-                        targetX,
-                        targetY,
-                        delayPosition
-                    );
-
-                    paramPoint = getBezierPoint(
-                        sourceX,
-                        sourceY,
-                        currentControlPoints[0]?.x || centerX,
-                        currentControlPoints[0]?.y || centerY,
-                        targetX,
-                        targetY,
-                        parameterPosition
-                    );
-
-                    conditionPoint = getBezierPoint(
-                        sourceX,
-                        sourceY,
-                        currentControlPoints[0]?.x || centerX,
-                        currentControlPoints[0]?.y || centerY,
-                        targetX,
-                        targetY,
-                        0.5
-                    );
-                } else {
-                    delayPoint = { x: centerX, y: centerY };
-                    paramPoint = { x: centerX, y: centerY };
-                    conditionPoint = { x: centerX, y: centerY };
-                }
-            }
-
-            return { delayPoint, paramPoint, conditionPoint };
+            return {
+                conditionPoint: { x: conditionData.x, y: conditionData.y },
+                delayPoint: { x: delayData.x, y: delayData.y },
+                paramPoint: { x: paramData.x, y: paramData.y },
+                conditionEdgePoint,
+                delayEdgePoint,
+                paramEdgePoint,
+                conditionAngle: conditionData.angle,
+                delayAngle: delayData.angle,
+                paramAngle: paramData.angle,
+            };
         };
 
         return (
@@ -282,162 +472,236 @@ const EventGraphEdge = memo(
                     centerY: number;
                     currentControlPoints: { x: number; y: number }[];
                 }) => {
-                    const { delayPoint, paramPoint, conditionPoint } =
-                        calculatePositions(
-                            edgePath,
-                            currentControlPoints,
-                            isSimpleMode,
-                            centerX,
-                            centerY
-                        );
+                    const {
+                        conditionPoint,
+                        delayPoint,
+                        paramPoint,
+                        conditionEdgePoint,
+                        delayEdgePoint,
+                        paramEdgePoint,
+                        conditionAngle,
+                        delayAngle,
+                        paramAngle,
+                    } = calculatePositions(
+                        edgePath,
+                        currentControlPoints,
+                        isSimpleMode,
+                        centerX,
+                        centerY
+                    );
 
-                    const showConditionMarker = hasCondition && !isEditing;
-                    const showDelayMarker = hasDelay && !isEditing;
+                    const defaultConditionOffset = { x: 0, y: -40 };
+                    const defaultDelayOffset = { x: 0, y: -30 };
+                    const defaultParamOffset = { x: 0, y: -50 };
+
+                    const conditionLabelOffset =
+                        isConditionDragging && tempConditionPosition
+                            ? {
+                                  x:
+                                      tempConditionPosition.x -
+                                      conditionEdgePoint.x,
+                                  y:
+                                      tempConditionPosition.y -
+                                      conditionEdgePoint.y,
+                              }
+                            : data?.conditionLabelOffset ||
+                              defaultConditionOffset;
+
+                    const delayLabelOffset =
+                        isDelayDragging && tempDelayPosition
+                            ? {
+                                  x: tempDelayPosition.x - delayEdgePoint.x,
+                                  y: tempDelayPosition.y - delayEdgePoint.y,
+                              }
+                            : data?.delayLabelOffset || defaultDelayOffset;
+
+                    const paramLabelOffset =
+                        isParamDragging && tempParamPosition
+                            ? {
+                                  x: tempParamPosition.x - paramEdgePoint.x,
+                                  y: tempParamPosition.y - paramEdgePoint.y,
+                              }
+                            : data?.parameterLabelOffset || defaultParamOffset;
+
+                    const conditionLabelX =
+                        conditionEdgePoint.x + conditionLabelOffset.x;
+                    const conditionLabelY =
+                        conditionEdgePoint.y + conditionLabelOffset.y;
+                    const delayLabelX = delayEdgePoint.x + delayLabelOffset.x;
+                    const delayLabelY = delayEdgePoint.y + delayLabelOffset.y;
+                    const paramLabelX = paramEdgePoint.x + paramLabelOffset.x;
+                    const paramLabelY = paramEdgePoint.y + paramLabelOffset.y;
 
                     return (
                         <EdgeLabelRenderer>
-                            {/* Main Label for Editing */}
-                            <div
+                            <svg
                                 style={{
                                     position: "absolute",
-                                    transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-                                    pointerEvents: "all",
+                                    left: 0,
+                                    top: 0,
+                                    pointerEvents: "none",
+                                    zIndex: 5,
                                 }}
-                                className="nodrag nopan"
-                                onMouseDown={
-                                    isEditing
-                                        ? (e) => e.stopPropagation()
-                                        : undefined
-                                }
+                                width="100%"
+                                height="100%"
                             >
-                                <div
-                                    onDoubleClick={
-                                        !isEditing
-                                            ? handleDoubleClick
-                                            : undefined
-                                    }
-                                    onClick={
-                                        isEditing
-                                            ? (e) => e.stopPropagation()
-                                            : undefined
-                                    }
-                                    onBlur={
-                                        isEditing
-                                            ? handleContainerBlur
-                                            : undefined
-                                    }
-                                    tabIndex={-1}
-                                    className={`event-edge-label flex flex-col items-center justify-center ${
-                                        selected
-                                            ? "bg-blue-50 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600"
-                                            : "bg-white/90 dark:bg-zinc-800/90 border-gray-300 dark:border-gray-600"
-                                    } p-2 rounded border-2 text-xs shadow ${
-                                        isEditing
-                                            ? "min-w-[300px]"
-                                            : "min-w-[20px] min-h-[20px]"
-                                    }`}
-                                >
-                                    {isEditing ? (
-                                        <div className="flex flex-col space-y-2 p-1 w-full">
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={hasCondition}
-                                                    onChange={(e) =>
-                                                        setHasCondition(
-                                                            e.target.checked
-                                                        )
-                                                    }
-                                                    className="nodrag"
-                                                />
-                                                <label className="text-xs">
-                                                    Condition
-                                                </label>
-                                                <Input
-                                                    type="text"
-                                                    value={editCondition}
-                                                    onChange={(e) =>
-                                                        setEditCondition(
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    onKeyDown={handleKeyDown}
-                                                    className="nodrag text-xs h-6 flex-1"
-                                                    placeholder="True"
-                                                    disabled={!hasCondition}
-                                                />
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={hasDelay}
-                                                    onChange={(e) =>
-                                                        setHasDelay(
-                                                            e.target.checked
-                                                        )
-                                                    }
-                                                    className="nodrag"
-                                                />
-                                                <label className="text-xs">
-                                                    Delay
-                                                </label>
-                                                <Input
-                                                    type="text"
-                                                    value={editDelay}
-                                                    onChange={(e) =>
-                                                        setEditDelay(
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    onKeyDown={handleKeyDown}
-                                                    className="nodrag text-xs h-6 flex-1"
-                                                    placeholder="TimeSpan"
-                                                    disabled={!hasDelay}
-                                                />
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={hasParameter}
-                                                    onChange={(e) =>
-                                                        setHasParameter(
-                                                            e.target.checked
-                                                        )
-                                                    }
-                                                    className="nodrag"
-                                                />
-                                                <label className="text-xs">
-                                                    Parameter
-                                                </label>
-                                                <Input
-                                                    type="text"
-                                                    value={editParameter}
-                                                    onChange={(e) =>
-                                                        setEditParameter(
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    onKeyDown={handleKeyDown}
-                                                    className="nodrag text-xs h-6 flex-1"
-                                                    placeholder="Value"
-                                                    disabled={!hasParameter}
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                                            Event
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                {hasCondition && (
+                                    <g>
+                                        <path
+                                            d="M -8 0 Q -4 -6 0 0 Q 4 6 8 0"
+                                            stroke={
+                                                selected ? "#3b82f6" : "#6b7280"
+                                            }
+                                            strokeWidth="2"
+                                            fill="none"
+                                            transform={`translate(${conditionPoint.x}, ${conditionPoint.y}) rotate(${conditionAngle})`}
+                                        />
+                                        <line
+                                            x1={conditionEdgePoint.x}
+                                            y1={conditionEdgePoint.y}
+                                            x2={conditionLabelX}
+                                            y2={conditionLabelY}
+                                            stroke={
+                                                selected ? "#3b82f6" : "#6b7280"
+                                            }
+                                            strokeWidth="1"
+                                            strokeDasharray="3,3"
+                                            opacity={0.7}
+                                        />
+                                    </g>
+                                )}
 
-                            {/* Delay Label */}
-                            {!isEditing && hasDelay && (
+                                {hasDelay && (
+                                    <g>
+                                        <g
+                                            transform={`translate(${delayPoint.x}, ${delayPoint.y}) rotate(${delayAngle})`}
+                                        >
+                                            <line
+                                                x1={-8}
+                                                y1={-2}
+                                                x2={8}
+                                                y2={-2}
+                                                stroke={
+                                                    selected
+                                                        ? "#f59e0b"
+                                                        : "#6b7280"
+                                                }
+                                                strokeWidth="2"
+                                            />
+                                            <line
+                                                x1={-8}
+                                                y1={2}
+                                                x2={8}
+                                                y2={2}
+                                                stroke={
+                                                    selected
+                                                        ? "#f59e0b"
+                                                        : "#6b7280"
+                                                }
+                                                strokeWidth="2"
+                                            />
+                                        </g>
+                                        <line
+                                            x1={delayEdgePoint.x}
+                                            y1={delayEdgePoint.y}
+                                            x2={delayLabelX}
+                                            y2={delayLabelY}
+                                            stroke={
+                                                selected ? "#f59e0b" : "#6b7280"
+                                            }
+                                            strokeWidth="1"
+                                            strokeDasharray="3,3"
+                                            opacity={0.7}
+                                        />
+                                    </g>
+                                )}
+
+                                {hasParameter && (
+                                    <line
+                                        x1={paramEdgePoint.x}
+                                        y1={paramEdgePoint.y}
+                                        x2={paramLabelX}
+                                        y2={paramLabelY}
+                                        stroke={
+                                            selected ? "#10b981" : "#6b7280"
+                                        }
+                                        strokeWidth="1"
+                                        strokeDasharray="3,3"
+                                        opacity={0.7}
+                                    />
+                                )}
+                            </svg>
+
+                            {hasCondition && (
                                 <div
                                     style={{
                                         position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${delayPoint.x}px,${delayPoint.y}px)`,
+                                        transform: `translate(-50%, -50%) translate(${
+                                            isConditionDragging &&
+                                            tempConditionPosition
+                                                ? tempConditionPosition.x
+                                                : conditionLabelX
+                                        }px,${
+                                            isConditionDragging &&
+                                            tempConditionPosition
+                                                ? tempConditionPosition.y
+                                                : conditionLabelY
+                                        }px)`,
+                                        pointerEvents: "all",
+                                        zIndex: 10,
+                                    }}
+                                    className="nodrag nopan"
+                                >
+                                    <div
+                                        ref={conditionLabelRef}
+                                        onMouseDown={handleConditionDragStart}
+                                        className={`edge-label-condition flex justify-center items-center ${
+                                            selected
+                                                ? "bg-blue-50 dark:bg-blue-900/50"
+                                                : "bg-white/90 dark:bg-zinc-800/90"
+                                        } px-2 py-1 rounded text-xs ${
+                                            selected
+                                                ? "shadow-md border border-blue-300 dark:border-blue-600"
+                                                : "shadow border border-gray-200 dark:border-gray-700"
+                                        } cursor-grab ${
+                                            isConditionDragging
+                                                ? "cursor-grabbing opacity-70"
+                                                : ""
+                                        }`}
+                                        style={{
+                                            boxShadow: selected
+                                                ? "0 2px 4px rgba(59, 130, 246, 0.3)"
+                                                : "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                            minWidth: "30px",
+                                            backdropFilter: "blur(4px)",
+                                        }}
+                                    >
+                                        {isConditionDragging ? (
+                                            <span>
+                                                {data?.condition || "True"}
+                                            </span>
+                                        ) : (
+                                            <MathJax>
+                                                {data?.condition || "True"}
+                                            </MathJax>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {hasDelay && (
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        transform: `translate(-50%, -50%) translate(${
+                                            isDelayDragging && tempDelayPosition
+                                                ? tempDelayPosition.x
+                                                : delayLabelX
+                                        }px,${
+                                            isDelayDragging && tempDelayPosition
+                                                ? tempDelayPosition.y
+                                                : delayLabelY
+                                        }px)`,
                                         pointerEvents: "all",
                                         zIndex: 10,
                                     }}
@@ -454,8 +718,10 @@ const EventGraphEdge = memo(
                                             selected
                                                 ? "shadow-md border border-orange-300 dark:border-orange-600"
                                                 : "shadow border border-gray-200 dark:border-gray-700"
-                                        } cursor-ew-resize ${
-                                            isDelayDragging ? "opacity-70" : ""
+                                        } cursor-grab ${
+                                            isDelayDragging
+                                                ? "cursor-grabbing opacity-70"
+                                                : ""
                                         }`}
                                         style={{
                                             boxShadow: selected
@@ -486,41 +752,20 @@ const EventGraphEdge = memo(
                                 </div>
                             )}
 
-                            {/* Condition Marker */}
-                            {showConditionMarker && (
-                                <div
-                                    style={{
-                                        position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${conditionPoint.x}px,${conditionPoint.y}px)`,
-                                        pointerEvents: "none",
-                                    }}
-                                    className="nodrag nopan"
-                                >
-                                    <svg
-                                        width="24"
-                                        height="16"
-                                        viewBox="-6 -5 12 10"
-                                        className={
-                                            selected
-                                                ? "stroke-blue-500"
-                                                : "stroke-gray-600 dark:stroke-gray-400"
-                                        }
-                                    >
-                                        <path
-                                            d="M -5 0 Q -2.5 -4 0 0 Q 2.5 4 5 0"
-                                            strokeWidth="1.5"
-                                            fill="none"
-                                        />
-                                    </svg>
-                                </div>
-                            )}
-
                             {/* Parameter Label */}
-                            {!isEditing && hasParameter && (
+                            {hasParameter && (
                                 <div
                                     style={{
                                         position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${paramPoint.x}px,${paramPoint.y}px)`,
+                                        transform: `translate(-50%, -50%) translate(${
+                                            isParamDragging && tempParamPosition
+                                                ? tempParamPosition.x
+                                                : paramLabelX
+                                        }px,${
+                                            isParamDragging && tempParamPosition
+                                                ? tempParamPosition.y
+                                                : paramLabelY
+                                        }px)`,
                                         pointerEvents: "all",
                                         zIndex: 10,
                                     }}
@@ -531,18 +776,20 @@ const EventGraphEdge = memo(
                                         onMouseDown={handleParamDragStart}
                                         className={`edge-label-param flex justify-center items-center ${
                                             selected
-                                                ? "bg-blue-50 dark:bg-blue-900/50"
+                                                ? "bg-green-50 dark:bg-green-900/50"
                                                 : "bg-white/90 dark:bg-zinc-800/90"
-                                        } px-2 py-1 rounded-full text-xs ${
+                                        } px-2 py-1 rounded text-xs ${
                                             selected
-                                                ? "shadow-md border border-blue-300 dark:border-blue-600"
+                                                ? "shadow-md border border-green-300 dark:border-green-600"
                                                 : "shadow border border-gray-200 dark:border-gray-700"
-                                        } cursor-ew-resize ${
-                                            isParamDragging ? "opacity-70" : ""
+                                        } cursor-grab ${
+                                            isParamDragging
+                                                ? "cursor-grabbing opacity-70"
+                                                : ""
                                         }`}
                                         style={{
                                             boxShadow: selected
-                                                ? "0 2px 4px rgba(59, 130, 246, 0.3)"
+                                                ? "0 2px 4px rgba(16, 185, 129, 0.3)"
                                                 : "0 1px 3px rgba(0, 0, 0, 0.1)",
                                             minWidth: "20px",
                                             backdropFilter: "blur(4px)",
@@ -582,8 +829,12 @@ EventGraphEdge.getDefaultData = (): EventGraphEdgeData => ({
     parameter: undefined,
     edgeType: "straight",
     controlPoints: undefined,
+    conditionPosition: 0.5,
     delayPosition: 0.25,
     parameterPosition: 0.75,
+    conditionLabelOffset: { x: 0, y: -40 },
+    delayLabelOffset: { x: 0, y: -30 },
+    parameterLabelOffset: { x: 0, y: -50 },
 });
 
 EventGraphEdge.getGraphType = (): string => "eventBased";

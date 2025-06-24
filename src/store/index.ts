@@ -477,6 +477,27 @@ export const useStore = create<StoreState>((set, get) => ({
                                 ) {
                                     return false;
                                 }
+                                if (
+                                    selectedEdge.type === "initialization" &&
+                                    (key === "delayPosition" ||
+                                        key === "delayLabelOffset" ||
+                                        key === "controlPoints" ||
+                                        key === "parameter")
+                                ) {
+                                    return false;
+                                }
+                                if (
+                                    selectedEdge.type === "eventGraph" &&
+                                    (key === "conditionPosition" ||
+                                        key === "delayPosition" ||
+                                        key === "parameterPosition" ||
+                                        key === "conditionLabelOffset" ||
+                                        key === "delayLabelOffset" ||
+                                        key === "parameterLabelOffset" ||
+                                        key === "controlPoints")
+                                ) {
+                                    return false;
+                                }
                                 return true;
                             })
                             .map(([key, value]) => {
@@ -545,6 +566,34 @@ export const useStore = create<StoreState>((set, get) => ({
                             });
                         }
 
+                        if (selectedEdge.type === "eventGraph") {
+                            if (!dataProps.find((p) => p.key === "condition")) {
+                                dataProps.push({
+                                    key: "condition",
+                                    value:
+                                        selectedEdge.data.condition || "True",
+                                    type: "string" as const,
+                                    editable: true,
+                                });
+                            }
+                            if (!dataProps.find((p) => p.key === "delay")) {
+                                dataProps.push({
+                                    key: "delay",
+                                    value: selectedEdge.data.delay || "",
+                                    type: "string" as const,
+                                    editable: true,
+                                });
+                            }
+                            if (!dataProps.find((p) => p.key === "parameter")) {
+                                dataProps.push({
+                                    key: "parameter",
+                                    value: selectedEdge.data.parameter || "",
+                                    type: "string" as const,
+                                    editable: true,
+                                });
+                            }
+                        }
+
                         updatedProperties = [
                             ...explicitProps,
                             ...dataProps,
@@ -570,6 +619,35 @@ export const useStore = create<StoreState>((set, get) => ({
                                     key: "isDependency",
                                     value: false,
                                     type: "boolean" as const,
+                                    editable: true,
+                                },
+                            ] as SelectedProperty[];
+                        } else if (selectedEdge.type === "eventGraph") {
+                            updatedProperties = [
+                                ...explicitProps,
+                                {
+                                    key: "edgeType",
+                                    value: "straight",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: ["straight", "bezier", "rounded"],
+                                },
+                                {
+                                    key: "condition",
+                                    value: "True",
+                                    type: "string" as const,
+                                    editable: true,
+                                },
+                                {
+                                    key: "delay",
+                                    value: "",
+                                    type: "string" as const,
+                                    editable: true,
+                                },
+                                {
+                                    key: "parameter",
+                                    value: "",
+                                    type: "string" as const,
                                     editable: true,
                                 },
                             ] as SelectedProperty[];
