@@ -566,7 +566,6 @@ export const useStore = create<StoreState>((set, get) => ({
                             });
                         }
 
-                        // Add default properties for EventGraphEdge
                         if (selectedEdge.type === "eventGraph") {
                             if (!dataProps.find((p) => p.key === "condition")) {
                                 dataProps.push({
