@@ -15,7 +15,6 @@ import {
     Edit,
     Eye,
     LayoutGrid,
-    Plus,
     Settings,
     HelpCircle,
     ChevronDown,
@@ -69,6 +68,12 @@ interface ToolbarProps {
     onShowShortcuts?: () => void;
     onCopy?: () => void;
     onPaste?: () => void;
+    onToggleSidebar?: () => void;
+    onToggleMinimap?: () => void;
+    onToggleControls?: () => void;
+    isSidebarVisible?: boolean;
+    isMinimapVisible?: boolean;
+    isControlsVisible?: boolean;
 }
 
 export function Toolbar({
@@ -84,6 +89,12 @@ export function Toolbar({
     onShowShortcuts,
     onCopy,
     onPaste,
+    onToggleSidebar,
+    onToggleMinimap,
+    onToggleControls,
+    isSidebarVisible,
+    isMinimapVisible,
+    isControlsVisible,
 }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -310,17 +321,7 @@ export function Toolbar({
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onSelect={() => {
-                                const event = new CustomEvent(
-                                    "loadExampleDiagram"
-                                );
-                                window.dispatchEvent(event);
-                            }}
-                        >
-                            <FileIcon className="mr-2 h-4 w-4" />
-                            Load Example
-                        </DropdownMenuItem>
+
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                             onSelect={handleExportToSimulator}
@@ -501,15 +502,13 @@ export function Toolbar({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Component
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onToggleSidebar}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Settings className="mr-2 h-4 w-4" />
-                                    Toggle Sidebar
+                                    {isSidebarVisible
+                                        ? "Hide Sidebar"
+                                        : "Show Sidebar"}
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
                                     {formatShortcut(
@@ -518,11 +517,13 @@ export function Toolbar({
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onToggleMinimap}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Eye className="mr-2 h-4 w-4" />
-                                    Toggle Minimap
+                                    {isMinimapVisible
+                                        ? "Hide Minimap"
+                                        : "Show Minimap"}
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
                                     {formatShortcut(
@@ -531,11 +532,13 @@ export function Toolbar({
                                 </span>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onToggleControls}>
                             <div className="flex justify-between w-full items-center">
                                 <div className="flex items-center">
                                     <Settings className="mr-2 h-4 w-4" />
-                                    Toggle Controls
+                                    {isControlsVisible
+                                        ? "Hide Controls"
+                                        : "Show Controls"}
                                 </div>
                                 <span className="text-xs text-muted-foreground ml-8">
                                     {formatShortcut(

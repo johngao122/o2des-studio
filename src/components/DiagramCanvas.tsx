@@ -40,7 +40,7 @@ import {
 import { GRID_SIZE } from "@/lib/utils/math";
 import "./diagram-canvas.css";
 
-const viewController = new ViewController();
+const viewController = ViewController.getInstance();
 const nodeFactory = new NodeFactory();
 const nodeController = new NodeController();
 const commandController = CommandController.getInstance();
@@ -69,7 +69,15 @@ const flowOptions = {
     snapGrid: [GRID_SIZE, GRID_SIZE] as [number, number],
 } as const;
 
-function FlowCanvas() {
+interface FlowCanvasProps {
+    isMinimapVisible?: boolean;
+    isControlsVisible?: boolean;
+}
+
+function FlowCanvas({
+    isMinimapVisible = true,
+    isControlsVisible = true,
+}: FlowCanvasProps) {
     const { nodes, edges, onEdgesChange, onConnect, viewportTransform } =
         useStore();
     const reactFlowInstance = useReactFlow();
@@ -83,16 +91,18 @@ function FlowCanvas() {
         flow: { x: number; y: number };
     } | null>(null);
 
-    const updateViewport = useCallback(
-        (x: number, y: number, zoom: number) => {
-            reactFlowInstance.setViewport({ x, y, zoom });
-        },
-        [reactFlowInstance]
-    );
+    const onInit = useCallback((instance: any) => {
+        const updateViewport = (x: number, y: number, zoom: number) => {
+            instance.setViewport({ x, y, zoom });
+        };
 
-    useEffect(() => {
+        const fitView = () => {
+            instance.fitView();
+        };
+
         viewController.setViewportUpdater(updateViewport);
-    }, [updateViewport]);
+        viewController.setFitViewFunction(fitView);
+    }, []);
 
     useEffect(() => {
         if (reactFlowInstance) {
@@ -487,6 +497,7 @@ function FlowCanvas() {
                 onMoveEnd={onMoveEnd}
                 onEdgeClick={handleEdgeClick}
                 onMouseMove={handleMouseMove}
+                onInit={onInit}
                 {...flowOptions}
                 nodesDraggable={!dragProxy.isActive}
                 deleteKeyCode={["Backspace", "Delete"]}
@@ -497,8 +508,8 @@ function FlowCanvas() {
                 noDragClassName="nodrag"
             >
                 <Background />
-                <Controls />
-                <MiniMap />
+                {isControlsVisible && <Controls />}
+                {isMinimapVisible && <MiniMap />}
                 <DragProxy />
                 <Panel
                     position="top-left"
@@ -543,12 +554,23 @@ function FlowCanvas() {
     );
 }
 
-const MemoizedFlowCanvas = React.memo(FlowCanvas);
+const MemoizedFlowCanvas = React.memo<FlowCanvasProps>(FlowCanvas);
 
-export function DiagramCanvas() {
+interface DiagramCanvasProps {
+    isMinimapVisible?: boolean;
+    isControlsVisible?: boolean;
+}
+
+export function DiagramCanvas({
+    isMinimapVisible = true,
+    isControlsVisible = true,
+}: DiagramCanvasProps) {
     return (
         <ReactFlowProvider>
-            <MemoizedFlowCanvas />
+            <MemoizedFlowCanvas
+                isMinimapVisible={isMinimapVisible}
+                isControlsVisible={isControlsVisible}
+            />
         </ReactFlowProvider>
     );
 }

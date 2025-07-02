@@ -49,7 +49,7 @@ const PREVIEW_COMPONENTS = {
 } as const;
 
 const nodeFactory = new NodeFactory();
-const viewController = new ViewController();
+const viewController = ViewController.getInstance();
 const commandController = CommandController.getInstance();
 
 const PREVIEW_CONTAINER = {
