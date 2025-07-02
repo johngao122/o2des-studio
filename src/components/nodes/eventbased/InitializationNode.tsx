@@ -8,7 +8,7 @@ import {
     XYPosition,
     NodeResizer,
 } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
@@ -349,7 +349,7 @@ const InitializationNode = memo(
                                     (init: string, index: number) => (
                                         <div key={index} className="my-1">
                                             <div className="mathjax-content">
-                                                <MathJax>{init}</MathJax>
+                                                <ReactKatex>{init}</ReactKatex>
                                             </div>
                                         </div>
                                     )

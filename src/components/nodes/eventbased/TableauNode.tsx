@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { NodeProps } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
@@ -432,13 +432,13 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                 />
                                             ) : (
                                                 <div className="h-full flex items-center justify-center">
-                                                    <MathJax>
+                                                    <ReactKatex>
                                                         {row.stateChange &&
                                                         row.stateChange.trim() !==
                                                             ""
                                                             ? row.stateChange
                                                             : " "}
-                                                    </MathJax>
+                                                    </ReactKatex>
                                                 </div>
                                             )}
                                         </div>
@@ -499,13 +499,13 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                         />
                                                     ) : (
                                                         <div className="text-center">
-                                                            <MathJax>
+                                                            <ReactKatex>
                                                                 {edge.condition &&
                                                                 edge.condition.trim() !==
                                                                     ""
                                                                     ? edge.condition
                                                                     : "True"}
-                                                            </MathJax>
+                                                            </ReactKatex>
                                                         </div>
                                                     )}
                                                 </div>
@@ -529,13 +529,13 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                         />
                                                     ) : (
                                                         <div className="text-center">
-                                                            <MathJax>
+                                                            <ReactKatex>
                                                                 {edge.delay &&
                                                                 edge.delay.trim() !==
                                                                     ""
                                                                     ? edge.delay
                                                                     : "0"}
-                                                            </MathJax>
+                                                            </ReactKatex>
                                                         </div>
                                                     )}
                                                 </div>
@@ -561,13 +561,13 @@ const TableauNode = memo(({ id, data, selected }: ExtendedNodeProps) => {
                                                         />
                                                     ) : (
                                                         <div className="text-center">
-                                                            <MathJax>
+                                                            <ReactKatex>
                                                                 {edge.parameter &&
                                                                 edge.parameter.trim() !==
                                                                     ""
                                                                     ? edge.parameter
                                                                     : "-"}
-                                                            </MathJax>
+                                                            </ReactKatex>
                                                         </div>
                                                     )}
                                                 </div>

@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback, useRef, useEffect } from "react";
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import {
     getBezierPoint,
@@ -719,9 +719,9 @@ const EventGraphEdge = memo(
                                                 {data?.condition || "True"}
                                             </span>
                                         ) : (
-                                            <MathJax>
+                                            <ReactKatex>
                                                 {data?.condition || "True"}
-                                            </MathJax>
+                                            </ReactKatex>
                                         )}
                                     </div>
                                 </div>
@@ -778,13 +778,13 @@ const EventGraphEdge = memo(
                                                     : "{}"}
                                             </span>
                                         ) : (
-                                            <MathJax>
+                                            <ReactKatex>
                                                 {typeof data?.delay ===
                                                     "string" &&
                                                 data.delay.trim() !== ""
                                                     ? `{${data.delay}}`
                                                     : "{}"}
-                                            </MathJax>
+                                            </ReactKatex>
                                         )}
                                     </div>
                                 </div>
@@ -842,13 +842,13 @@ const EventGraphEdge = memo(
                                                     : ""}
                                             </span>
                                         ) : (
-                                            <MathJax>
+                                            <ReactKatex>
                                                 {typeof data.parameter ===
                                                     "string" &&
                                                 data.parameter.trim() !== ""
                                                     ? data.parameter
                                                     : ""}
-                                            </MathJax>
+                                            </ReactKatex>
                                         )}
                                     </div>
                                 </div>

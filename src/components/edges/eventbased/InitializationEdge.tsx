@@ -2,7 +2,7 @@
 
 import React, { memo, useState, useCallback, useRef, useEffect } from "react";
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import BaseEdgeComponent, {
     BaseEdgeData,
@@ -362,11 +362,11 @@ const InitializationEdge = memo(
                                                 : "0"}
                                         </span>
                                     ) : (
-                                        <MathJax>
+                                        <ReactKatex>
                                             {hasInitialDelay
                                                 ? data.initialDelay
                                                 : "0"}
-                                        </MathJax>
+                                        </ReactKatex>
                                     )}
                                 </div>
                             </div>

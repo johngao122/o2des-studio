@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useRef } from "react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
 import {
     Handle,
     Position,
@@ -8,7 +8,7 @@ import {
     XYPosition,
     NodeResizer,
 } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
@@ -50,6 +50,20 @@ const EventNode = memo(
         );
         const [isHovered, setIsHovered] = useState(false);
         const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+        const nodeRef = useRef<HTMLDivElement>(null);
+        const isMountedRef = useRef(true);
+
+        useEffect(() => {
+            isMountedRef.current = true;
+            return () => {
+                isMountedRef.current = false;
+
+                if (hoverTimeoutRef.current) {
+                    clearTimeout(hoverTimeoutRef.current);
+                    hoverTimeoutRef.current = null;
+                }
+            };
+        }, []);
 
         const storeNode = useStore((state) =>
             state.nodes.find((n: BaseNode) => n.id === id)
@@ -121,6 +135,7 @@ const EventNode = memo(
 
         return (
             <div
+                ref={nodeRef}
                 className={`relative px-4 py-2 border-2 rounded-[40px] ${
                     selected
                         ? "border-blue-500"
@@ -147,13 +162,13 @@ const EventNode = memo(
 
                 {/* Node Name/Title */}
                 <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
-                    <MathJax>
+                    <ReactKatex>
                         {nodeName +
                             (data?.eventParameters &&
                             data.eventParameters.trim() !== ""
                                 ? ` (${data.eventParameters})`
                                 : "")}
-                    </MathJax>
+                    </ReactKatex>
                 </div>
 
                 {/* Content */}
@@ -190,11 +205,13 @@ const EventNode = memo(
                                     .split("\n")
                                     .map((line, index) => (
                                         <div key={index} className="my-1">
-                                            <div className="mathjax-content">
+                                            <div className="katex-content">
                                                 {line.trim() !== "" ? (
-                                                    <MathJax>{line}</MathJax>
+                                                    <ReactKatex>
+                                                        {line}
+                                                    </ReactKatex>
                                                 ) : (
-                                                    <span> </span>
+                                                    <span>{line}</span>
                                                 )}
                                             </div>
                                         </div>
