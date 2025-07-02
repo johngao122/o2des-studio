@@ -1064,9 +1064,8 @@ export const useStore = create<StoreState>((set, get) => ({
                     .filter((edge) => {
                         return (
                             edge.data &&
-                            ((edge.data.controlPoints &&
-                                edge.data.controlPoints.length > 0) ||
-                                edge.data.conditionLabelOffset)
+                            edge.data.controlPoints &&
+                            edge.data.controlPoints.length > 0
                         );
                     })
                     .map((edge) => {
@@ -1083,13 +1082,6 @@ export const useStore = create<StoreState>((set, get) => ({
                                         y: cp.y + deltaY,
                                     })
                                 );
-                        }
-
-                        if (edge.data?.conditionLabelOffset) {
-                            updatedData.conditionLabelOffset = {
-                                x: edge.data.conditionLabelOffset.x + deltaX,
-                                y: edge.data.conditionLabelOffset.y + deltaY,
-                            };
                         }
 
                         return {
