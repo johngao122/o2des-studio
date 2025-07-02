@@ -693,6 +693,137 @@ export class CommandController {
         };
     }
 
+    createDeleteNodesCommand(nodeIds: string[]): Command {
+        const { nodes, edges } = useStore.getState();
+        const nodesToDelete = nodes.filter((node) => nodeIds.includes(node.id));
+
+        const edgesToDelete = edges.filter(
+            (edge) =>
+                nodeIds.includes(edge.source) || nodeIds.includes(edge.target)
+        );
+        const edgeIdsToDelete = edgesToDelete.map((edge) => edge.id);
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    nodes: state.nodes.filter((n) => !nodeIds.includes(n.id)),
+                    edges: state.edges.filter(
+                        (e) => !edgeIdsToDelete.includes(e.id)
+                    ),
+                }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                useStore.setState((state) => ({
+                    nodes: [...state.nodes, ...nodesToDelete],
+                    edges: [...state.edges, ...edgesToDelete],
+                }));
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    createDeleteEdgesCommand(edgeIds: string[]): Command {
+        const { edges } = useStore.getState();
+        const edgesToDelete = edges.filter((edge) => edgeIds.includes(edge.id));
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    edges: state.edges.filter((e) => !edgeIds.includes(e.id)),
+                }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                useStore.setState((state) => ({
+                    edges: [...state.edges, ...edgesToDelete],
+                }));
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    createDeleteElementsCommand(nodeIds: string[], edgeIds: string[]): Command {
+        const { nodes, edges } = useStore.getState();
+        const nodesToDelete = nodes.filter((node) => nodeIds.includes(node.id));
+
+        const connectedEdges = edges.filter(
+            (edge) =>
+                nodeIds.includes(edge.source) || nodeIds.includes(edge.target)
+        );
+
+        const explicitlySelectedEdges = edges.filter(
+            (edge) =>
+                edgeIds.includes(edge.id) &&
+                !nodeIds.includes(edge.source) &&
+                !nodeIds.includes(edge.target)
+        );
+
+        const allEdgesToDelete = [
+            ...connectedEdges,
+            ...explicitlySelectedEdges,
+        ];
+        const allEdgeIdsToDelete = [
+            ...new Set(allEdgesToDelete.map((e) => e.id)),
+        ];
+
+        return {
+            execute: () => {
+                useStore.setState((state) => ({
+                    nodes: state.nodes.filter((n) => !nodeIds.includes(n.id)),
+                    edges: state.edges.filter(
+                        (e) => !allEdgeIdsToDelete.includes(e.id)
+                    ),
+                }));
+                this.autosaveService.autosave();
+            },
+            undo: () => {
+                useStore.setState((state) => ({
+                    nodes: [...state.nodes, ...nodesToDelete],
+                    edges: [...state.edges, ...allEdgesToDelete],
+                }));
+                this.autosaveService.autosave();
+            },
+        };
+    }
+
+    private pendingDeletion: {
+        nodeIds: string[];
+        edgeIds: string[];
+        timeout: NodeJS.Timeout | null;
+    } | null = null;
+
+    handleCoordinatedDeletion(
+        nodeIds: string[] = [],
+        edgeIds: string[] = []
+    ): void {
+        if (this.pendingDeletion?.timeout) {
+            clearTimeout(this.pendingDeletion.timeout);
+        }
+
+        const allNodeIds = [
+            ...new Set([...(this.pendingDeletion?.nodeIds || []), ...nodeIds]),
+        ];
+        const allEdgeIds = [
+            ...new Set([...(this.pendingDeletion?.edgeIds || []), ...edgeIds]),
+        ];
+
+        this.pendingDeletion = {
+            nodeIds: allNodeIds,
+            edgeIds: allEdgeIds,
+            timeout: setTimeout(() => {
+                if (allNodeIds.length > 0 || allEdgeIds.length > 0) {
+                    const command = this.createDeleteElementsCommand(
+                        allNodeIds,
+                        allEdgeIds
+                    );
+                    this.execute(command);
+                }
+                this.pendingDeletion = null;
+            }, 0),
+        };
+    }
+
     public captureOriginalPositions(nodeIds: string[]): void {
         const currentNodes = useStore.getState().nodes;
 
