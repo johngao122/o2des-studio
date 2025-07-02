@@ -320,14 +320,27 @@ function FlowCanvas() {
                     if (
                         firstChange &&
                         "position" in firstChange &&
-                        firstChange.position
+                        firstChange.position &&
+                        mouseStartPositionRef.current &&
+                        dragProxy.startPosition
                     ) {
                         const viewport = reactFlowInstance.getViewport();
-                        const viewportTransform: ViewportTransform = viewport;
 
-                        const currentMousePosition = firstChange.position;
+                        const nodeDelta = {
+                            x:
+                                firstChange.position.x -
+                                mouseStartPositionRef.current.x,
+                            y:
+                                firstChange.position.y -
+                                mouseStartPositionRef.current.y,
+                        };
 
-                        updateDragProxy(currentMousePosition, viewport.zoom);
+                        const mousePosition = {
+                            x: dragProxy.startPosition.x + nodeDelta.x,
+                            y: dragProxy.startPosition.y + nodeDelta.y,
+                        };
+
+                        updateDragProxy(mousePosition, viewport.zoom);
                     }
 
                     if (endingDrag) {

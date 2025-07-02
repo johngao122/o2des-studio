@@ -1,8 +1,15 @@
-import React, { useEffect, useRef, useLayoutEffect, useState } from "react";
+import React, {
+    useEffect,
+    useRef,
+    useLayoutEffect,
+    useState,
+    useCallback,
+} from "react";
 import { useStore } from "@/store";
 import { useReactFlow } from "reactflow";
 import { Position, ViewportTransform } from "@/lib/utils/coordinates";
 import { createPortal } from "react-dom";
+import { throttle, snapToGrid } from "@/lib/utils/math";
 
 /**
  * DragProxy Component
@@ -14,12 +21,20 @@ import { createPortal } from "react-dom";
  * All operations are batched into a single undo/redo stack entry.
  */
 export const DragProxy = () => {
-    const { dragProxy } = useStore();
+    const { dragProxy, updateDragProxy } = useStore();
     const reactFlowInstance = useReactFlow();
     const proxyRef = useRef<HTMLDivElement>(null);
     const [viewportElement, setViewportElement] = useState<HTMLElement | null>(
         null
     );
+
+    const [isDragging, setIsDragging] = useState(false);
+    const [tempPosition, setTempPosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+
+    const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
 
     useEffect(() => {
         const element = document.querySelector(".react-flow__viewport");
@@ -27,6 +42,74 @@ export const DragProxy = () => {
             setViewportElement(element);
         }
     }, []);
+
+    const handleDragStart = useCallback(
+        (e: React.MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+
+            if (
+                !dragProxy.currentPosition ||
+                !dragProxy.boundingBox ||
+                !proxyRef.current
+            )
+                return;
+
+            dragOffsetRef.current = { x: 0, y: 0 };
+            setIsDragging(true);
+            document.body.style.cursor = "grabbing";
+        },
+        [dragProxy.currentPosition, dragProxy.boundingBox, reactFlowInstance]
+    );
+
+    const handleDrag = useCallback(
+        throttle((e: MouseEvent) => {
+            if (!isDragging || !dragOffsetRef.current) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const mousePosition = reactFlowInstance.screenToFlowPosition({
+                x: e.clientX,
+                y: e.clientY,
+            });
+
+            const rawPosition = {
+                x: mousePosition.x,
+                y: mousePosition.y,
+            };
+
+            setTempPosition(rawPosition);
+        }, 16),
+        [isDragging, reactFlowInstance]
+    );
+
+    const handleDragEnd = useCallback(() => {
+        if (isDragging && tempPosition) {
+            const snappedFinalPosition = {
+                x: snapToGrid(tempPosition.x),
+                y: snapToGrid(tempPosition.y),
+            };
+
+            updateDragProxy(snappedFinalPosition);
+        }
+
+        setIsDragging(false);
+        setTempPosition(null);
+        dragOffsetRef.current = null;
+        document.body.style.cursor = "";
+    }, [isDragging, tempPosition, updateDragProxy]);
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener("mousemove", handleDrag);
+            window.addEventListener("mouseup", handleDragEnd);
+            return () => {
+                window.removeEventListener("mousemove", handleDrag);
+                window.removeEventListener("mouseup", handleDragEnd);
+            };
+        }
+    }, [isDragging, handleDrag, handleDragEnd]);
 
     if (
         !dragProxy.isActive ||
@@ -58,15 +141,18 @@ export const DragProxy = () => {
 
     const viewport = reactFlowInstance.getViewport();
 
-    const topPosition = dragProxy.currentPosition.y - safeHeight / 2;
-    const leftPosition = dragProxy.currentPosition.x - safeWidth / 2;
+    const displayPosition =
+        isDragging && tempPosition ? tempPosition : dragProxy.currentPosition;
 
-    const xCoord = Math.round(leftPosition * 10) / 10;
-    const yCoord = Math.round(topPosition * 10) / 10;
+    const topPosition = displayPosition.y - safeHeight / 2;
+    const leftPosition = displayPosition.x - safeWidth / 2;
+
+    const xCoord = Math.round(displayPosition.x * 10) / 10;
+    const yCoord = Math.round(displayPosition.y * 10) / 10;
 
     const style: React.CSSProperties = {
         position: "absolute",
-        pointerEvents: "none",
+        pointerEvents: "all",
         top: topPosition,
         left: leftPosition,
         width: safeWidth,
@@ -77,6 +163,7 @@ export const DragProxy = () => {
         zIndex: 1000,
         borderRadius: "4px",
         transition: "none",
+        cursor: isDragging ? "grabbing" : "grab",
     };
 
     const selectionCount = dragProxy.nodesSnapshot?.length || 0;
@@ -86,7 +173,12 @@ export const DragProxy = () => {
     const edgesText = edgesCount !== 1 ? "edges" : "edge";
 
     const content = (
-        <div ref={proxyRef} className="react-flow__drag-proxy" style={style}>
+        <div
+            ref={proxyRef}
+            className="react-flow__drag-proxy"
+            style={style}
+            onMouseDown={handleDragStart}
+        >
             {/* Header info */}
             <div
                 style={{
@@ -105,6 +197,7 @@ export const DragProxy = () => {
                     alignItems: "center",
                     gap: "5px",
                     userSelect: "none",
+                    pointerEvents: "none",
                 }}
             >
                 {totalCount} components ({selectionCount} {nodesText},{" "}
@@ -129,6 +222,7 @@ export const DragProxy = () => {
                     fontWeight: "bold",
                     whiteSpace: "nowrap",
                     userSelect: "none",
+                    pointerEvents: "none",
                 }}
             >
                 {`x: ${xCoord}, y: ${yCoord}`}
@@ -144,6 +238,7 @@ export const DragProxy = () => {
                     backgroundImage:
                         "linear-gradient(45deg, rgba(0, 150, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(0, 150, 255, 0.05) 50%, rgba(0, 150, 255, 0.05) 75%, transparent 75%, transparent)",
                     backgroundSize: "16px 16px",
+                    pointerEvents: "none",
                 }}
             />
 
