@@ -532,18 +532,48 @@ const EventGraphEdge = memo(
                     const paramLabelX = paramEdgePoint.x + paramLabelOffset.x;
                     const paramLabelY = paramEdgePoint.y + paramLabelOffset.y;
 
+                    const allX = [];
+                    const allY = [];
+
+                    if (hasCondition) {
+                        allX.push(conditionEdgePoint.x, conditionLabelX);
+                        allY.push(conditionEdgePoint.y, conditionLabelY);
+                    }
+                    if (hasDelay) {
+                        allX.push(delayEdgePoint.x, delayLabelX);
+                        allY.push(delayEdgePoint.y, delayLabelY);
+                    }
+                    if (hasParameter) {
+                        allX.push(paramEdgePoint.x, paramLabelX);
+                        allY.push(paramEdgePoint.y, paramLabelY);
+                    }
+
+                    if (allX.length === 0) {
+                        allX.push(sourceX, targetX);
+                        allY.push(sourceY, targetY);
+                    }
+
+                    const minX = Math.min(...allX) - 50;
+                    const maxX = Math.max(...allX) + 50;
+                    const minY = Math.min(...allY) - 50;
+                    const maxY = Math.max(...allY) + 50;
+
+                    const svgWidth = maxX - minX;
+                    const svgHeight = maxY - minY;
+
                     return (
                         <EdgeLabelRenderer>
                             <svg
                                 style={{
                                     position: "absolute",
-                                    left: 0,
-                                    top: 0,
+                                    left: minX,
+                                    top: minY,
                                     pointerEvents: "none",
                                     zIndex: 5,
                                 }}
-                                width="100%"
-                                height="100%"
+                                width={svgWidth}
+                                height={svgHeight}
+                                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                             >
                                 {hasCondition && (
                                     <g>
@@ -554,13 +584,17 @@ const EventGraphEdge = memo(
                                             }
                                             strokeWidth="2"
                                             fill="none"
-                                            transform={`translate(${conditionPoint.x}, ${conditionPoint.y}) rotate(${conditionAngle})`}
+                                            transform={`translate(${
+                                                conditionPoint.x - minX
+                                            }, ${
+                                                conditionPoint.y - minY
+                                            }) rotate(${conditionAngle})`}
                                         />
                                         <line
-                                            x1={conditionEdgePoint.x}
-                                            y1={conditionEdgePoint.y}
-                                            x2={conditionLabelX}
-                                            y2={conditionLabelY}
+                                            x1={conditionEdgePoint.x - minX}
+                                            y1={conditionEdgePoint.y - minY}
+                                            x2={conditionLabelX - minX}
+                                            y2={conditionLabelY - minY}
                                             stroke={
                                                 selected ? "#3b82f6" : "#6b7280"
                                             }
@@ -574,7 +608,11 @@ const EventGraphEdge = memo(
                                 {hasDelay && (
                                     <g>
                                         <g
-                                            transform={`translate(${delayPoint.x}, ${delayPoint.y}) rotate(${delayAngle})`}
+                                            transform={`translate(${
+                                                delayPoint.x - minX
+                                            }, ${
+                                                delayPoint.y - minY
+                                            }) rotate(${delayAngle})`}
                                         >
                                             <line
                                                 x1={-8}
@@ -602,10 +640,10 @@ const EventGraphEdge = memo(
                                             />
                                         </g>
                                         <line
-                                            x1={delayEdgePoint.x}
-                                            y1={delayEdgePoint.y}
-                                            x2={delayLabelX}
-                                            y2={delayLabelY}
+                                            x1={delayEdgePoint.x - minX}
+                                            y1={delayEdgePoint.y - minY}
+                                            x2={delayLabelX - minX}
+                                            y2={delayLabelY - minY}
                                             stroke={
                                                 selected ? "#f59e0b" : "#6b7280"
                                             }
@@ -618,10 +656,10 @@ const EventGraphEdge = memo(
 
                                 {hasParameter && (
                                     <line
-                                        x1={paramEdgePoint.x}
-                                        y1={paramEdgePoint.y}
-                                        x2={paramLabelX}
-                                        y2={paramLabelY}
+                                        x1={paramEdgePoint.x - minX}
+                                        y1={paramEdgePoint.y - minY}
+                                        x2={paramLabelX - minX}
+                                        y2={paramLabelY - minY}
                                         stroke={
                                             selected ? "#10b981" : "#6b7280"
                                         }
