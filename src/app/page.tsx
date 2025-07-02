@@ -15,8 +15,9 @@ import { AutosaveService } from "@/services/AutosaveService";
 import superjson from "superjson";
 import { NodeController } from "@/controllers/NodeController";
 import { EdgeController } from "@/controllers/EdgeController";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 
-const viewController = new ViewController();
+const viewController = ViewController.getInstance();
 const serializationService = new SerializationService();
 const autosaveService = AutosaveService.getInstance();
 const nodeController = new NodeController();
@@ -40,6 +41,10 @@ export default function DiagramEditor() {
 
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [lastAction, setLastAction] = useState<string>("");
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+    const [isMinimapVisible, setIsMinimapVisible] = useState(true);
+    const [isControlsVisible, setIsControlsVisible] = useState(true);
+    const [isShortcutsDialogOpen, setIsShortcutsDialogOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -135,6 +140,7 @@ export default function DiagramEditor() {
     }, []);
 
     const handleFitView = useCallback(() => {
+        viewController.fitView();
         setLastAction("Fit to view");
     }, []);
 
@@ -145,7 +151,12 @@ export default function DiagramEditor() {
     }, [isDarkMode]);
 
     const handleShowShortcuts = useCallback(() => {
-        setLastAction("Showing shortcuts");
+        setIsShortcutsDialogOpen(true);
+        setLastAction("Opened keyboard shortcuts");
+    }, []);
+
+    const handleCloseShortcuts = useCallback(() => {
+        setIsShortcutsDialogOpen(false);
     }, []);
 
     const handleNewProject = useCallback(() => {
@@ -162,6 +173,21 @@ export default function DiagramEditor() {
         pasteElements();
     }, [pasteElements]);
 
+    const handleToggleSidebar = useCallback(() => {
+        setIsSidebarVisible((prev) => !prev);
+        setLastAction(`${isSidebarVisible ? "Hidden" : "Shown"} sidebar`);
+    }, [isSidebarVisible]);
+
+    const handleToggleMinimap = useCallback(() => {
+        setIsMinimapVisible((prev) => !prev);
+        setLastAction(`${isMinimapVisible ? "Hidden" : "Shown"} minimap`);
+    }, [isMinimapVisible]);
+
+    const handleToggleControls = useCallback(() => {
+        setIsControlsVisible((prev) => !prev);
+        setLastAction(`${isControlsVisible ? "Hidden" : "Shown"} controls`);
+    }, [isControlsVisible]);
+
     useKeyboardShortcuts({
         onSave: handleSave,
         onLoad: () => fileInputRef.current?.click(),
@@ -173,7 +199,21 @@ export default function DiagramEditor() {
         onNewProject: handleNewProject,
         onCopy: handleCopy,
         onPaste: handlePaste,
+        onToggleSidebar: handleToggleSidebar,
+        onToggleMinimap: handleToggleMinimap,
+        onToggleControls: handleToggleControls,
     });
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && isShortcutsDialogOpen) {
+                handleCloseShortcuts();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isShortcutsDialogOpen, handleCloseShortcuts]);
 
     return (
         <div className="w-screen h-screen flex flex-col overflow-hidden">
@@ -190,10 +230,19 @@ export default function DiagramEditor() {
                 onShowShortcuts={handleShowShortcuts}
                 onCopy={handleCopy}
                 onPaste={handlePaste}
+                onToggleSidebar={handleToggleSidebar}
+                onToggleMinimap={handleToggleMinimap}
+                onToggleControls={handleToggleControls}
+                isSidebarVisible={isSidebarVisible}
+                isMinimapVisible={isMinimapVisible}
+                isControlsVisible={isControlsVisible}
             />
             <div className="flex-1 flex overflow-hidden">
-                <ComponentDrawer />
-                <DiagramCanvas />
+                {isSidebarVisible && <ComponentDrawer />}
+                <DiagramCanvas
+                    isMinimapVisible={isMinimapVisible}
+                    isControlsVisible={isControlsVisible}
+                />
                 {selectedProperties.length > 0 || selectionInfo ? (
                     <PropertiesBar
                         properties={selectedProperties}
@@ -214,6 +263,10 @@ export default function DiagramEditor() {
                 className="hidden"
                 accept=".json"
                 onChange={handleLoad}
+            />
+            <KeyboardShortcutsDialog
+                isOpen={isShortcutsDialogOpen}
+                onClose={handleCloseShortcuts}
             />
         </div>
     );

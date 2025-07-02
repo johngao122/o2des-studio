@@ -25,7 +25,6 @@ import { GeneratorNodePreview } from "./nodes/activitybased/resourceconstrainedq
 import { ActivityNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/ActivityNode";
 import { TerminatorNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/TerminatorNode";
 import { GlobalNodePreview } from "./nodes/activitybased/resourceconstrainedqueues/GlobalNode";
-import { MathJaxContext } from "better-react-mathjax";
 
 const NODE_DESCRIPTIONS = {
     initialization: "Initial state setup",
@@ -50,7 +49,7 @@ const PREVIEW_COMPONENTS = {
 } as const;
 
 const nodeFactory = new NodeFactory();
-const viewController = new ViewController();
+const viewController = ViewController.getInstance();
 const commandController = CommandController.getInstance();
 
 const PREVIEW_CONTAINER = {

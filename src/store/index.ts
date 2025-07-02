@@ -330,10 +330,18 @@ export const useStore = create<StoreState>((set, get) => ({
             );
 
             if (removeChanges.length > 0) {
+                const nodeIdsToDelete = removeChanges.map(
+                    (change) => change.id
+                );
+                commandController.handleCoordinatedDeletion(
+                    nodeIdsToDelete,
+                    []
+                );
+
                 const currentSelectedNodeIds = get().selectedElements.nodes;
-                const removedSelectedNodeIds = removeChanges
-                    .map((change) => change.id)
-                    .filter((id) => currentSelectedNodeIds.includes(id));
+                const removedSelectedNodeIds = nodeIdsToDelete.filter((id) =>
+                    currentSelectedNodeIds.includes(id)
+                );
 
                 if (removedSelectedNodeIds.length > 0) {
                     const remainingSelectedNodeIds =
@@ -342,7 +350,6 @@ export const useStore = create<StoreState>((set, get) => ({
                         );
 
                     set({
-                        nodes: finalNodes,
                         selectedElements: {
                             ...get().selectedElements,
                             nodes: remainingSelectedNodeIds,
@@ -357,14 +364,9 @@ export const useStore = create<StoreState>((set, get) => ({
                                 ? undefined
                                 : get().selectionInfo,
                     });
-
-                    const now = new Date().toISOString();
-                    set((state) => ({
-                        metadata: { ...state.metadata, modified: now },
-                    }));
-
-                    return;
                 }
+
+                return;
             }
 
             set({ nodes: finalNodes });
@@ -679,23 +681,20 @@ export const useStore = create<StoreState>((set, get) => ({
             (change) => change.type === "remove"
         );
         if (removeChanges.length > 0) {
+            const edgeIdsToDelete = removeChanges.map((change) => change.id);
+            commandController.handleCoordinatedDeletion([], edgeIdsToDelete);
+
             const currentSelectedEdgeIds = get().selectedElements.edges;
-            const removedSelectedEdgeIds = removeChanges
-                .map((change) => change.id)
-                .filter((id) => currentSelectedEdgeIds.includes(id));
+            const removedSelectedEdgeIds = edgeIdsToDelete.filter((id) =>
+                currentSelectedEdgeIds.includes(id)
+            );
 
             if (removedSelectedEdgeIds.length > 0) {
-                const edgesBeforeChange = get().edges;
-                const finalEdges = applyEdgeChanges(
-                    changes,
-                    edgesBeforeChange
-                ) as BaseEdge[];
                 const remainingSelectedEdgeIds = currentSelectedEdgeIds.filter(
                     (id) => !removedSelectedEdgeIds.includes(id)
                 );
 
                 set({
-                    edges: finalEdges,
                     selectedElements: {
                         ...get().selectedElements,
                         edges: remainingSelectedEdgeIds,
@@ -711,15 +710,9 @@ export const useStore = create<StoreState>((set, get) => ({
                             ? undefined
                             : get().selectionInfo,
                 });
-
-                const command =
-                    commandController.createEdgesChangeCommand(changes);
-                if (command) {
-                    commandController.execute(command);
-                }
-
-                return;
             }
+
+            return;
         }
 
         const command = commandController.createEdgesChangeCommand(changes);
@@ -1064,9 +1057,8 @@ export const useStore = create<StoreState>((set, get) => ({
                     .filter((edge) => {
                         return (
                             edge.data &&
-                            ((edge.data.controlPoints &&
-                                edge.data.controlPoints.length > 0) ||
-                                edge.data.conditionLabelOffset)
+                            edge.data.controlPoints &&
+                            edge.data.controlPoints.length > 0
                         );
                     })
                     .map((edge) => {
@@ -1083,13 +1075,6 @@ export const useStore = create<StoreState>((set, get) => ({
                                         y: cp.y + deltaY,
                                     })
                                 );
-                        }
-
-                        if (edge.data?.conditionLabelOffset) {
-                            updatedData.conditionLabelOffset = {
-                                x: edge.data.conditionLabelOffset.x + deltaX,
-                                y: edge.data.conditionLabelOffset.y + deltaY,
-                            };
                         }
 
                         return {

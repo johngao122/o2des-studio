@@ -13,6 +13,9 @@ interface UseKeyboardShortcutsProps {
     onShowShortcuts?: () => void;
     onCopy?: () => void;
     onPaste?: () => void;
+    onToggleSidebar?: () => void;
+    onToggleMinimap?: () => void;
+    onToggleControls?: () => void;
 }
 
 export function useKeyboardShortcuts({
@@ -26,6 +29,9 @@ export function useKeyboardShortcuts({
     onShowShortcuts,
     onCopy,
     onPaste,
+    onToggleSidebar,
+    onToggleMinimap,
+    onToggleControls,
 }: UseKeyboardShortcutsProps) {
     const { undo, redo } = useStore();
 
@@ -87,6 +93,18 @@ export function useKeyboardShortcuts({
                     event.preventDefault();
                     onNewProject?.();
                     break;
+                case "b":
+                    event.preventDefault();
+                    onToggleSidebar?.();
+                    break;
+                case "m":
+                    event.preventDefault();
+                    onToggleMinimap?.();
+                    break;
+                case "k":
+                    event.preventDefault();
+                    onToggleControls?.();
+                    break;
             }
         };
 
@@ -103,6 +121,9 @@ export function useKeyboardShortcuts({
         onShowShortcuts,
         onCopy,
         onPaste,
+        onToggleSidebar,
+        onToggleMinimap,
+        onToggleControls,
         undo,
         redo,
     ]);

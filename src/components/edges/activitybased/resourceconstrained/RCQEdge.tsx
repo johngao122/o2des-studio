@@ -9,7 +9,7 @@ import React, {
     useEffect,
 } from "react";
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
-import { MathJax } from "better-react-mathjax";
+import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import {
@@ -452,9 +452,9 @@ const RCQEdge = memo(
                                         backdropFilter: "blur(4px)",
                                     }}
                                 >
-                                    <MathJax>
+                                    <ReactKatex>
                                         {data?.condition || "True"}
-                                    </MathJax>
+                                    </ReactKatex>
                                 </div>
                             </div>
                         </EdgeLabelRenderer>

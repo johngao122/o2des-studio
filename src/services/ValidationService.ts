@@ -2,12 +2,10 @@ import { BaseNode, BaseEdge } from "../types/base";
 
 export class ValidationService {
     validateNode(node: BaseNode): boolean {
-        // Basic validation
         if (!node.id || !node.type || !node.name) {
             return false;
         }
 
-        // Position validation
         if (
             typeof node.position.x !== "number" ||
             typeof node.position.y !== "number"
@@ -19,7 +17,6 @@ export class ValidationService {
     }
 
     validateEdge(edge: BaseEdge): boolean {
-        // Basic validation
         if (
             !edge.id ||
             !edge.source ||
@@ -33,17 +30,14 @@ export class ValidationService {
     }
 
     validateModel(nodes: BaseNode[], edges: BaseEdge[]): boolean {
-        // Check all nodes are valid
         if (!nodes.every((node) => this.validateNode(node))) {
             return false;
         }
 
-        // Check all edges are valid
         if (!edges.every((edge) => this.validateEdge(edge))) {
             return false;
         }
 
-        // Check edge connections are valid
         const nodeIds = new Set(nodes.map((node) => node.id));
         if (
             !edges.every(
