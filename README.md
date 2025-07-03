@@ -26,12 +26,50 @@ This project is currently under active development. We're working on:
 
 ## 🚀 Getting Started
 
+### Using npm
+
 ```bash
 # Install dependencies
 npm install
 
 # Run development server
 npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the application.
+
+### Using Docker
+
+#### Development
+
+```bash
+# Start the development environment
+docker compose up dev
+
+# Or build and start in detached mode
+docker compose up -d dev
+```
+
+#### Production
+
+```bash
+# Build and start the production environment
+docker compose up app
+
+# Or build and start in detached mode
+docker compose up -d app
+```
+
+#### Multi-Platform Builds (AMD64 & ARM)
+
+The project supports building for multiple architectures (AMD64 and ARM64) using Docker BuildX:
+
+```bash
+# Build multi-platform image
+./build-multiplatform.sh -n your-username -i o2des-studio -t latest
+
+# Build and push to Docker Hub
+./build-multiplatform.sh -n your-username -i o2des-studio -t latest -p
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the application.

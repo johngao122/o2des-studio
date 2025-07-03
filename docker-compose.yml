@@ -1,0 +1,40 @@
+version: "3"
+
+services:
+    # Development service
+    dev:
+        build:
+            context: .
+            dockerfile: Dockerfile.dev
+            args:
+                BUILDPLATFORM: ${BUILDPLATFORM:-linux/amd64}
+        platform: ${TARGETPLATFORM:-linux/amd64}
+        ports:
+            - "3000:3000"
+        volumes:
+            - .:/app
+            - /app/node_modules
+            - /app/.next
+        environment:
+            - NODE_ENV=development
+        command: npm run dev
+
+    # Production service
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                BUILDPLATFORM: ${BUILDPLATFORM:-linux/amd64}
+                TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
+        platform: ${TARGETPLATFORM:-linux/amd64}
+        ports:
+            - "3000:3000"
+        environment:
+            - NODE_ENV=production
+        volumes:
+            - o2des_data:/app/data
+
+volumes:
+    o2des_data:
+        driver: local
