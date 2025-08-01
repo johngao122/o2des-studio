@@ -13,6 +13,17 @@ import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
 import { getStandardHandlePositions } from "@/lib/utils/math";
+import {
+    getDynamicPaddingStyles,
+    getNodeTypePaddingConfig,
+    getContentAreaDimensions,
+} from "@/lib/utils/nodeStyles";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -156,6 +167,26 @@ const InitializationNode = memo(
             nodeHeight
         );
 
+        const paddingConfig = getNodeTypePaddingConfig("initialization");
+        const paddingStyles = getDynamicPaddingStyles(
+            nodeWidth,
+            nodeHeight,
+            paddingConfig
+        );
+        const contentArea = getContentAreaDimensions(
+            nodeWidth,
+            nodeHeight,
+            2,
+            "initialization"
+        );
+        const variant = getTypographyVariant(nodeWidth);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            nodeWidth,
+            nodeHeight,
+            typographyConfig
+        );
+
         useEffect(() => {
             if (
                 node?.data?.initializations &&
@@ -212,7 +243,7 @@ const InitializationNode = memo(
 
         return (
             <div
-                className={`relative px-4 py-2 border-2 ${
+                className={`relative border-2 ${
                     selected
                         ? "border-blue-500"
                         : "border-black dark:border-white"
@@ -222,6 +253,7 @@ const InitializationNode = memo(
                     height: nodeHeight,
                     minWidth: 200,
                     minHeight: 120,
+                    ...paddingStyles,
                 }}
                 onDoubleClick={handleDoubleClick}
                 onMouseEnter={handleMouseEnter}
@@ -234,8 +266,16 @@ const InitializationNode = memo(
                     onResize={handleResize}
                 />
                 {/* Node Name/Title */}
-                <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 dark:text-white text-black">
-                    {nodeName}
+                <div className="mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 dark:text-white text-black">
+                    <ResponsiveText
+                        nodeWidth={nodeWidth}
+                        nodeHeight={nodeHeight}
+                        maxWidth={contentArea.width}
+                        fontWeight="medium"
+                        centerAlign
+                    >
+                        {nodeName}
+                    </ResponsiveText>
                 </div>
 
                 {id !== "preview" && (
@@ -331,33 +371,48 @@ const InitializationNode = memo(
                 )}
 
                 {/* Content */}
-                <div className="mt-2" style={{ height: nodeHeight - 60 }}>
+                <div
+                    className="mt-2"
+                    style={{ height: contentArea.height - 50 }}
+                >
                     {isEditing ? (
                         <textarea
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={handleBlur}
                             className="w-full p-2 border rounded dark:bg-zinc-700 dark:text-white nodrag resize-none"
-                            style={{ height: nodeHeight - 80 }}
+                            style={{
+                                height: contentArea.height - 90,
+                                fontSize: `${typography.fontSize}px`,
+                                lineHeight: `${typography.lineHeight}px`,
+                            }}
                             placeholder="Enter initializations..."
                             autoFocus
                         />
                     ) : (
-                        <div className="space-y-1 h-full overflow-hidden">
+                        <div className="h-full overflow-hidden">
                             {validItems.length > 0 ? (
-                                validItems.map(
-                                    (init: string, index: number) => (
-                                        <div key={index} className="my-1">
-                                            <div className="mathjax-content">
-                                                <ReactKatex>{init}</ReactKatex>
-                                            </div>
-                                        </div>
-                                    )
-                                )
+                                <ResponsiveText
+                                    nodeWidth={nodeWidth}
+                                    nodeHeight={nodeHeight}
+                                    maxWidth={contentArea.width}
+                                    maxHeight={contentArea.height - 50}
+                                    multiline
+                                    centerAlign
+                                    className="dark:text-white text-black"
+                                >
+                                    {validItems.join("\n")}
+                                </ResponsiveText>
                             ) : (
-                                <div className="text-gray-400 dark:text-gray-500 text-center">
+                                <ResponsiveText
+                                    nodeWidth={nodeWidth}
+                                    nodeHeight={nodeHeight}
+                                    maxWidth={contentArea.width}
+                                    centerAlign
+                                    className="text-gray-400 dark:text-gray-500"
+                                >
                                     No initializations
-                                </div>
+                                </ResponsiveText>
                             )}
                         </div>
                     )}

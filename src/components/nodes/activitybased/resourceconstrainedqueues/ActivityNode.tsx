@@ -16,6 +16,17 @@ import {
     getGridAlignedHandlePositions,
     getAllHandleCoordinates,
 } from "@/lib/utils/math";
+import {
+    getDynamicPaddingStyles,
+    getNodeTypePaddingConfig,
+    getContentAreaDimensions,
+} from "@/lib/utils/nodeStyles";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -129,13 +140,6 @@ export const ActivityNodePreview = () => {
     );
 };
 
-export const getDefaultData = (): ActivityNodeData => ({
-    resources: [],
-    duration: "op time",
-    width: 240,
-    height: 70,
-});
-
 const ActivityNode = memo(
     ({
         id,
@@ -166,13 +170,34 @@ const ActivityNode = memo(
             height: storeData?.height || 70,
         };
 
+        const paddingConfig = getNodeTypePaddingConfig("activity");
+        const paddingStyles = getDynamicPaddingStyles(
+            dimensions.width,
+            dimensions.height,
+            paddingConfig
+        );
+        const contentArea = getContentAreaDimensions(
+            dimensions.width,
+            dimensions.height,
+            2,
+            "activity"
+        );
+        const variant = getTypographyVariant(dimensions.width);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            dimensions.width,
+            dimensions.height,
+            typographyConfig
+        );
+
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
+                const adjustedHeight = Math.max(50, params.height - 70);
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...storeData,
                         width: params.width,
-                        height: params.height,
+                        height: adjustedHeight,
                     },
                 });
                 commandController.execute(command);
@@ -213,14 +238,23 @@ const ActivityNode = memo(
                 return null;
             }
 
-            return safeResources.map((resource, index) => (
-                <div
-                    key={index}
-                    className="px-2 py-1 bg-green-500 text-white text-xs rounded-sm font-medium"
-                >
-                    {String(resource)}
-                </div>
-            ));
+            return safeResources.map((resource, index) => {
+                const resourceFontSize = Math.max(
+                    9,
+                    Math.min(12, typography.fontSize * 0.75)
+                );
+                return (
+                    <div
+                        key={index}
+                        className="px-2 py-1 bg-green-500 text-white rounded-sm font-medium"
+                        style={{
+                            fontSize: `${resourceFontSize}px`,
+                        }}
+                    >
+                        {String(resource)}
+                    </div>
+                );
+            });
         };
 
         return (
@@ -237,7 +271,7 @@ const ActivityNode = memo(
             >
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={180}
+                    minWidth={150}
                     minHeight={50}
                     onResize={handleResize}
                 />
@@ -257,11 +291,25 @@ const ActivityNode = memo(
                         left: "0px",
                         width: `${dimensions.width}px`,
                         height: `${dimensions.height}px`,
+                        padding: 0,
+                        margin: 0,
                     }}
                 >
-                    <div className="text-sm font-medium text-center dark:text-white text-black px-4">
+                    <ResponsiveText
+                        nodeWidth={dimensions.width}
+                        nodeHeight={dimensions.height}
+                        maxWidth={dimensions.width * 0.85}
+                        fontWeight="medium"
+                        centerAlign
+                        className="dark:text-white text-black"
+                        style={{
+                            lineHeight: 0.9,
+                            padding: 0,
+                            margin: 0,
+                        }}
+                    >
                         {nodeName}
-                    </div>
+                    </ResponsiveText>
                 </div>
 
                 {/* Duration */}
@@ -282,14 +330,26 @@ const ActivityNode = memo(
                                     setEditDuration(e.target.value)
                                 }
                                 onBlur={handleBlur}
-                                className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
+                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
+                                style={{
+                                    fontSize: `${Math.max(
+                                        10,
+                                        typography.fontSize - 2
+                                    )}px`,
+                                }}
                                 placeholder="Duration"
                                 autoFocus
                             />
                         ) : (
-                            <div className="text-gray-600 dark:text-gray-400">
-                                Duration: {data?.duration}
-                            </div>
+                            <ResponsiveText
+                                nodeWidth={dimensions.width}
+                                nodeHeight={30}
+                                maxWidth={dimensions.width - 16}
+                                centerAlign
+                                className="text-gray-600 dark:text-gray-400"
+                            >
+                                {`Duration: ${data?.duration}`}
+                            </ResponsiveText>
                         )}
                     </div>
                 )}
@@ -439,8 +499,8 @@ const ActivityNode = memo(
 ActivityNode.getDefaultData = (): ActivityNodeData => ({
     resources: [],
     duration: "op time",
-    width: 240,
-    height: 70,
+    width: 150,
+    height: 50,
 });
 
 ActivityNode.getGraphType = (): string => "rcq";

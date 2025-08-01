@@ -11,7 +11,18 @@ import {
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
+import {
+    snapToGrid,
+    getGridAlignedHandlePositions,
+    generateArrowPath,
+    getArrowHandlePositions,
+} from "@/lib/utils/math";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -66,7 +77,7 @@ export const GeneratorNodePreview = () => {
                 className="absolute inset-0"
             >
                 <path
-                    d="M 0 15 L 150 15 L 190 60 L 150 105 L 0 105 L 40 60 Z"
+                    d={generateArrowPath(200, 120)}
                     fill="white"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -113,6 +124,15 @@ const GeneratorNode = memo(
             height: storeData?.height || 120,
         };
 
+        const variant = getTypographyVariant(dimensions.width);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            dimensions.width,
+            dimensions.height,
+            typographyConfig
+        );
+        const contentWidth = dimensions.width * 0.5;
+
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
@@ -125,6 +145,11 @@ const GeneratorNode = memo(
                 commandController.execute(command);
             },
             [id, storeData]
+        );
+
+        const arrowHandles = getArrowHandlePositions(
+            dimensions.width,
+            dimensions.height
         );
 
         return (
@@ -140,8 +165,8 @@ const GeneratorNode = memo(
             >
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={150}
-                    minHeight={80}
+                    minWidth={120}
+                    minHeight={50}
                     onResize={handleResize}
                 />
 
@@ -153,17 +178,10 @@ const GeneratorNode = memo(
                     className="absolute inset-0"
                 >
                     <path
-                        d={`M 0 ${dimensions.height * 0.125} L ${
-                            dimensions.width * 0.75
-                        } ${dimensions.height * 0.125} L ${
-                            dimensions.width * 0.95
-                        } ${dimensions.height * 0.5} L ${
-                            dimensions.width * 0.75
-                        } ${dimensions.height * 0.875} L 0 ${
-                            dimensions.height * 0.875
-                        } L ${dimensions.width * 0.2} ${
-                            dimensions.height * 0.5
-                        } Z`}
+                        d={generateArrowPath(
+                            dimensions.width,
+                            dimensions.height
+                        )}
                         fill="white"
                         stroke={selected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
@@ -173,149 +191,118 @@ const GeneratorNode = memo(
 
                 {/* Content Area */}
                 <div
-                    className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black right-12 text-sm"
-                    style={{ left: `${dimensions.width * 0.2}px` }}
+                    className="absolute flex items-center justify-center text-center dark:text-white text-black"
+                    style={{
+                        left: `${dimensions.width * 0}px`,
+                        right: `${dimensions.width * 0}px`,
+                        top: 0,
+                        bottom: 0,
+                        padding: 0,
+                        margin: 0,
+                    }}
                 >
-                    {nodeName}
+                    <ResponsiveText
+                        nodeWidth={dimensions.width}
+                        nodeHeight={dimensions.height}
+                        maxWidth={contentWidth}
+                        fontWeight="medium"
+                        centerAlign
+                        className="dark:text-white text-black"
+                        style={{
+                            lineHeight: 0.9,
+                            padding: 0,
+                            margin: 0,
+                        }}
+                    >
+                        {nodeName}
+                    </ResponsiveText>
                 </div>
 
                 {id !== "preview" && (
                     <>
                         {/* Top Handles */}
-                        <Handle
-                            id={`${id}-top-left-source`}
-                            type="source"
-                            position={Position.Top}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "37.5%",
-                                top: "17%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-top-right-source`}
-                            type="source"
-                            position={Position.Top}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "75%",
-                                top: "17%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
+                        {arrowHandles.top.map((handle, index) => (
+                            <Handle
+                                key={`top-${index}`}
+                                id={`${id}-top-${index}`}
+                                type="source"
+                                position={Position.Top}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
-                        {/* Left Handles - at the tail corners and indent */}
-                        <Handle
-                            id={`${id}-left-top-source`}
-                            type="source"
-                            position={Position.Left}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "3%",
-                                top: "12.5%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-left-source`}
-                            type="source"
-                            position={Position.Left}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "23%",
-                                top: "50%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-left-bottom-source`}
-                            type="source"
-                            position={Position.Left}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "3%",
-                                top: "87.5%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-
-                        {/* Right Handle - at the tip */}
-                        <Handle
-                            id={`${id}-right-source`}
-                            type="source"
-                            position={Position.Right}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "93%",
-                                top: "50%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
+                        {/* Right Handle - at the arrow tip */}
+                        {arrowHandles.right.map((handle, index) => (
+                            <Handle
+                                key={`right-${index}`}
+                                id={`${id}-right-${index}`}
+                                type="source"
+                                position={Position.Right}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
                         {/* Bottom Handles */}
-                        <Handle
-                            id={`${id}-bottom-left-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "37.5%",
-                                top: "83%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-bottom-right-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "75%",
-                                top: "83%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
+                        {arrowHandles.bottom.map((handle, index) => (
+                            <Handle
+                                key={`bottom-${index}`}
+                                id={`${id}-bottom-${index}`}
+                                type="source"
+                                position={Position.Bottom}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
+
+                        {/* Left Handles - tail corners and indent */}
+                        {arrowHandles.left.map((handle, index) => (
+                            <Handle
+                                key={`left-${index}`}
+                                id={`${id}-left-${index}`}
+                                type="source"
+                                position={Position.Left}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
                     </>
                 )}
             </div>
@@ -348,8 +335,8 @@ const GeneratorNode = memo(
 ) as any;
 
 GeneratorNode.getDefaultData = (): GeneratorNodeData => ({
-    width: 200,
-    height: 120,
+    width: 120,
+    height: 50,
 });
 
 GeneratorNode.getGraphType = (): string => "rcq";

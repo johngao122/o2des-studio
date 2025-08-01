@@ -6,6 +6,12 @@ import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode, BaseEdge } from "@/types/base";
 import { GripIcon, MoveIcon } from "lucide-react";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -99,6 +105,18 @@ const ModuleFrameBase = memo(
                     ? node.style.height
                     : 300,
         });
+
+        const variant = getTypographyVariant(dimensions.width);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            dimensions.width,
+            dimensions.height,
+            typographyConfig
+        );
+        const labelFontSize = Math.max(
+            10,
+            Math.min(14, typography.fontSize * 0.8)
+        );
 
         useEffect(() => {
             if (selected) {
@@ -309,13 +327,22 @@ const ModuleFrameBase = memo(
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             onBlur={handleBlur}
-                            className="p-1 text-sm border rounded bg-white dark:bg-zinc-700 dark:text-white nodrag"
+                            className="p-1 border rounded bg-white dark:bg-zinc-700 dark:text-white nodrag"
+                            style={{
+                                fontSize: `${labelFontSize}px`,
+                            }}
                             autoFocus
                         />
                     ) : (
-                        <span className="text-sm font-medium dark:text-white">
+                        <ResponsiveText
+                            nodeWidth={200}
+                            nodeHeight={50}
+                            maxWidth={150}
+                            fontWeight="medium"
+                            className="dark:text-white text-black"
+                        >
                             {nodeName}
-                        </span>
+                        </ResponsiveText>
                     )}
                 </div>
             </div>
