@@ -140,13 +140,6 @@ export const ActivityNodePreview = () => {
     );
 };
 
-export const getDefaultData = (): ActivityNodeData => ({
-    resources: [],
-    duration: "op time",
-    width: 240,
-    height: 70,
-});
-
 const ActivityNode = memo(
     ({
         id,
@@ -199,11 +192,12 @@ const ActivityNode = memo(
 
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
+                const adjustedHeight = Math.max(50, params.height - 70);
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...storeData,
                         width: params.width,
-                        height: params.height,
+                        height: adjustedHeight,
                     },
                 });
                 commandController.execute(command);
@@ -277,7 +271,7 @@ const ActivityNode = memo(
             >
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={180}
+                    minWidth={150}
                     minHeight={50}
                     onResize={handleResize}
                 />
