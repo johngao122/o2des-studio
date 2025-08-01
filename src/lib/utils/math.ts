@@ -661,14 +661,14 @@ export function getAllHandleCoordinates(
 export function generateArrowPath(
     width: number,
     height: number,
-    fixedTipWidth: number = 40,
-    fixedIndentWidth: number = 40
+    fixedTipWidth: number = 30,
+    fixedIndentWidth: number = 30
 ): string {
     const tipWidth = fixedTipWidth;
     const indentWidth = fixedIndentWidth;
 
-    const topY = height * 0.125;
-    const bottomY = height * 0.875;
+    const topY = height * 0.1;
+    const bottomY = height * 0.9;
     const centerY = height * 0.5;
 
     const bodyEndX = width - tipWidth;
@@ -683,7 +683,38 @@ export function generateArrowPath(
 }
 
 /**
- * Generate SVG path for ellipse/terminator shape that maintains proportions
+ * Generate SVG path for proper pill shape (rounded rectangle with semicircular ends)
+ * Maintains perfect pill proportions during resize - rounded ends stay circular
+ * Similar systematic approach to generateArrowPath
+ */
+export function generatePillPath(width: number, height: number): string {
+    const radius = height / 2;
+    const centerY = height / 2;
+
+    const straightWidth = Math.max(0, width - height);
+
+    const leftCurveCenter = radius;
+    const rightCurveCenter = radius + straightWidth;
+
+    if (straightWidth <= 0) {
+        const centerX = width / 2;
+        const r = Math.min(width, height) / 2;
+        return `M ${centerX - r} ${centerY} 
+                A ${r} ${r} 0 1 1 ${centerX + r} ${centerY}
+                A ${r} ${r} 0 1 1 ${centerX - r} ${centerY} Z`;
+    }
+
+    return `M ${leftCurveCenter} 0 
+            L ${rightCurveCenter} 0 
+            A ${radius} ${radius} 0 0 1 ${rightCurveCenter} ${height}
+            L ${leftCurveCenter} ${height}
+            A ${radius} ${radius} 0 0 1 ${leftCurveCenter} 0 Z`;
+}
+
+/**
+ * Generate SVG path for ellipse/terminator shape that maintains pill shape proportions
+ * Ensures rounded ends don't deform during elongation or resizing
+ * @deprecated Use generatePillPath for proper pill shapes
  */
 export function generateEllipsePath(
     width: number,
@@ -693,10 +724,73 @@ export function generateEllipsePath(
 ): { cx: number; cy: number; rx: number; ry: number } {
     const cx = centerX || width / 2;
     const cy = centerY || height / 2;
-    const rx = width * 0.475;
-    const ry = height * 0.458;
+
+    const ry = height / 2;
+    const minRx = height / 2;
+    const rx = Math.max(minRx, width / 2);
 
     return { cx, cy, rx, ry };
+}
+
+/**
+ * Calculate handle positions for pill-shaped nodes
+ * Positions handles systematically on curved and straight portions
+ * Following the pattern shown in the reference image
+ */
+export function getPillHandlePositions(width: number, height: number) {
+    const radius = height / 2;
+    const centerY = height / 2;
+    const straightWidth = Math.max(0, width - height);
+
+    const leftCurveCenter = radius;
+    const rightCurveCenter = radius + straightWidth;
+
+    const handles: {
+        top: Array<{ x: number; y: number }>;
+        right: Array<{ x: number; y: number }>;
+        bottom: Array<{ x: number; y: number }>;
+        left: Array<{ x: number; y: number }>;
+    } = {
+        top: [],
+        right: [],
+        bottom: [],
+        left: [],
+    };
+
+    handles.left.push(
+        {
+            x: leftCurveCenter - radius * 0.5,
+            y: centerY - radius * 0.9 + 5,
+        },
+        { x: 0 + 5, y: centerY },
+        { x: leftCurveCenter - radius * 0.5, y: centerY + radius * 0.9 - 5 }
+    );
+
+    if (straightWidth > 30) {
+        handles.top.push({ x: width / 2, y: 0 + 5 });
+    } else {
+        handles.top.push({ x: width / 2, y: 0 });
+    }
+
+    handles.right.push(
+        {
+            x: rightCurveCenter + radius * 0.5,
+            y: centerY - radius * 0.9 + 5,
+        },
+        { x: width - 5, y: centerY },
+        {
+            x: rightCurveCenter + radius * 0.5,
+            y: centerY + radius * 0.9 - 5,
+        }
+    );
+
+    if (straightWidth > 30) {
+        handles.bottom.push({ x: width / 2, y: height - 7 });
+    } else {
+        handles.bottom.push({ x: width / 2, y: height });
+    }
+
+    return handles;
 }
 
 /**
@@ -705,11 +799,11 @@ export function generateEllipsePath(
 export function getArrowHandlePositions(
     width: number,
     height: number,
-    fixedTipWidth: number = 40,
-    fixedIndentWidth: number = 40
+    fixedTipWidth: number = 30,
+    fixedIndentWidth: number = 30
 ) {
-    const topY = height * 0.125;
-    const bottomY = height * 0.875;
+    const topY = height * 0.1;
+    const bottomY = height * 0.9;
     const centerY = height * 0.5;
     const bodyEndX = width - fixedTipWidth;
 

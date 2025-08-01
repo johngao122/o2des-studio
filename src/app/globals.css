@@ -198,6 +198,13 @@ body {
     border: 2px solid #3b82f6 !important;
 }
 
+/* Disable all React Flow selection styling for terminator nodes - use custom pill stroke instead */
+.react-flow__node.terminator-node.selected,
+.terminator-node.react-flow__node.selected {
+    border: none !important;
+    box-shadow: none !important;
+}
+
 .react-flow__edge {
     pointer-events: visibleStroke;
     z-index: 0;

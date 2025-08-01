@@ -13,6 +13,17 @@ import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
 import { getStandardHandlePositions, snapToGrid } from "@/lib/utils/math";
+import {
+    getDynamicPaddingStyles,
+    getNodeTypePaddingConfig,
+    getContentAreaDimensions,
+} from "@/lib/utils/nodeStyles";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -73,6 +84,26 @@ const EventNode = memo(
         const storeData = storeNode?.data || {};
         const nodeWidth = storeData?.width || 200;
         const nodeHeight = storeData?.height || 120;
+
+        const paddingConfig = getNodeTypePaddingConfig("event");
+        const paddingStyles = getDynamicPaddingStyles(
+            nodeWidth,
+            nodeHeight,
+            paddingConfig
+        );
+        const contentArea = getContentAreaDimensions(
+            nodeWidth,
+            nodeHeight,
+            2,
+            "event"
+        );
+        const variant = getTypographyVariant(nodeWidth);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            nodeWidth,
+            nodeHeight,
+            typographyConfig
+        );
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
@@ -136,7 +167,7 @@ const EventNode = memo(
         return (
             <div
                 ref={nodeRef}
-                className={`relative px-4 py-2 border-2 rounded-[40px] ${
+                className={`relative border-2 rounded-[40px] ${
                     selected
                         ? "border-blue-500"
                         : "border-black dark:border-white"
@@ -146,6 +177,7 @@ const EventNode = memo(
                     height: nodeHeight,
                     minWidth: 200,
                     minHeight: 120,
+                    ...paddingStyles,
                 }}
                 onDoubleClick={handleDoubleClick}
                 onMouseEnter={handleMouseEnter}
@@ -161,18 +193,27 @@ const EventNode = memo(
                 />
 
                 {/* Node Name/Title */}
-                <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
-                    <ReactKatex>
+                <div className="mb-2 pb-1 dark:text-white text-black">
+                    <ResponsiveText
+                        nodeWidth={nodeWidth}
+                        nodeHeight={nodeHeight}
+                        maxWidth={contentArea.width}
+                        fontWeight="medium"
+                        centerAlign
+                    >
                         {nodeName +
                             (data?.eventParameters &&
                             data.eventParameters.trim() !== ""
                                 ? ` (${data.eventParameters})`
                                 : "")}
-                    </ReactKatex>
+                    </ResponsiveText>
                 </div>
 
                 {/* Content */}
-                <div className="space-y-2" style={{ height: nodeHeight - 60 }}>
+                <div
+                    className="space-y-2"
+                    style={{ height: contentArea.height - 40 }}
+                >
                     {isEditing ? (
                         <div className="space-y-2 h-full">
                             <textarea
@@ -182,7 +223,11 @@ const EventNode = memo(
                                 }
                                 onBlur={handleBlur}
                                 className="w-full flex-1 p-2 border rounded dark:bg-zinc-700 dark:text-white event-node-input focus:outline-none focus:border-blue-500 nodrag resize-none"
-                                style={{ height: nodeHeight - 100 }}
+                                style={{
+                                    height: contentArea.height - 80,
+                                    fontSize: `${typography.fontSize}px`,
+                                    lineHeight: `${typography.lineHeight}px`,
+                                }}
                                 placeholder="State Update"
                                 autoFocus
                             />
@@ -194,32 +239,40 @@ const EventNode = memo(
                                 }
                                 onBlur={handleBlur}
                                 className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input nodrag"
+                                style={{
+                                    fontSize: `${Math.max(
+                                        12,
+                                        typography.fontSize - 2
+                                    )}px`,
+                                }}
                                 placeholder="Event Parameters (optional)"
                             />
                         </div>
                     ) : (
-                        <div className="space-y-1 flex flex-col items-center justify-center h-full overflow-hidden">
+                        <div className="flex flex-col items-center justify-center h-full overflow-hidden">
                             {data?.stateUpdate &&
                             data.stateUpdate.trim() !== "" ? (
-                                data.stateUpdate
-                                    .split("\n")
-                                    .map((line, index) => (
-                                        <div key={index} className="my-1">
-                                            <div className="katex-content">
-                                                {line.trim() !== "" ? (
-                                                    <ReactKatex>
-                                                        {line}
-                                                    </ReactKatex>
-                                                ) : (
-                                                    <span>{line}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
+                                <ResponsiveText
+                                    nodeWidth={nodeWidth}
+                                    nodeHeight={nodeHeight}
+                                    maxWidth={contentArea.width}
+                                    maxHeight={contentArea.height - 40}
+                                    multiline
+                                    centerAlign
+                                    className="dark:text-white text-black"
+                                >
+                                    {data.stateUpdate}
+                                </ResponsiveText>
                             ) : (
-                                <div className="text-gray-400 dark:text-gray-500">
+                                <ResponsiveText
+                                    nodeWidth={nodeWidth}
+                                    nodeHeight={nodeHeight}
+                                    maxWidth={contentArea.width}
+                                    centerAlign
+                                    className="text-gray-400 dark:text-gray-500"
+                                >
                                     No state update
-                                </div>
+                                </ResponsiveText>
                             )}
                         </div>
                     )}

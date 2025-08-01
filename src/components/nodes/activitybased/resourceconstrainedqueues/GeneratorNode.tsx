@@ -11,7 +11,18 @@ import {
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid, getGridAlignedHandlePositions, generateArrowPath, getArrowHandlePositions } from "@/lib/utils/math";
+import {
+    snapToGrid,
+    getGridAlignedHandlePositions,
+    generateArrowPath,
+    getArrowHandlePositions,
+} from "@/lib/utils/math";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -113,6 +124,15 @@ const GeneratorNode = memo(
             height: storeData?.height || 120,
         };
 
+        const variant = getTypographyVariant(dimensions.width);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            dimensions.width,
+            dimensions.height,
+            typographyConfig
+        );
+        const contentWidth = dimensions.width * 0.5;
+
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
@@ -127,8 +147,10 @@ const GeneratorNode = memo(
             [id, storeData]
         );
 
-        // Get arrow-specific handle positions
-        const arrowHandles = getArrowHandlePositions(dimensions.width, dimensions.height);
+        const arrowHandles = getArrowHandlePositions(
+            dimensions.width,
+            dimensions.height
+        );
 
         return (
             <div
@@ -143,8 +165,8 @@ const GeneratorNode = memo(
             >
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={150}
-                    minHeight={80}
+                    minWidth={120}
+                    minHeight={50}
                     onResize={handleResize}
                 />
 
@@ -156,7 +178,10 @@ const GeneratorNode = memo(
                     className="absolute inset-0"
                 >
                     <path
-                        d={generateArrowPath(dimensions.width, dimensions.height)}
+                        d={generateArrowPath(
+                            dimensions.width,
+                            dimensions.height
+                        )}
                         fill="white"
                         stroke={selected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
@@ -166,10 +191,31 @@ const GeneratorNode = memo(
 
                 {/* Content Area */}
                 <div
-                    className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black right-12 text-sm"
-                    style={{ left: `${dimensions.width * 0.2}px` }}
+                    className="absolute flex items-center justify-center text-center dark:text-white text-black"
+                    style={{
+                        left: `${dimensions.width * 0}px`,
+                        right: `${dimensions.width * 0}px`,
+                        top: 0,
+                        bottom: 0,
+                        padding: 0,
+                        margin: 0,
+                    }}
                 >
-                    {nodeName}
+                    <ResponsiveText
+                        nodeWidth={dimensions.width}
+                        nodeHeight={dimensions.height}
+                        maxWidth={contentWidth}
+                        fontWeight="medium"
+                        centerAlign
+                        className="dark:text-white text-black"
+                        style={{
+                            lineHeight: 0.9,
+                            padding: 0,
+                            margin: 0,
+                        }}
+                    >
+                        {nodeName}
+                    </ResponsiveText>
                 </div>
 
                 {id !== "preview" && (
@@ -289,8 +335,8 @@ const GeneratorNode = memo(
 ) as any;
 
 GeneratorNode.getDefaultData = (): GeneratorNodeData => ({
-    width: 200,
-    height: 120,
+    width: 120,
+    height: 50,
 });
 
 GeneratorNode.getGraphType = (): string => "rcq";

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useRef } from "react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
 import {
     Handle,
     Position,
@@ -11,7 +11,18 @@ import {
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid, getGridAlignedHandlePositions, generateEllipsePath } from "@/lib/utils/math";
+import {
+    snapToGrid,
+    getGridAlignedHandlePositions,
+    generatePillPath,
+    getPillHandlePositions,
+} from "@/lib/utils/math";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
+import { ResponsiveText } from "@/components/ui/ResponsiveText";
 
 const commandController = CommandController.getInstance();
 
@@ -58,15 +69,15 @@ export const createJSON = (
 export const TerminatorNodePreview = () => {
     return (
         <div className="relative" style={{ width: "200px", height: "120px" }}>
-            {/* SVG Shape - Ellipse */}
+            {/* SVG Shape - Pill */}
             <svg
                 width="200"
                 height="120"
                 viewBox="0 0 200 120"
                 className="absolute inset-0"
             >
-                <ellipse
-                    {...generateEllipsePath(200, 120)}
+                <path
+                    d={generatePillPath(200, 120)}
                     fill="white"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -83,8 +94,8 @@ export const TerminatorNodePreview = () => {
 };
 
 export const getDefaultData = (): TerminatorNodeData => ({
-    width: 200,
-    height: 120,
+    width: 120,
+    height: 50,
 });
 
 const TerminatorNode = memo(
@@ -98,8 +109,13 @@ const TerminatorNode = memo(
         yPos,
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
+        const [isLocallySelected, setIsLocallySelected] = useState(false);
 
         const nodeRef = useRef<HTMLDivElement>(null);
+
+        useEffect(() => {
+            setIsLocallySelected(selected || false);
+        }, [selected]);
 
         const storeNode = useStore((state) =>
             state.nodes.find((n) => n.id === id)
@@ -108,18 +124,73 @@ const TerminatorNode = memo(
         const nodeName = storeNode?.name || "Terminator Node";
 
         const storeData = storeNode?.data || {};
-        const dimensions = {
+        const rawDimensions = {
             width: storeData?.width || 200,
             height: storeData?.height || 120,
         };
 
+        const defaultData = TerminatorNode.getDefaultData();
+        const defaultRatio =
+            (defaultData.height || 50) / (defaultData.width || 120);
+
+        let constrainedWidth = rawDimensions.width;
+        let constrainedHeight = rawDimensions.height;
+
+        const currentRatio = constrainedHeight / constrainedWidth;
+
+        if (currentRatio > defaultRatio) {
+            constrainedHeight = constrainedWidth * defaultRatio;
+        }
+
+        constrainedWidth = Math.max(constrainedWidth, defaultData.width || 120);
+        constrainedHeight = Math.max(
+            constrainedHeight,
+            defaultData.height || 50
+        );
+
+        const dimensions = {
+            width: constrainedWidth,
+            height: constrainedHeight,
+        };
+
+        const variant = getTypographyVariant(dimensions.width);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            dimensions.width,
+            dimensions.height,
+            typographyConfig
+        );
+        const contentWidth = dimensions.width * 0.7;
+
+        const pillHandles = getPillHandlePositions(
+            dimensions.width,
+            dimensions.height
+        );
+
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
+                const defaultData = TerminatorNode.getDefaultData();
+                const defaultWidth = defaultData.width || 120;
+                const defaultHeight = defaultData.height || 50;
+                const defaultRatio = defaultHeight / defaultWidth;
+
+                let constrainedWidth = params.width;
+                let constrainedHeight = params.height;
+
+                const currentRatio = constrainedHeight / constrainedWidth;
+
+                if (currentRatio > defaultRatio) {
+                    constrainedHeight = constrainedWidth * defaultRatio;
+                }
+
+                constrainedWidth = Math.max(constrainedWidth, defaultWidth);
+                constrainedHeight = Math.max(constrainedHeight, defaultHeight);
+
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...storeData,
-                        width: params.width,
-                        height: params.height,
+                        width: constrainedWidth,
+                        height: constrainedHeight,
                     },
                 });
                 commandController.execute(command);
@@ -130,18 +201,20 @@ const TerminatorNode = memo(
         return (
             <div
                 ref={nodeRef}
-                className={`relative ${selected ? "shadow-lg" : ""}`}
+                className={`relative terminator-node ${
+                    isLocallySelected ? "shadow-lg" : ""
+                }`}
                 style={{
-                    width: `${dimensions.width}px`,
-                    height: `${dimensions.height}px`,
+                    width: `${dimensions.width + 2}px`,
+                    height: `${dimensions.height + 2}px`,
                 }}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <NodeResizer
-                    isVisible={selected || isHovered}
-                    minWidth={150}
-                    minHeight={80}
+                    isVisible={isLocallySelected || isHovered}
+                    minWidth={120}
+                    minHeight={50}
                     onResize={handleResize}
                 />
 
@@ -150,157 +223,132 @@ const TerminatorNode = memo(
                     width={dimensions.width}
                     height={dimensions.height}
                     viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-                    className="absolute inset-0"
+                    className="absolute"
+                    style={{
+                        left: "1px",
+                        top: "1px",
+                    }}
                 >
-                    <ellipse
-                        {...generateEllipsePath(dimensions.width, dimensions.height)}
+                    <path
+                        d={generatePillPath(
+                            dimensions.width,
+                            dimensions.height
+                        )}
                         fill="white"
-                        stroke={selected ? "#3b82f6" : "currentColor"}
+                        stroke={isLocallySelected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
                         className="dark:fill-zinc-800"
                     />
                 </svg>
 
                 {/* Content Area */}
-                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black px-8 text-sm">
-                    {nodeName}
+                <div
+                    className="absolute flex items-center justify-center text-center dark:text-white text-black"
+                    style={{
+                        left: "1px",
+                        top: "1px",
+                        width: `${dimensions.width}px`,
+                        height: `${dimensions.height}px`,
+                    }}
+                >
+                    <ResponsiveText
+                        nodeWidth={dimensions.width}
+                        nodeHeight={dimensions.height}
+                        maxWidth={contentWidth}
+                        fontWeight="medium"
+                        centerAlign
+                        showTooltip={false}
+                        className="dark:text-white text-black"
+                    >
+                        {nodeName}
+                    </ResponsiveText>
                 </div>
 
                 {id !== "preview" && (
                     <>
                         {/* Top Handles */}
-                        <Handle
-                            id={`${id}-top-left-source`}
-                            type="source"
-                            position={Position.Top}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "20%",
-                                top: "20%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-top-center-source`}
-                            type="source"
-                            position={Position.Top}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "50%",
-                                top: "7%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-top-right-source`}
-                            type="source"
-                            position={Position.Top}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "80%",
-                                top: "20%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
+                        {pillHandles.top.map((handle, index) => (
+                            <Handle
+                                key={`top-${index}`}
+                                id={`${id}-top-${index}`}
+                                type="source"
+                                position={Position.Top}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    isLocallySelected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
-                        {/* Side Handles */}
-                        <Handle
-                            id={`${id}-left-source`}
-                            type="source"
-                            position={Position.Left}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "5%",
-                                top: "50%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-right-source`}
-                            type="source"
-                            position={Position.Right}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "95%",
-                                top: "50%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
+                        {/* Right Handles */}
+                        {pillHandles.right.map((handle, index) => (
+                            <Handle
+                                key={`right-${index}`}
+                                id={`${id}-right-${index}`}
+                                type="source"
+                                position={Position.Right}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    isLocallySelected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
                         {/* Bottom Handles */}
-                        <Handle
-                            id={`${id}-bottom-left-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "20%",
-                                top: "80%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-bottom-center-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "50%",
-                                top: "95%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
-                        <Handle
-                            id={`${id}-bottom-right-source`}
-                            type="source"
-                            position={Position.Bottom}
-                            className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                selected || isHovered
-                                    ? "!bg-transparent"
-                                    : "!bg-transparent !opacity-0"
-                            }`}
-                            isConnectable={isConnectable}
-                            style={{
-                                left: "80%",
-                                top: "80%",
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        />
+                        {pillHandles.bottom.map((handle, index) => (
+                            <Handle
+                                key={`bottom-${index}`}
+                                id={`${id}-bottom-${index}`}
+                                type="source"
+                                position={Position.Bottom}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    isLocallySelected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
+
+                        {/* Left Handles */}
+                        {pillHandles.left.map((handle, index) => (
+                            <Handle
+                                key={`left-${index}`}
+                                id={`${id}-left-${index}`}
+                                type="source"
+                                position={Position.Left}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    isLocallySelected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${handle.x}px`,
+                                    top: `${handle.y}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
                     </>
                 )}
             </div>
@@ -333,8 +381,8 @@ const TerminatorNode = memo(
 ) as any;
 
 TerminatorNode.getDefaultData = (): TerminatorNodeData => ({
-    width: 200,
-    height: 120,
+    width: 120,
+    height: 50,
 });
 
 TerminatorNode.getGraphType = (): string => "rcq";
