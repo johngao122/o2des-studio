@@ -653,3 +653,81 @@ export function getAllHandleCoordinates(
         })),
     };
 }
+
+/**
+ * Generate SVG path for arrow shape that preserves angular geometry during resize
+ * Only the horizontal sides elongate while maintaining fixed tip angle and indent
+ */
+export function generateArrowPath(
+    width: number,
+    height: number,
+    fixedTipWidth: number = 40,
+    fixedIndentWidth: number = 40
+): string {
+    const tipWidth = fixedTipWidth;
+    const indentWidth = fixedIndentWidth;
+
+    const topY = height * 0.125;
+    const bottomY = height * 0.875;
+    const centerY = height * 0.5;
+
+    const bodyEndX = width - tipWidth;
+
+    return `M ${indentWidth} ${centerY} 
+            L 0 ${topY} 
+            L ${bodyEndX} ${topY} 
+            L ${width} ${centerY} 
+            L ${bodyEndX} ${bottomY} 
+            L 0 ${bottomY} 
+            Z`;
+}
+
+/**
+ * Generate SVG path for ellipse/terminator shape that maintains proportions
+ */
+export function generateEllipsePath(
+    width: number,
+    height: number,
+    centerX?: number,
+    centerY?: number
+): { cx: number; cy: number; rx: number; ry: number } {
+    const cx = centerX || width / 2;
+    const cy = centerY || height / 2;
+    const rx = width * 0.475;
+    const ry = height * 0.458;
+
+    return { cx, cy, rx, ry };
+}
+
+/**
+ * Calculate handle positions for arrow-shaped nodes
+ */
+export function getArrowHandlePositions(
+    width: number,
+    height: number,
+    fixedTipWidth: number = 40,
+    fixedIndentWidth: number = 40
+) {
+    const topY = height * 0.125;
+    const bottomY = height * 0.875;
+    const centerY = height * 0.5;
+    const bodyEndX = width - fixedTipWidth;
+
+    return {
+        top: [{ x: bodyEndX * 0.5 + 10, y: topY + 5 }],
+
+        right: [
+            { x: bodyEndX - 8, y: topY },
+            { x: width - 5, y: centerY },
+            { x: bodyEndX - 8, y: bottomY },
+        ],
+
+        bottom: [{ x: bodyEndX * 0.5 + 10, y: bottomY - 5 }],
+
+        left: [
+            { x: 0 + 8, y: topY },
+            { x: fixedIndentWidth + 5, y: centerY },
+            { x: 0 + 8, y: bottomY },
+        ],
+    };
+}

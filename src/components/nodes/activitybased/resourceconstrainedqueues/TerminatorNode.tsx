@@ -11,7 +11,7 @@ import {
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
+import { snapToGrid, getGridAlignedHandlePositions, generateEllipsePath } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
 
@@ -66,10 +66,7 @@ export const TerminatorNodePreview = () => {
                 className="absolute inset-0"
             >
                 <ellipse
-                    cx="100"
-                    cy="60"
-                    rx="95"
-                    ry="55"
+                    {...generateEllipsePath(200, 120)}
                     fill="white"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -156,10 +153,7 @@ const TerminatorNode = memo(
                     className="absolute inset-0"
                 >
                     <ellipse
-                        cx={dimensions.width / 2}
-                        cy={dimensions.height / 2}
-                        rx={dimensions.width * 0.475}
-                        ry={dimensions.height * 0.458}
+                        {...generateEllipsePath(dimensions.width, dimensions.height)}
                         fill="white"
                         stroke={selected ? "#3b82f6" : "currentColor"}
                         strokeWidth="2"
