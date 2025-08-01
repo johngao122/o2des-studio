@@ -21,6 +21,17 @@ services:
 
     # Production service
     app:
+        image: ${DOCKER_IMAGE:-mooncheesz/o2des-studio:latest}
+        platform: ${TARGETPLATFORM:-linux/amd64}
+        ports:
+            - "3000:3000"
+        environment:
+            - NODE_ENV=production
+        volumes:
+            - o2des_data:/app/data
+
+    # Alternative production service that builds locally
+    app-build:
         build:
             context: .
             dockerfile: Dockerfile

@@ -1,49 +1,52 @@
-FROM --platform=$BUILDPLATFORM node:20-alpine AS base
+# Base on official Node.js Alpine image
+FROM node:20-alpine AS base
 
-# Install dependencies only when needed
-FROM --platform=$BUILDPLATFORM base AS deps
+# Install dependencies needed for builds
+RUN apk add --no-cache libc6-compat
+
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package.json package-lock.json ./
-
-# Install dependencies
+# Install dependencies based on the preferred package manager
+FROM base AS deps
+COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Rebuild the source code only when needed
-FROM --platform=$BUILDPLATFORM base AS builder
+FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
+# Next.js telemetry disabled
 ENV NEXT_TELEMETRY_DISABLED 1
 
 # Build the application
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM --platform=$TARGETPLATFORM base AS runner
+FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
 
+# Copy necessary files
 COPY --from=builder /app/public ./public
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Set up .next directory
+RUN mkdir -p .next/static
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-# Automatically leverage output traces to reduce image size
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Set correct permissions
+RUN chown -R nextjs:nodejs /app
 
+# Switch to non-root user
 USER nextjs
 
 EXPOSE 3000
@@ -51,4 +54,4 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]
