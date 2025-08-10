@@ -740,7 +740,7 @@ export const useStore = create<StoreState>((set, get) => ({
         return superjson.stringify(serializedModel);
     },
 
-    loadSerializedState: (serialized: string) => {
+    loadSerializedState: async (serialized: string) => {
         if (!serialized || typeof serialized !== "string") {
             throw new Error("Invalid serialized data: empty or not a string");
         }
@@ -785,7 +785,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
         try {
             const { nodes, edges, projectName, metadata } =
-                serializationService.deserializeModel(parsed);
+                await serializationService.deserializeModel(parsed);
 
             const updatedMetadata = {
                 ...metadata,

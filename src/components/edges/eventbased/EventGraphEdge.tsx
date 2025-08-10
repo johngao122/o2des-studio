@@ -16,6 +16,7 @@ import {
 import BaseEdgeComponent, {
     BaseEdgeData,
     BaseEdgeProps,
+    getDefaultBaseEdgeData,
 } from "@/components/edges/BaseEdgeComponent";
 
 const commandController = CommandController.getInstance();
@@ -862,11 +863,10 @@ const EventGraphEdge = memo(
 ) as any;
 
 EventGraphEdge.getDefaultData = (): EventGraphEdgeData => ({
+    ...getDefaultBaseEdgeData(),
     condition: "True",
     delay: undefined,
     parameter: undefined,
-    edgeType: "straight",
-    controlPoints: undefined,
     conditionPosition: 0.5,
     delayPosition: 0.25,
     parameterPosition: 0.75,

@@ -21,6 +21,7 @@ import {
 import BaseEdgeComponent, {
     BaseEdgeData,
     EdgeTypeOption,
+    getDefaultBaseEdgeData,
 } from "@/components/edges/BaseEdgeComponent";
 
 const commandController = CommandController.getInstance();
@@ -466,11 +467,9 @@ const RCQEdge = memo(
 ) as any;
 
 RCQEdge.getDefaultData = (): RCQEdgeData => ({
-    edgeType: "straight",
+    ...getDefaultBaseEdgeData(),
     condition: "True",
     conditionLabelOffset: { x: 0, y: -30 },
-    isDependency: false,
-    controlPoints: undefined,
 });
 
 RCQEdge.getGraphType = (): string => "rcq";

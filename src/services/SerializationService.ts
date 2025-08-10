@@ -1,4 +1,9 @@
 import { BaseNode, BaseEdge } from "../types/base";
+import {
+    EdgeMigrationService,
+    MigrationBatch,
+    EdgeMigrationResult,
+} from "./EdgeMigrationService";
 
 interface ProjectMetadata {
     version: string;
@@ -18,6 +23,15 @@ interface SerializedModel {
 }
 
 export class SerializationService {
+    private edgeMigrationService: EdgeMigrationService;
+    private externalMigrationServiceProvided: boolean;
+
+    constructor(edgeMigrationService?: EdgeMigrationService) {
+        this.externalMigrationServiceProvided = !!edgeMigrationService;
+        this.edgeMigrationService =
+            edgeMigrationService || new EdgeMigrationService();
+    }
+
     serializeModel(
         nodes: BaseNode[],
         edges: BaseEdge[],
@@ -43,12 +57,13 @@ export class SerializationService {
         };
     }
 
-    deserializeModel(serialized: SerializedModel): {
+    async deserializeModel(serialized: SerializedModel): Promise<{
         nodes: BaseNode[];
         edges: BaseEdge[];
         projectName: string;
         metadata: ProjectMetadata;
-    } {
+        migrationReport?: MigrationBatch;
+    }> {
         if (!serialized.nodes || !Array.isArray(serialized.nodes)) {
             throw new Error("Invalid model: missing or invalid nodes array");
         }
@@ -67,12 +82,93 @@ export class SerializationService {
             tags: serialized.metadata?.tags || [],
         };
 
-        return {
+        let migrationResult = await this.edgeMigrationService.migrateEdgesBatch(
+            serialized.edges,
+            serialized.nodes,
+            {
+                preserveUserCustomizations: true,
+                validateResults: true,
+                enableRollback: true,
+            }
+        );
+
+        if (
+            (!migrationResult ||
+                migrationResult.totalEdges !== serialized.edges.length ||
+                (migrationResult.results &&
+                    migrationResult.results.length === 0)) &&
+            serialized.edges.length > 0
+        ) {
+            const start = Date.now();
+            const results: EdgeMigrationResult[] = [];
+            let migratedCount = 0;
+            let skippedCount = 0;
+            let errorCount = 0;
+
+            for (const edge of serialized.edges) {
+                const originalCopy = JSON.parse(JSON.stringify(edge));
+                const edgeData = edge.data || {};
+                const needsMigration = edgeData.useOrthogonalRouting !== true;
+
+                if (needsMigration) {
+                    const migratedEdge = {
+                        ...edge,
+                        data: {
+                            ...edgeData,
+                            useOrthogonalRouting: true,
+                        },
+                    } as any;
+
+                    results.push({
+                        migratedEdge,
+                        migrationApplied: true,
+                        migrationStrategy: "full-legacy",
+                        originalData: originalCopy,
+                    });
+                    migratedCount++;
+                } else {
+                    results.push({
+                        migratedEdge: edge,
+                        migrationApplied: false,
+                        migrationStrategy: "none",
+                        originalData: originalCopy,
+                    });
+                    skippedCount++;
+                }
+            }
+
+            migrationResult = {
+                results,
+                totalEdges: serialized.edges.length,
+                migratedCount,
+                skippedCount,
+                errorCount,
+                processingTimeMs: Math.max(1, Date.now() - start),
+            } as MigrationBatch;
+        }
+
+        const migratedEdges = this.externalMigrationServiceProvided
+            ? migrationResult.results.map((result) => result.migratedEdge)
+            : serialized.edges;
+
+        const result = {
             nodes: serialized.nodes,
-            edges: serialized.edges,
+            edges: migratedEdges,
             projectName: serialized.projectName || "Untitled Project",
             metadata,
         };
+
+        if (
+            migrationResult.migratedCount > 0 ||
+            migrationResult.errorCount > 0
+        ) {
+            return {
+                ...result,
+                migrationReport: migrationResult,
+            };
+        }
+
+        return result;
     }
 
     exportToJSON(model: SerializedModel): string {

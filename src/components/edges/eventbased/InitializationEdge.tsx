@@ -7,12 +7,14 @@ import { CommandController } from "@/controllers/CommandController";
 import BaseEdgeComponent, {
     BaseEdgeData,
     BaseEdgeProps,
+    getDefaultBaseEdgeData,
 } from "@/components/edges/BaseEdgeComponent";
 import {
     parseTransformMatrix,
     clientToFlowPosition,
     throttle,
     snapToGrid,
+    calculateEdgePositions,
 } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
@@ -248,40 +250,46 @@ const InitializationEdge = memo(
                 onClick={onClick}
             >
                 {({
+                    edgePath,
                     isSimpleMode,
                     centerX,
                     centerY,
                 }: {
+                    edgePath: string;
                     isSimpleMode: boolean;
                     centerX: number;
                     centerY: number;
                 }) => {
                     const delayPosition = data?.delayPosition ?? 0.25;
 
-                    let delayPoint: { x: number; y: number };
+                    const { pathPoints, edgePoints } = calculateEdgePositions(
+                        edgePath,
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                        [delayPosition],
+                        isSimpleMode,
+                        centerX,
+                        centerY
+                    );
 
-                    if (isSimpleMode) {
-                        const dx = targetX - sourceX;
-                        const dy = targetY - sourceY;
-                        delayPoint = {
-                            x: sourceX + dx * delayPosition,
-                            y: sourceY + dy * delayPosition,
-                        };
-                    } else {
-                        delayPoint = { x: centerX, y: centerY };
-                    }
+                    const [delayData] = pathPoints;
+                    const [delayEdgePoint] = edgePoints;
+
+                    const delayPoint = { x: delayData.x, y: delayData.y };
 
                     const defaultDelayLabelOffset = { x: 0, y: -30 };
                     const delayLabelOffset =
                         isDelayDragging && tempDelayPosition
                             ? {
-                                  x: tempDelayPosition.x - delayPoint.x,
-                                  y: tempDelayPosition.y - delayPoint.y,
+                                  x: tempDelayPosition.x - delayEdgePoint.x,
+                                  y: tempDelayPosition.y - delayEdgePoint.y,
                               }
                             : data?.delayLabelOffset || defaultDelayLabelOffset;
 
-                    const delayLabelX = delayPoint.x + delayLabelOffset.x;
-                    const delayLabelY = delayPoint.y + delayLabelOffset.y;
+                    const delayLabelX = delayEdgePoint.x + delayLabelOffset.x;
+                    const delayLabelY = delayEdgePoint.y + delayLabelOffset.y;
 
                     return (
                         <EdgeLabelRenderer>
@@ -299,8 +307,8 @@ const InitializationEdge = memo(
                                     height="100%"
                                 >
                                     <line
-                                        x1={delayPoint.x}
-                                        y1={delayPoint.y}
+                                        x1={delayEdgePoint.x}
+                                        y1={delayEdgePoint.y}
                                         x2={delayLabelX}
                                         y2={delayLabelY}
                                         stroke={
@@ -379,10 +387,10 @@ const InitializationEdge = memo(
 ) as InitializationEdgeComponent;
 
 InitializationEdge.getDefaultData = (): InitializationEdgeData => ({
+    ...getDefaultBaseEdgeData(),
     initialDelay: "0",
     delayPosition: 0.25,
     delayLabelOffset: { x: 0, y: -30 },
-    edgeType: "straight",
 });
 
 InitializationEdge.getGraphType = (): string => "eventBased";

@@ -28,15 +28,37 @@ import {
     simplifyControlPoints,
     createRoundedPath,
 } from "@/lib/utils/edge";
+import { OrthogonalRoutingEngine } from "@/lib/routing/OrthogonalRoutingEngine";
+import { HandleSelectionService } from "@/lib/routing/HandleSelectionService";
+import { RoutingFeedbackSystem } from "@/lib/routing/RoutingFeedbackSystem";
+import { getAllNodeHandles, getHandleInfoById } from "@/lib/utils/nodeHandles";
+import { useStore } from "@/store";
+import {
+    HandleInfo,
+    NodeInfo,
+    OrthogonalPath,
+    RoutingMetrics,
+} from "@/lib/routing/types";
 
 const commandController = CommandController.getInstance();
+const orthogonalRoutingEngine = new OrthogonalRoutingEngine();
+const handleSelectionService = new HandleSelectionService();
+const routingFeedbackSystem = new RoutingFeedbackSystem();
 
-export type EdgeTypeOption = "straight" | "bezier" | "rounded";
+export type EdgeTypeOption = "straight" | "bezier" | "rounded" | "orthogonal";
 
 export interface BaseEdgeData {
     edgeType?: EdgeTypeOption;
     controlPoints?: { x: number; y: number }[];
     isDependency?: boolean;
+
+    routingType?: "horizontal-first" | "vertical-first";
+    routingMetrics?: RoutingMetrics;
+    selectedHandles?: {
+        source: HandleInfo;
+        target: HandleInfo;
+    };
+    useOrthogonalRouting?: boolean;
 }
 
 export interface BaseEdgeProps<T extends BaseEdgeData = BaseEdgeData>
@@ -69,6 +91,7 @@ export const BaseEdgeComponent = memo(
         selected,
         onClick,
         children,
+        ...props
     }: BaseEdgeProps<T>) => {
         const [isDragging, setIsDragging] = useState<number | null>(null);
         const [isCenterDragging, setIsCenterDragging] = useState(false);
@@ -97,6 +120,29 @@ export const BaseEdgeComponent = memo(
         };
 
         const edgeType = data?.edgeType || "straight";
+        const useOrthogonalRouting = data?.useOrthogonalRouting ?? true;
+
+        const edges = useStore((state) => state.edges);
+        const currentEdge = edges.find((edge) => edge.id === id);
+        const sourceHandle = currentEdge?.sourceHandle;
+        const targetHandle = currentEdge?.targetHandle;
+
+        try {
+            console.groupCollapsed("[Edge] Render", id);
+
+            console.log("props", {
+                id,
+                edgeType,
+                useOrthogonalRouting,
+                sourceHandle,
+                targetHandle,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+            });
+        } catch {}
+        const nodes = useStore((state) => state.nodes);
 
         const hasCustomControlPoints =
             data?.controlPoints && data.controlPoints.length > 0;
@@ -155,139 +201,301 @@ export const BaseEdgeComponent = memo(
         const controlPoint2 = getControlPoint(1);
         const controlPoint3 = getControlPoint(2);
 
-        let edgePath: string;
-        let labelX: number, labelY: number;
+        const calculateOrthogonalPath = useCallback((): {
+            path: string;
+            controlPoints: { x: number; y: number }[];
+        } | null => {
+            if (!useOrthogonalRouting || !sourceHandle || !targetHandle) {
+                console.debug(
+                    "Orthogonal routing disabled or missing handles:",
+                    { useOrthogonalRouting, sourceHandle, targetHandle }
+                );
+                return null;
+            }
 
-        labelX = controlPoint2.x;
-        labelY = controlPoint2.y;
+            try {
+                const sourceHandleInfo = getHandleInfoById(sourceHandle, nodes);
+                const targetHandleInfo = getHandleInfoById(targetHandle, nodes);
 
-        switch (edgeType) {
-            case "bezier":
-                const controlPoints =
-                    isDragging !== null && tempControlPoints.length > 0
-                        ? tempControlPoints
-                        : data?.controlPoints && data.controlPoints.length > 0
-                        ? data.controlPoints
-                        : [controlPoint1, controlPoint2, controlPoint3];
-                const bezierSegments = [];
-
-                const [segment1] = getBezierPath({
-                    sourceX,
-                    sourceY,
-                    sourcePosition: Position.Right,
-                    targetX: controlPoints[0]?.x || controlPoint1.x,
-                    targetY: controlPoints[0]?.y || controlPoint1.y,
-                    targetPosition: Position.Left,
-                });
-                bezierSegments.push(segment1);
-
-                for (let i = 0; i < controlPoints.length - 1; i++) {
-                    const [segment] = getBezierPath({
-                        sourceX: controlPoints[i].x,
-                        sourceY: controlPoints[i].y,
-                        sourcePosition: Position.Right,
-                        targetX: controlPoints[i + 1].x,
-                        targetY: controlPoints[i + 1].y,
-                        targetPosition: Position.Left,
+                if (!sourceHandleInfo || !targetHandleInfo) {
+                    console.debug("Failed to resolve handle information:", {
+                        sourceHandle,
+                        targetHandle,
+                        sourceHandleInfo,
+                        targetHandleInfo,
                     });
-                    bezierSegments.push(segment.replace("M", "L"));
+                    return null;
                 }
 
-                const lastControlPoint =
-                    controlPoints[controlPoints.length - 1];
-                const [segment4] = getBezierPath({
-                    sourceX: lastControlPoint.x,
-                    sourceY: lastControlPoint.y,
-                    sourcePosition: Position.Right,
-                    targetX,
-                    targetY,
-                    targetPosition: Position.Left,
-                });
-                bezierSegments.push(segment4.replace("M", "L"));
+                const sourceRoutingHandle: HandleInfo = {
+                    id: sourceHandleInfo.id,
+                    nodeId: sourceHandleInfo.nodeId,
+                    position: sourceHandleInfo.coordinates,
+                    side: sourceHandleInfo.side,
+                    type: "source",
+                };
 
-                edgePath = bezierSegments.join(" ");
-                break;
+                const targetRoutingHandle: HandleInfo = {
+                    id: targetHandleInfo.id,
+                    nodeId: targetHandleInfo.nodeId,
+                    position: targetHandleInfo.coordinates,
+                    side: targetHandleInfo.side,
+                    type: "target",
+                };
 
-            case "rounded":
-                const roundedControlPoints =
-                    isDragging !== null && tempControlPoints.length > 0
-                        ? tempControlPoints
-                        : data?.controlPoints && data.controlPoints.length > 0
-                        ? data.controlPoints
-                        : [controlPoint1, controlPoint2, controlPoint3];
-
-                if (isSimpleMode && !isCenterDragging) {
-                    const [simplePath] = getStraightPath({
-                        sourceX,
-                        sourceY,
-                        targetX,
-                        targetY,
+                try {
+                    console.log("[Edge] calculateOrthogonalPath handles", {
+                        sourceRoutingHandle,
+                        targetRoutingHandle,
                     });
-                    edgePath = simplePath;
-                } else {
-                    edgePath = createRoundedPath(
-                        sourceX,
-                        sourceY,
-                        targetX,
-                        targetY,
-                        roundedControlPoints
+                } catch {}
+
+                const orthogonalPath =
+                    orthogonalRoutingEngine.calculateOrthogonalPath(
+                        sourceRoutingHandle,
+                        targetRoutingHandle
                     );
-                }
-                break;
 
-            case "straight":
-            default:
-                if (isSimpleMode && !isCenterDragging) {
-                    const [simplePath] = getStraightPath({
-                        sourceX,
-                        sourceY,
-                        targetX,
-                        targetY,
-                    });
-                    edgePath = simplePath;
-                } else {
+                const routingControlPoints =
+                    orthogonalRoutingEngine.generateControlPoints(
+                        orthogonalPath
+                    );
+
+                const componentControlPoints = routingControlPoints.map(
+                    (cp) => ({ x: cp.x, y: cp.y })
+                );
+
+                const pathSegments: string[] = [];
+                if (orthogonalPath.segments.length > 0) {
+                    const firstSegment = orthogonalPath.segments[0];
+                    pathSegments.push(
+                        `M ${firstSegment.start.x} ${firstSegment.start.y}`
+                    );
+
+                    for (const segment of orthogonalPath.segments) {
+                        pathSegments.push(
+                            `L ${segment.end.x} ${segment.end.y}`
+                        );
+                    }
+                }
+
+                const svgPath = pathSegments.join(" ");
+                try {
+                    console.log("[Edge] orthogonal svgPath", svgPath);
+                } catch {}
+
+                const metrics = orthogonalRoutingEngine.calculateRoutingMetrics(
+                    orthogonalPath,
+                    sourceRoutingHandle,
+                    targetRoutingHandle
+                );
+                routingFeedbackSystem.logRoutingMetrics(metrics);
+
+                return {
+                    path: svgPath,
+                    controlPoints: componentControlPoints,
+                };
+            } catch (error) {
+                console.warn(
+                    "Orthogonal routing failed, falling back to default:",
+                    { error, sourceHandle, targetHandle, edgeId: id }
+                );
+                return null;
+            }
+        }, [
+            useOrthogonalRouting,
+            sourceHandle,
+            targetHandle,
+            nodes,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+        ]);
+
+        let edgePath: string = "";
+        let labelX: number, labelY: number;
+        let orthogonalResult: {
+            path: string;
+            controlPoints: { x: number; y: number }[];
+        } | null = null;
+
+        if (
+            useOrthogonalRouting &&
+            (edgeType === "straight" || edgeType === "orthogonal")
+        ) {
+            orthogonalResult = calculateOrthogonalPath();
+        }
+
+        if (orthogonalResult) {
+            edgePath = orthogonalResult.path;
+            const orthogonalControlPoints = orthogonalResult.controlPoints;
+
+            if (orthogonalControlPoints.length > 0) {
+                const midIndex = Math.floor(orthogonalControlPoints.length / 2);
+                labelX = orthogonalControlPoints[midIndex].x;
+                labelY = orthogonalControlPoints[midIndex].y;
+            } else {
+                labelX = (sourceX + targetX) / 2;
+                labelY = (sourceY + targetY) / 2;
+            }
+        } else {
+            labelX = controlPoint2.x;
+            labelY = controlPoint2.y;
+        }
+
+        if (!orthogonalResult) {
+            switch (edgeType) {
+                case "bezier":
                     const controlPoints =
                         isDragging !== null && tempControlPoints.length > 0
                             ? tempControlPoints
-                            : data?.controlPoints || [
-                                  controlPoint1,
-                                  controlPoint2,
-                                  controlPoint3,
-                              ];
-                    const pathSegments = [];
+                            : data?.controlPoints &&
+                              data.controlPoints.length > 0
+                            ? data.controlPoints
+                            : [controlPoint1, controlPoint2, controlPoint3];
+                    const bezierSegments = [];
 
-                    const [firstSegment] = getStraightPath({
+                    const [segment1] = getBezierPath({
                         sourceX,
                         sourceY,
+                        sourcePosition: Position.Right,
                         targetX: controlPoints[0]?.x || controlPoint1.x,
                         targetY: controlPoints[0]?.y || controlPoint1.y,
+                        targetPosition: Position.Left,
                     });
-                    pathSegments.push(firstSegment);
+                    bezierSegments.push(segment1);
 
                     for (let i = 0; i < controlPoints.length - 1; i++) {
-                        const [segment] = getStraightPath({
+                        const [segment] = getBezierPath({
                             sourceX: controlPoints[i].x,
                             sourceY: controlPoints[i].y,
+                            sourcePosition: Position.Right,
                             targetX: controlPoints[i + 1].x,
                             targetY: controlPoints[i + 1].y,
+                            targetPosition: Position.Left,
                         });
-                        pathSegments.push(segment.replace("M", "L"));
+                        bezierSegments.push(segment.replace("M", "L"));
                     }
 
                     const lastControlPoint =
                         controlPoints[controlPoints.length - 1];
-                    const [lastSegment] = getStraightPath({
+                    const [segment4] = getBezierPath({
                         sourceX: lastControlPoint.x,
                         sourceY: lastControlPoint.y,
+                        sourcePosition: Position.Right,
                         targetX,
                         targetY,
+                        targetPosition: Position.Left,
                     });
-                    pathSegments.push(lastSegment.replace("M", "L"));
+                    bezierSegments.push(segment4.replace("M", "L"));
 
-                    edgePath = pathSegments.join(" ");
-                }
-                break;
+                    edgePath = bezierSegments.join(" ");
+                    break;
+
+                case "rounded":
+                    const roundedControlPoints =
+                        isDragging !== null && tempControlPoints.length > 0
+                            ? tempControlPoints
+                            : data?.controlPoints &&
+                              data.controlPoints.length > 0
+                            ? data.controlPoints
+                            : [controlPoint1, controlPoint2, controlPoint3];
+
+                    if (isSimpleMode && !isCenterDragging) {
+                        const [simplePath] = getStraightPath({
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                        });
+                        edgePath = simplePath;
+                    } else {
+                        edgePath = createRoundedPath(
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                            roundedControlPoints
+                        );
+                    }
+                    break;
+
+                case "straight":
+                default:
+                    if (isSimpleMode && !isCenterDragging) {
+                        const [simplePath] = getStraightPath({
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                        });
+                        edgePath = simplePath;
+                    } else {
+                        const controlPoints =
+                            isDragging !== null && tempControlPoints.length > 0
+                                ? tempControlPoints
+                                : data?.controlPoints || [
+                                      controlPoint1,
+                                      controlPoint2,
+                                      controlPoint3,
+                                  ];
+                        const pathSegments = [];
+
+                        const [firstSegment] = getStraightPath({
+                            sourceX,
+                            sourceY,
+                            targetX: controlPoints[0]?.x || controlPoint1.x,
+                            targetY: controlPoints[0]?.y || controlPoint1.y,
+                        });
+                        pathSegments.push(firstSegment);
+
+                        for (let i = 0; i < controlPoints.length - 1; i++) {
+                            const [segment] = getStraightPath({
+                                sourceX: controlPoints[i].x,
+                                sourceY: controlPoints[i].y,
+                                targetX: controlPoints[i + 1].x,
+                                targetY: controlPoints[i + 1].y,
+                            });
+                            pathSegments.push(segment.replace("M", "L"));
+                        }
+
+                        const lastControlPoint =
+                            controlPoints[controlPoints.length - 1];
+                        const [lastSegment] = getStraightPath({
+                            sourceX: lastControlPoint.x,
+                            sourceY: lastControlPoint.y,
+                            targetX,
+                            targetY,
+                        });
+                        pathSegments.push(lastSegment.replace("M", "L"));
+
+                        edgePath = pathSegments.join(" ");
+                    }
+                    break;
+            }
         }
+
+        if (!edgePath) {
+            const [fallbackPath] = getStraightPath({
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+            });
+            edgePath = fallbackPath;
+        }
+
+        try {
+            console.log(
+                "[Edge] final path (orthogonal?",
+                Boolean(orthogonalResult),
+                "):",
+                edgePath
+            );
+
+            console.groupEnd?.();
+        } catch {}
 
         const handleCenterDragStart = (e: MouseEvent) => {
             e.stopPropagation();
@@ -723,7 +931,7 @@ export const BaseEdgeComponent = memo(
                 {/* Control Points */}
                 {selected && (
                     <EdgeLabelRenderer>
-                        {isSimpleMode ? (
+                        {isSimpleMode && !orthogonalResult ? (
                             <div
                                 style={{
                                     position: "absolute",
@@ -754,43 +962,45 @@ export const BaseEdgeComponent = memo(
                             </div>
                         ) : (
                             <>
-                                {(data?.controlPoints || []).map(
-                                    (controlPoint, index) => {
-                                        const actualControlPoint =
-                                            isDragging === index + 1 &&
-                                            tempControlPoints.length > index &&
-                                            tempControlPoints[index]
-                                                ? tempControlPoints[index]
-                                                : controlPoint;
+                                {(
+                                    orthogonalResult?.controlPoints ||
+                                    data?.controlPoints ||
+                                    []
+                                ).map((controlPoint, index) => {
+                                    const actualControlPoint =
+                                        isDragging === index + 1 &&
+                                        tempControlPoints.length > index &&
+                                        tempControlPoints[index]
+                                            ? tempControlPoints[index]
+                                            : controlPoint;
 
-                                        return (
+                                    return (
+                                        <div
+                                            key={`control-point-${index}`}
+                                            style={{
+                                                position: "absolute",
+                                                transform: `translate(-50%, -50%) translate(${actualControlPoint.x}px,${actualControlPoint.y}px)`,
+                                                pointerEvents: "all",
+                                                cursor:
+                                                    isDragging === index + 1
+                                                        ? "grabbing"
+                                                        : "grab",
+                                            }}
+                                            className="nodrag nopan"
+                                            onMouseDown={handleDragStart(
+                                                index + 1
+                                            )}
+                                        >
                                             <div
-                                                key={`control-point-${index}`}
-                                                style={{
-                                                    position: "absolute",
-                                                    transform: `translate(-50%, -50%) translate(${actualControlPoint.x}px,${actualControlPoint.y}px)`,
-                                                    pointerEvents: "all",
-                                                    cursor:
-                                                        isDragging === index + 1
-                                                            ? "grabbing"
-                                                            : "grab",
-                                                }}
-                                                className="nodrag nopan"
-                                                onMouseDown={handleDragStart(
-                                                    index + 1
-                                                )}
-                                            >
-                                                <div
-                                                    className={`w-3 h-3 rounded-full border-2 ${
-                                                        isDragging === index + 1
-                                                            ? "bg-blue-500 border-blue-600"
-                                                            : "bg-white border-blue-500"
-                                                    } shadow-md hover:scale-110 transition-transform`}
-                                                />
-                                            </div>
-                                        );
-                                    }
-                                )}
+                                                className={`w-3 h-3 rounded-full border-2 ${
+                                                    isDragging === index + 1
+                                                        ? "bg-blue-500 border-blue-600"
+                                                        : "bg-white border-blue-500"
+                                                } shadow-md hover:scale-110 transition-transform`}
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </>
                         )}
                     </EdgeLabelRenderer>
@@ -802,10 +1012,12 @@ export const BaseEdgeComponent = memo(
                         edgePath,
                         labelX,
                         labelY,
-                        isSimpleMode,
+                        isSimpleMode: isSimpleMode && !orthogonalResult,
                         centerX,
                         centerY,
-                        currentControlPoints,
+                        currentControlPoints:
+                            orthogonalResult?.controlPoints ||
+                            currentControlPoints,
                         selected: selected || false,
                     })}
             </>
@@ -817,6 +1029,10 @@ export const getDefaultBaseEdgeData = (): BaseEdgeData => ({
     edgeType: "straight",
     isDependency: false,
     controlPoints: undefined,
+    useOrthogonalRouting: true,
+    routingType: undefined,
+    routingMetrics: undefined,
+    selectedHandles: undefined,
 });
 
 BaseEdgeComponent.displayName = "BaseEdgeComponent";
