@@ -157,11 +157,6 @@ function FlowCanvas({
     const handleConnect = useCallback(
         (params: any) => {
             try {
-                console.groupCollapsed(
-                    "[Flow] handleConnect → incoming params"
-                );
-
-                console.log(params);
             } catch {}
             const connection = {
                 source: params.source,
@@ -171,7 +166,6 @@ function FlowCanvas({
             };
 
             if (!connection.sourceHandle || !connection.targetHandle) {
-                console.warn("Connection missing handle IDs:", connection);
                 return;
             }
 

@@ -448,27 +448,11 @@ export class CommandController {
         if (!connection.source || !connection.target)
             throw new Error("Invalid connection");
 
-        try {
-            console.groupCollapsed(
-                "[Cmd] createConnectCommand → input connection"
-            );
-
-            console.log(connection);
-        } catch {}
-
         const { nodes } = useStore.getState();
         const sourceNode = nodes.find((n) => n.id === connection.source);
         const targetNode = nodes.find((n) => n.id === connection.target);
 
         const edgeType = this.determineEdgeType(sourceNode, targetNode);
-
-        try {
-            console.log("[Cmd] determineEdgeType →", {
-                sourceNode: sourceNode?.type,
-                targetNode: targetNode?.type,
-                edgeType,
-            });
-        } catch {}
 
         let defaultData = {};
         if (edgeType === "eventGraph") {
@@ -516,14 +500,8 @@ export class CommandController {
 
         return {
             execute: () => {
-                try {
-                    console.log("[Cmd] execute connect → adding edge", edge);
-                } catch {}
                 useStore.setState((state) => {
                     const result = addEdge(edge, state.edges) as BaseEdge[];
-                    try {
-                        console.log("[Cmd] result edges count", result.length);
-                    } catch {}
                     return { edges: result };
                 });
             },

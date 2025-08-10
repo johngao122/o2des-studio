@@ -42,14 +42,6 @@ export class OrthogonalRoutingEngine {
         targetHandle: HandleInfo,
         options: RoutingOptions = {}
     ): OrthogonalPath {
-        try {
-            console.debug("[Routing] calculateOrthogonalPath", {
-                source: sourceHandle,
-                target: targetHandle,
-                options,
-            });
-        } catch {}
-
         const cacheKey = this.generateCacheKey(
             sourceHandle,
             targetHandle,
@@ -80,13 +72,6 @@ export class OrthogonalRoutingEngine {
 
         this.pathCache.set(cacheKey, optimalPath);
 
-        try {
-            console.debug("[Routing] selected optimal path", {
-                routingType: optimalPath.routingType,
-                length: optimalPath.totalLength,
-                segments: optimalPath.segments.length,
-            });
-        } catch {}
         return optimalPath;
     }
 

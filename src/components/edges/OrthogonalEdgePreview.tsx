@@ -7,7 +7,8 @@ import { HandleSelectionService } from "@/lib/routing/HandleSelectionService";
 import { RoutingFeedbackSystem } from "@/lib/routing/RoutingFeedbackSystem";
 import { getAllNodeHandles } from "@/lib/utils/nodeHandles";
 import { useStore } from "@/store";
-import { HandleInfo, OrthogonalPath } from "@/lib/routing/types";
+import { HandleInfo, OrthogonalPath, NodeInfo } from "@/lib/routing/types";
+import { createOrthogonalPath } from "@/lib/routing/pathGeneration";
 
 const orthogonalRoutingEngine = new OrthogonalRoutingEngine();
 const handleSelectionService = new HandleSelectionService();
@@ -59,15 +60,6 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
 }) => {
     const nodes = useStore((state) => state.nodes);
 
-    console.log("OrthogonalEdgePreview props:", {
-        fromX,
-        fromY,
-        toX,
-        toY,
-        fromHandle,
-        fromNode,
-    });
-
     /**
      * Calculate optimal handle selection based on current mouse position and available parameters
      */
@@ -75,8 +67,6 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
         sourceHandle: HandleInfo | null;
         targetHandle: HandleInfo | null;
     } => {
-        console.log("Calculating optimal handles...");
-
         let sourceNode = fromNode || null;
 
         if (!sourceNode) {
@@ -98,8 +88,6 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
         }
 
         if (!sourceNode) {
-            console.log("No source node found, using virtual handles");
-
             const sourceHandle: HandleInfo = {
                 id: "virtual-source",
                 nodeId: "virtual",
@@ -119,36 +107,49 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
             return { sourceHandle, targetHandle };
         }
 
-        console.log("Found source node:", sourceNode.id);
-
         const sourceNodeHandles = getAllNodeHandles(sourceNode as any);
-        console.log("Source node handles:", sourceNodeHandles.length);
 
         if (sourceNodeHandles.length === 0) {
-            console.log("No handles found on source node");
             return { sourceHandle: null, targetHandle: null };
         }
 
-        const closestSourceHandle = findClosestHandle(
-            sourceNodeHandles,
-            fromX,
-            fromY
+        const sourceNodeInfo: NodeInfo = {
+            id: sourceNode.id,
+            bounds: {
+                x: (sourceNode as any).position.x,
+                y: (sourceNode as any).position.y,
+                width:
+                    (sourceNode as any).width ||
+                    (sourceNode as any)?.data?.width ||
+                    200,
+                height:
+                    (sourceNode as any).height ||
+                    (sourceNode as any)?.data?.height ||
+                    100,
+            },
+            handles: sourceNodeHandles.map((h) => ({
+                id: h.id,
+                nodeId: sourceNode.id,
+                position: h.coordinates,
+                side: h.side,
+                type: h.type,
+            })),
+        };
+
+        const bestSource = handleSelectionService.findOptimalHandlesForPosition(
+            sourceNodeInfo,
+            { x: toX, y: toY }
         );
 
-        if (!closestSourceHandle) {
-            console.log("Could not find closest source handle");
+        if (!bestSource) {
             return { sourceHandle: null, targetHandle: null };
         }
 
-        console.log("Found closest source handle:", closestSourceHandle.id);
-
         const sourceHandle: HandleInfo = {
-            id: closestSourceHandle.id,
-            nodeId: sourceNode.id,
-            position: closestSourceHandle.coordinates,
-            side:
-                sourceNodeHandles.find((h) => h.id === closestSourceHandle.id)
-                    ?.side || "right",
+            id: bestSource.id,
+            nodeId: bestSource.nodeId,
+            position: bestSource.position,
+            side: bestSource.side,
             type: "source",
         };
 
@@ -160,7 +161,6 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
             type: "target",
         };
 
-        console.log("Using virtual target handle at:", toX, toY);
         return { sourceHandle, targetHandle };
     }, [fromNode, fromX, fromY, toX, toY, nodes]);
 
@@ -168,37 +168,47 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
      * Calculate orthogonal path for preview
      */
     const orthogonalPath = useMemo((): OrthogonalPath | null => {
-        console.log("Computing orthogonal path...");
         const { sourceHandle, targetHandle } = calculateOptimalHandles();
 
         if (!sourceHandle || !targetHandle) {
-            console.log(
-                "Missing handles - sourceHandle:",
-                !!sourceHandle,
-                "targetHandle:",
-                !!targetHandle
-            );
             return null;
         }
 
-        console.log(
-            "Computing path from:",
-            sourceHandle.position,
-            "to:",
-            targetHandle.position
-        );
-
         try {
-            const path = orthogonalRoutingEngine.calculateOrthogonalPath(
-                sourceHandle,
-                targetHandle
+            const dx = Math.abs(
+                targetHandle.position.x - sourceHandle.position.x
+            );
+            const dy = Math.abs(
+                targetHandle.position.y - sourceHandle.position.y
             );
 
-            console.log("Orthogonal path calculated:", {
-                routingType: path.routingType,
-                totalLength: path.totalLength,
-                segments: path.segments.length,
-            });
+            let preferredRouting: "horizontal-first" | "vertical-first";
+            if (dx > dy) {
+                preferredRouting = "horizontal-first";
+            } else if (dy > dx) {
+                preferredRouting = "vertical-first";
+            } else {
+                const sourceIsHorizontal =
+                    sourceHandle.side === "left" ||
+                    sourceHandle.side === "right";
+                const targetIsHorizontal =
+                    targetHandle.side === "left" ||
+                    targetHandle.side === "right";
+
+                if (sourceIsHorizontal && targetIsHorizontal) {
+                    preferredRouting = "horizontal-first";
+                } else if (!sourceIsHorizontal && !targetIsHorizontal) {
+                    preferredRouting = "vertical-first";
+                } else {
+                    preferredRouting = "horizontal-first";
+                }
+            }
+
+            const path = orthogonalRoutingEngine.calculateOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                { preferredRouting }
+            );
 
             const metrics = orthogonalRoutingEngine.calculateRoutingMetrics(
                 path,
@@ -207,17 +217,24 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
             );
             routingFeedbackSystem.logRoutingMetrics(metrics);
 
-            routingFeedbackSystem.displayRoutingDecision({
-                selectedPath: path,
-                alternativePath: path,
-                reason: `Preview: ${path.routingType} routing selected`,
-                efficiency: path.efficiency,
-                timestamp: Date.now(),
-            });
+            const hPath = createOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                "horizontal-first"
+            );
+            const vPath = createOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                "vertical-first"
+            );
+            const comparison = orthogonalRoutingEngine.compareRoutingOptions(
+                hPath,
+                vPath
+            );
+            routingFeedbackSystem.showPathComparison(comparison);
 
             return path;
         } catch (error) {
-            console.warn("Orthogonal preview routing failed:", error);
             return null;
         }
     }, [calculateOptimalHandles]);
@@ -245,23 +262,10 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
      * Render orthogonal path or fallback to straight line
      */
     const renderPath = useMemo(() => {
-        console.log(
-            "Rendering path - orthogonalPath available:",
-            !!orthogonalPath
-        );
-
         if (orthogonalPath && orthogonalPath.segments.length > 0) {
-            console.log(
-                "Using orthogonal path with",
-                orthogonalPath.segments.length,
-                "segments"
-            );
             const svgPath = generateSVGPath(orthogonalPath);
-            console.log("Generated SVG path:", svgPath);
             return svgPath;
         }
-
-        console.log("Falling back to straight line path");
 
         const [straightPath] = getStraightPath({
             sourceX: fromX,
@@ -269,7 +273,7 @@ export const OrthogonalEdgePreview: React.FC<ConnectionLineComponentProps> = ({
             targetX: toX,
             targetY: toY,
         });
-        console.log("Straight path:", straightPath);
+
         return straightPath;
     }, [orthogonalPath, generateSVGPath, fromX, fromY, toX, toY]);
 
