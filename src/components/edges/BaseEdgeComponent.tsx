@@ -7,6 +7,7 @@ import React, {
     MouseEvent,
     useRef,
     useEffect,
+    useMemo,
 } from "react";
 import {
     EdgeProps,
@@ -30,7 +31,7 @@ import {
 } from "@/lib/utils/edge";
 import { OrthogonalRoutingEngine } from "@/lib/routing/OrthogonalRoutingEngine";
 import { HandleSelectionService } from "@/lib/routing/HandleSelectionService";
-import { RoutingFeedbackSystem } from "@/lib/routing/RoutingFeedbackSystem";
+import { routingFeedbackSystem } from "@/lib/routing/RoutingFeedbackSystem";
 import { getAllNodeHandles, getHandleInfoById } from "@/lib/utils/nodeHandles";
 import { useStore } from "@/store";
 import {
@@ -39,11 +40,22 @@ import {
     OrthogonalPath,
     RoutingMetrics,
 } from "@/lib/routing/types";
+import {
+    segmentDragHandler,
+    EdgeSegment,
+    SegmentDragState,
+    SegmentDragConstraints,
+} from "@/services/SegmentDragHandler";
+import { orthogonalWaypointManager } from "@/services/OrthogonalWaypointManager";
+import { pathCalculator } from "@/services/PathCalculator";
+import {
+    orthogonalConstraintEngine,
+    MovementConstraint,
+} from "@/services/OrthogonalConstraintEngine";
 
 const commandController = CommandController.getInstance();
 const orthogonalRoutingEngine = new OrthogonalRoutingEngine();
 const handleSelectionService = new HandleSelectionService();
-const routingFeedbackSystem = new RoutingFeedbackSystem();
 
 export type EdgeTypeOption = "straight" | "bezier" | "rounded" | "orthogonal";
 
@@ -106,11 +118,30 @@ export const BaseEdgeComponent = memo(
             y: number;
         } | null>(null);
 
+        const [isSegmentDragging, setIsSegmentDragging] = useState<
+            string | null
+        >(null);
+        const [segmentDragState, setSegmentDragState] =
+            useState<SegmentDragState | null>(null);
+        const [tempSegmentPath, setTempSegmentPath] = useState<string | null>(
+            null
+        );
+        const [tempSegments, setTempSegments] = useState<EdgeSegment[] | null>(
+            null
+        );
+        const [currentSegments, setCurrentSegments] = useState<EdgeSegment[]>(
+            []
+        );
+
         const flowPaneRef = useRef<Element | null>(null);
         const transformMatrixRef = useRef<ReturnType<
             typeof parseTransformMatrix
         > | null>(null);
         const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+        const controlPointStartRef = useRef<{ x: number; y: number } | null>(
+            null
+        );
+        const CONTROL_POINT_GRID = 20;
 
         const edgeStyle = {
             strokeWidth: selected ? 3 : 2,
@@ -119,7 +150,11 @@ export const BaseEdgeComponent = memo(
             ...style,
         };
 
-        const edgeType = data?.edgeType || "straight";
+        const edgeTypeRaw = data?.edgeType || "straight";
+        const edgeType: "straight" | "rounded" =
+            edgeTypeRaw === "rounded" || edgeTypeRaw === "bezier"
+                ? "rounded"
+                : "straight";
         const useOrthogonalRouting = data?.useOrthogonalRouting ?? true;
 
         const edges = useStore((state) => state.edges);
@@ -145,23 +180,46 @@ export const BaseEdgeComponent = memo(
 
         const currentControlPoints = data?.controlPoints || [];
 
+        const hasInitializedControlPoints = useRef(new Set<string>());
+
         useEffect(() => {
-            if (!hasCustomControlPoints && id) {
+            if (
+                !useOrthogonalRouting &&
+                !hasCustomControlPoints &&
+                id &&
+                !hasInitializedControlPoints.current.has(id)
+            ) {
+                hasInitializedControlPoints.current.add(id);
                 const defaultControlPointsArray = [
                     defaultControlPoints.cp1,
                     defaultControlPoints.cp2,
                     defaultControlPoints.cp3,
                 ];
 
-                const command = commandController.createUpdateEdgeCommand(id, {
-                    data: {
-                        ...data,
-                        controlPoints: defaultControlPointsArray,
-                    },
-                });
-                commandController.execute(command);
+                const currentPoints = data?.controlPoints;
+                const needsUpdate =
+                    !currentPoints ||
+                    currentPoints.length !== defaultControlPointsArray.length ||
+                    !currentPoints.every(
+                        (cp, i) =>
+                            cp.x === defaultControlPointsArray[i].x &&
+                            cp.y === defaultControlPointsArray[i].y
+                    );
+
+                if (needsUpdate) {
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        {
+                            data: {
+                                ...data,
+                                controlPoints: defaultControlPointsArray,
+                            },
+                        }
+                    );
+                    commandController.execute(command);
+                }
             }
-        }, [hasCustomControlPoints, id, sourceX, sourceY, targetX, targetY]);
+        }, [hasCustomControlPoints, id]);
 
         const getControlPoint = (index: number) => {
             if (isDragging === index + 1 && tempControlPoints[index]) {
@@ -218,7 +276,6 @@ export const BaseEdgeComponent = memo(
                     type: "target",
                 };
 
-                // Prefer routing mode based on geometry at creation time
                 const dx = Math.abs(
                     targetRoutingHandle.position.x -
                         sourceRoutingHandle.position.x
@@ -302,6 +359,8 @@ export const BaseEdgeComponent = memo(
             useOrthogonalRouting,
             sourceHandle,
             targetHandle,
+            id,
+
             nodes,
             sourceX,
             sourceY,
@@ -310,22 +369,33 @@ export const BaseEdgeComponent = memo(
         ]);
 
         let edgePath: string = "";
-        let labelX: number, labelY: number;
+        let labelX: number = (sourceX + targetX) / 2;
+        let labelY: number = (sourceY + targetY) / 2;
         let orthogonalResult: {
             path: string;
             controlPoints: { x: number; y: number }[];
         } | null = null;
 
-        if (
-            useOrthogonalRouting &&
-            (edgeType === "straight" || edgeType === "orthogonal")
-        ) {
+        if (useOrthogonalRouting) {
             orthogonalResult = calculateOrthogonalPath();
         }
 
         if (orthogonalResult) {
-            edgePath = orthogonalResult.path;
             const orthogonalControlPoints = orthogonalResult.controlPoints;
+
+            if (edgeType === "rounded") {
+                const sourcePoint = { x: sourceX, y: sourceY };
+                const targetPoint = { x: targetX, y: targetY };
+                const rounded = pathCalculator.calculatePath(
+                    sourcePoint,
+                    targetPoint,
+                    orthogonalControlPoints,
+                    { edgeType: "rounded", cornerRadius: 8 }
+                );
+                edgePath = rounded.svgPath;
+            } else {
+                edgePath = orthogonalResult.path;
+            }
 
             if (orthogonalControlPoints.length > 0) {
                 const midIndex = Math.floor(orthogonalControlPoints.length / 2);
@@ -335,60 +405,27 @@ export const BaseEdgeComponent = memo(
                 labelX = (sourceX + targetX) / 2;
                 labelY = (sourceY + targetY) / 2;
             }
-        } else {
-            labelX = controlPoint2.x;
-            labelY = controlPoint2.y;
+        }
+
+        if (
+            useOrthogonalRouting &&
+            currentControlPoints &&
+            currentControlPoints.length > 0 &&
+            !tempSegmentPath
+        ) {
+            const sourcePoint = { x: sourceX, y: sourceY };
+            const targetPoint = { x: targetX, y: targetY };
+            const result = pathCalculator.calculatePath(
+                sourcePoint,
+                targetPoint,
+                currentControlPoints,
+                { edgeType: "orthogonal" }
+            );
+            edgePath = result.svgPath;
         }
 
         if (!orthogonalResult) {
             switch (edgeType) {
-                case "bezier":
-                    const controlPoints =
-                        isDragging !== null && tempControlPoints.length > 0
-                            ? tempControlPoints
-                            : data?.controlPoints &&
-                              data.controlPoints.length > 0
-                            ? data.controlPoints
-                            : [controlPoint1, controlPoint2, controlPoint3];
-                    const bezierSegments = [];
-
-                    const [segment1] = getBezierPath({
-                        sourceX,
-                        sourceY,
-                        sourcePosition: Position.Right,
-                        targetX: controlPoints[0]?.x || controlPoint1.x,
-                        targetY: controlPoints[0]?.y || controlPoint1.y,
-                        targetPosition: Position.Left,
-                    });
-                    bezierSegments.push(segment1);
-
-                    for (let i = 0; i < controlPoints.length - 1; i++) {
-                        const [segment] = getBezierPath({
-                            sourceX: controlPoints[i].x,
-                            sourceY: controlPoints[i].y,
-                            sourcePosition: Position.Right,
-                            targetX: controlPoints[i + 1].x,
-                            targetY: controlPoints[i + 1].y,
-                            targetPosition: Position.Left,
-                        });
-                        bezierSegments.push(segment.replace("M", "L"));
-                    }
-
-                    const lastControlPoint =
-                        controlPoints[controlPoints.length - 1];
-                    const [segment4] = getBezierPath({
-                        sourceX: lastControlPoint.x,
-                        sourceY: lastControlPoint.y,
-                        sourcePosition: Position.Right,
-                        targetX,
-                        targetY,
-                        targetPosition: Position.Left,
-                    });
-                    bezierSegments.push(segment4.replace("M", "L"));
-
-                    edgePath = bezierSegments.join(" ");
-                    break;
-
                 case "rounded":
                     const roundedControlPoints =
                         isDragging !== null && tempControlPoints.length > 0
@@ -481,6 +518,105 @@ export const BaseEdgeComponent = memo(
             });
             edgePath = fallbackPath;
         }
+
+        if (tempSegmentPath && isSegmentDragging) {
+            edgePath = tempSegmentPath;
+        }
+
+        useEffect(() => {
+            if (!useOrthogonalRouting) {
+                setCurrentSegments([]);
+                return;
+            }
+
+            const sourcePoint = { x: sourceX, y: sourceY };
+            const targetPoint = { x: targetX, y: targetY };
+
+            const controlPointsToUse =
+                currentControlPoints && currentControlPoints.length > 0
+                    ? currentControlPoints
+                    : orthogonalResult?.controlPoints || [];
+
+            if (controlPointsToUse.length > 0 || !orthogonalResult) {
+                const newSegments = segmentDragHandler.calculateSegments(
+                    controlPointsToUse,
+                    sourcePoint,
+                    targetPoint
+                );
+
+                setCurrentSegments((prevSegments) => {
+                    if (
+                        JSON.stringify(prevSegments) !==
+                        JSON.stringify(newSegments)
+                    ) {
+                        return newSegments;
+                    }
+                    return prevSegments;
+                });
+            } else {
+                setCurrentSegments([]);
+            }
+        }, [
+            useOrthogonalRouting,
+            id,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            JSON.stringify(currentControlPoints),
+            JSON.stringify(orthogonalResult?.controlPoints || []),
+        ]);
+
+        useEffect(() => {
+            if (!useOrthogonalRouting) return;
+            if (!currentControlPoints || currentControlPoints.length === 0)
+                return;
+            if (isSegmentDragging || isCenterDragging || isDragging !== null)
+                return;
+
+            const validation =
+                orthogonalConstraintEngine.validateOrthogonalPath(
+                    currentControlPoints,
+                    { x: sourceX, y: sourceY },
+                    { x: targetX, y: targetY }
+                );
+
+            if (!validation.isOrthogonal) {
+                const reroute = calculateOrthogonalPath();
+                const newControlPoints =
+                    reroute?.controlPoints ||
+                    orthogonalConstraintEngine.enforceOrthogonalConstraints(
+                        currentControlPoints,
+                        { x: sourceX, y: sourceY },
+                        { x: targetX, y: targetY }
+                    );
+
+                if (
+                    JSON.stringify(newControlPoints) !==
+                    JSON.stringify(currentControlPoints)
+                ) {
+                    const updatedData = {
+                        ...data,
+                        controlPoints: newControlPoints,
+                    } as any;
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        { data: updatedData }
+                    );
+                    commandController.execute(command);
+                }
+            }
+        }, [
+            useOrthogonalRouting,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            JSON.stringify(currentControlPoints),
+            isSegmentDragging,
+            isCenterDragging,
+            isDragging,
+        ]);
 
         const handleCenterDragStart = (e: MouseEvent) => {
             e.stopPropagation();
@@ -628,6 +764,8 @@ export const BaseEdgeComponent = memo(
                         controlPointIndex - 1
                     ] || { x: centerX, y: centerY };
 
+                    controlPointStartRef.current = currentControlPoint;
+
                     const mousePosition = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
@@ -676,9 +814,20 @@ export const BaseEdgeComponent = memo(
                         y: mousePosition.y + dragOffsetRef.current.y,
                     };
 
-                    const snappedPosition = {
-                        x: snapToGrid(rawPosition.x),
-                        y: snapToGrid(rawPosition.y),
+                    const start = controlPointStartRef.current || rawPosition;
+                    const steppedPosition = {
+                        x:
+                            start.x +
+                            Math.round(
+                                (rawPosition.x - start.x) / CONTROL_POINT_GRID
+                            ) *
+                                CONTROL_POINT_GRID,
+                        y:
+                            start.y +
+                            Math.round(
+                                (rawPosition.y - start.y) / CONTROL_POINT_GRID
+                            ) *
+                                CONTROL_POINT_GRID,
                     };
 
                     setTempControlPoints((prev) => {
@@ -689,7 +838,7 @@ export const BaseEdgeComponent = memo(
                             newControlPoints.push({ x: centerX, y: centerY });
                         }
 
-                        newControlPoints[isDragging - 1] = snappedPosition;
+                        newControlPoints[isDragging - 1] = steppedPosition;
 
                         return newControlPoints;
                     });
@@ -847,6 +996,7 @@ export const BaseEdgeComponent = memo(
             setTempControlPoints([]);
             dragOffsetRef.current = null;
             document.body.style.cursor = "";
+            controlPointStartRef.current = null;
         }, [
             isDragging,
             tempControlPoints,
@@ -858,6 +1008,238 @@ export const BaseEdgeComponent = memo(
             sourceY,
             targetX,
             targetY,
+        ]);
+
+        const handleSegmentDragStart =
+            (segmentId: string) => (e: MouseEvent) => {
+                if (!useOrthogonalRouting) {
+                    return;
+                }
+
+                e.stopPropagation();
+                e.preventDefault();
+
+                const segment = currentSegments.find((s) => s.id === segmentId);
+                if (!segment) return;
+
+                flowPaneRef.current = document.querySelector(
+                    ".react-flow__viewport"
+                );
+                if (!flowPaneRef.current) return;
+
+                const transformStyle = window.getComputedStyle(
+                    flowPaneRef.current
+                ).transform;
+                transformMatrixRef.current =
+                    parseTransformMatrix(transformStyle);
+
+                const mousePosition = clientToFlowPosition(
+                    e.clientX,
+                    e.clientY,
+                    transformMatrixRef.current
+                );
+
+                const dragState = segmentDragHandler.startSegmentDrag(
+                    segment,
+                    mousePosition
+                );
+                setIsSegmentDragging(segmentId);
+                setSegmentDragState(dragState);
+                document.body.style.cursor = "grabbing";
+            };
+
+        const handleSegmentDrag = useCallback(
+            throttle((e: MouseEvent) => {
+                if (!isSegmentDragging || !segmentDragState) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!flowPaneRef.current) {
+                    flowPaneRef.current = document.querySelector(
+                        ".react-flow__viewport"
+                    );
+                }
+
+                if (!transformMatrixRef.current && flowPaneRef.current) {
+                    const transformStyle = window.getComputedStyle(
+                        flowPaneRef.current
+                    ).transform;
+                    transformMatrixRef.current =
+                        parseTransformMatrix(transformStyle);
+                }
+
+                if (!transformMatrixRef.current) return;
+
+                const mousePosition = clientToFlowPosition(
+                    e.clientX,
+                    e.clientY,
+                    transformMatrixRef.current
+                );
+
+                const segment = currentSegments.find(
+                    (s) => s.id === isSegmentDragging
+                );
+                if (!segment) return;
+
+                const constraints: SegmentDragConstraints =
+                    orthogonalConstraintEngine.calculateSegmentConstraints(
+                        segment,
+                        currentSegments,
+                        { x: sourceX, y: sourceY },
+                        { x: targetX, y: targetY }
+                    );
+
+                const updatedDragState = segmentDragHandler.updateSegmentDrag(
+                    mousePosition,
+                    segment,
+                    constraints
+                );
+
+                if (updatedDragState) {
+                    setSegmentDragState(updatedDragState);
+
+                    const pathResult =
+                        pathCalculator.updatePathAfterSegmentDrag(
+                            currentSegments,
+                            isSegmentDragging,
+                            updatedDragState.constrainedPosition,
+                            { edgeType, cornerRadius: 8 }
+                        );
+
+                    setTempSegments(pathResult.segments);
+                    setTempSegmentPath(pathResult.svgPath);
+                }
+            }, 16),
+            [
+                isSegmentDragging,
+                segmentDragState,
+                currentSegments,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                edgeType,
+            ]
+        );
+
+        const handleSegmentDragEnd = useCallback(() => {
+            if (!isSegmentDragging || !segmentDragState) return;
+
+            const segment = currentSegments.find(
+                (s) => s.id === isSegmentDragging
+            );
+            if (!segment) return;
+
+            const sourcePoint = { x: sourceX, y: sourceY };
+            const targetPoint = { x: targetX, y: targetY };
+
+            let analysisControlPoints: { x: number; y: number }[] =
+                currentControlPoints || [];
+            if (tempSegments && tempSegments.length > 0) {
+                analysisControlPoints =
+                    pathCalculator.extractControlPointsFromSegments(
+                        tempSegments
+                    );
+            } else if (currentSegments && currentSegments.length > 0) {
+                analysisControlPoints =
+                    pathCalculator.extractControlPointsFromSegments(
+                        currentSegments
+                    );
+            }
+
+            const rawIndex = parseInt(
+                isSegmentDragging.replace("segment-", "")
+            );
+            const maxIndex = Math.max(0, analysisControlPoints.length);
+            const clampedIndex = Math.min(Math.max(0, rawIndex), maxIndex);
+
+            if (
+                clampedIndex === 0 ||
+                clampedIndex === analysisControlPoints.length
+            ) {
+                const waypointResult =
+                    orthogonalWaypointManager.insertPreservationWaypoints(
+                        clampedIndex,
+                        segmentDragState.constrainedPosition,
+                        analysisControlPoints,
+                        sourcePoint,
+                        targetPoint
+                    );
+
+                if (waypointResult.requiresInsertion) {
+                    const enforced =
+                        orthogonalConstraintEngine.enforceOrthogonalConstraints(
+                            waypointResult.newControlPoints,
+                            sourcePoint,
+                            targetPoint
+                        );
+                    const updatedData = {
+                        ...data,
+                        controlPoints: enforced,
+                    };
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        { data: updatedData }
+                    );
+                    commandController.execute(command);
+
+                    segmentDragHandler.endSegmentDrag();
+                    setIsSegmentDragging(null);
+                    setSegmentDragState(null);
+                    setTempSegmentPath(null);
+                    setTempSegments(null);
+                    document.body.style.cursor = "";
+                    return;
+                }
+            }
+
+            const controlPointsForUpdate = analysisControlPoints;
+            const segmentForUpdate = {
+                ...segment,
+                id: `segment-${clampedIndex}`,
+            } as EdgeSegment;
+            let updatedControlPoints =
+                segmentDragHandler.calculateUpdatedControlPoints(
+                    controlPointsForUpdate,
+                    segmentForUpdate,
+                    segmentDragState.constrainedPosition,
+                    sourcePoint,
+                    targetPoint
+                );
+
+            updatedControlPoints =
+                orthogonalConstraintEngine.enforceOrthogonalConstraints(
+                    updatedControlPoints,
+                    sourcePoint,
+                    targetPoint
+                );
+            const updatedData = {
+                ...data,
+                controlPoints: updatedControlPoints,
+            };
+            const command = commandController.createUpdateEdgeCommand(id, {
+                data: updatedData,
+            });
+            commandController.execute(command);
+
+            segmentDragHandler.endSegmentDrag();
+            setIsSegmentDragging(null);
+            setSegmentDragState(null);
+            setTempSegmentPath(null);
+            setTempSegments(null);
+            document.body.style.cursor = "";
+        }, [
+            isSegmentDragging,
+            segmentDragState,
+            currentSegments,
+            currentControlPoints,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            data,
+            id,
         ]);
 
         useEffect(() => {
@@ -886,6 +1268,21 @@ export const BaseEdgeComponent = memo(
                 };
             }
         }, [isCenterDragging, handleCenterDrag, handleCenterDragEnd]);
+
+        useEffect(() => {
+            if (isSegmentDragging) {
+                window.addEventListener("mousemove", handleSegmentDrag as any);
+                window.addEventListener("mouseup", handleSegmentDragEnd);
+
+                return () => {
+                    window.removeEventListener(
+                        "mousemove",
+                        handleSegmentDrag as any
+                    );
+                    window.removeEventListener("mouseup", handleSegmentDragEnd);
+                };
+            }
+        }, [isSegmentDragging, handleSegmentDrag, handleSegmentDragEnd]);
 
         return (
             <>
@@ -947,45 +1344,100 @@ export const BaseEdgeComponent = memo(
                             </div>
                         ) : (
                             <>
-                                {(
-                                    orthogonalResult?.controlPoints ||
-                                    data?.controlPoints ||
-                                    []
-                                ).map((controlPoint, index) => {
-                                    const actualControlPoint =
-                                        isDragging === index + 1 &&
-                                        tempControlPoints.length > index &&
-                                        tempControlPoints[index]
-                                            ? tempControlPoints[index]
-                                            : controlPoint;
+                                {/* Control Points - Only show if no segment handles are active */}
+                                {(!useOrthogonalRouting ||
+                                    currentSegments.length === 0) &&
+                                    (
+                                        orthogonalResult?.controlPoints ||
+                                        data?.controlPoints ||
+                                        []
+                                    ).map((controlPoint, index) => {
+                                        const actualControlPoint =
+                                            isDragging === index + 1 &&
+                                            tempControlPoints.length > index &&
+                                            tempControlPoints[index]
+                                                ? tempControlPoints[index]
+                                                : controlPoint;
 
-                                    return (
-                                        <div
-                                            key={`control-point-${index}`}
-                                            style={{
-                                                position: "absolute",
-                                                transform: `translate(-50%, -50%) translate(${actualControlPoint.x}px,${actualControlPoint.y}px)`,
-                                                pointerEvents: "all",
-                                                cursor:
-                                                    isDragging === index + 1
-                                                        ? "grabbing"
-                                                        : "grab",
-                                            }}
-                                            className="nodrag nopan"
-                                            onMouseDown={handleDragStart(
-                                                index + 1
-                                            )}
-                                        >
+                                        return (
                                             <div
-                                                className={`w-3 h-3 rounded-full border-2 ${
-                                                    isDragging === index + 1
-                                                        ? "bg-blue-500 border-blue-600"
-                                                        : "bg-white border-blue-500"
-                                                } shadow-md hover:scale-110 transition-transform`}
-                                            />
-                                        </div>
-                                    );
-                                })}
+                                                key={`control-point-${index}`}
+                                                style={{
+                                                    position: "absolute",
+                                                    transform: `translate(-50%, -50%) translate(${actualControlPoint.x}px,${actualControlPoint.y}px)`,
+                                                    pointerEvents: "all",
+                                                    cursor:
+                                                        isDragging === index + 1
+                                                            ? "grabbing"
+                                                            : "grab",
+                                                }}
+                                                className="nodrag nopan"
+                                                onMouseDown={handleDragStart(
+                                                    index + 1
+                                                )}
+                                            >
+                                                <div
+                                                    className={`w-3 h-3 rounded-full border-2 ${
+                                                        isDragging === index + 1
+                                                            ? "bg-blue-500 border-blue-600"
+                                                            : "bg-white border-blue-500"
+                                                    } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50`}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+
+                                {/* Segment Midpoint Handles for Orthogonal Edges */}
+                                {useOrthogonalRouting &&
+                                    (tempSegments || currentSegments).length >
+                                        0 &&
+                                    (tempSegments || currentSegments)
+                                        .filter((segment, idx, arr) => {
+                                            const firstId = "segment-0";
+                                            const lastId = `segment-${
+                                                arr.length - 1
+                                            }`;
+
+                                            const isTerminal =
+                                                segment.id === firstId ||
+                                                segment.id === lastId;
+                                            const MIN_LEN = 40;
+                                            return (
+                                                !isTerminal ||
+                                                segment.length >= MIN_LEN
+                                            );
+                                        })
+                                        .map((segment) => (
+                                            <div
+                                                key={`segment-handle-${segment.id}`}
+                                                style={{
+                                                    position: "absolute",
+                                                    transform: `translate(-50%, -50%) translate(${segment.midpoint.x}px,${segment.midpoint.y}px)`,
+                                                    pointerEvents: "all",
+                                                    cursor:
+                                                        isSegmentDragging ===
+                                                        segment.id
+                                                            ? "grabbing"
+                                                            : segment.direction ===
+                                                              "horizontal"
+                                                            ? "ns-resize"
+                                                            : "ew-resize",
+                                                }}
+                                                className="nodrag nopan"
+                                                onMouseDown={handleSegmentDragStart(
+                                                    segment.id
+                                                )}
+                                            >
+                                                <div
+                                                    className={`w-3 h-3 rounded-full border-2 ${
+                                                        isSegmentDragging ===
+                                                        segment.id
+                                                            ? "bg-blue-500 border-blue-600"
+                                                            : "bg-white border-blue-500"
+                                                    } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50 opacity-90`}
+                                                />
+                                            </div>
+                                        ))}
                             </>
                         )}
                     </EdgeLabelRenderer>

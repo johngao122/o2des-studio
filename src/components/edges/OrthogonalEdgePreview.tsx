@@ -4,7 +4,7 @@ import React, { useMemo, useCallback } from "react";
 import { ConnectionLineComponentProps, getStraightPath } from "reactflow";
 import { OrthogonalRoutingEngine } from "@/lib/routing/OrthogonalRoutingEngine";
 import { HandleSelectionService } from "@/lib/routing/HandleSelectionService";
-import { RoutingFeedbackSystem } from "@/lib/routing/RoutingFeedbackSystem";
+import { routingFeedbackSystem } from "@/lib/routing/RoutingFeedbackSystem";
 import { getAllNodeHandles } from "@/lib/utils/nodeHandles";
 import { useStore } from "@/store";
 import { HandleInfo, OrthogonalPath, NodeInfo } from "@/lib/routing/types";
@@ -12,7 +12,6 @@ import { createOrthogonalPath } from "@/lib/routing/pathGeneration";
 
 const orthogonalRoutingEngine = new OrthogonalRoutingEngine();
 const handleSelectionService = new HandleSelectionService();
-const routingFeedbackSystem = new RoutingFeedbackSystem();
 
 /**
  * Find the closest handle to a given position on a node

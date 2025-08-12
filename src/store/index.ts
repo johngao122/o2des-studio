@@ -509,11 +509,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                         value: value as string,
                                         type: "string" as const,
                                         editable: true,
-                                        options: [
-                                            "straight",
-                                            "bezier",
-                                            "rounded",
-                                        ],
+                                        options: ["straight", "rounded"],
                                     };
                                 }
                                 return {
@@ -540,7 +536,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                 value: "straight",
                                 type: "string" as const,
                                 editable: true,
-                                options: ["straight", "bezier", "rounded"],
+                                options: ["straight", "rounded"],
                             });
                         }
 
@@ -609,7 +605,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                     value: "straight",
                                     type: "string" as const,
                                     editable: true,
-                                    options: ["straight", "bezier", "rounded"],
+                                    options: ["straight", "rounded"],
                                 },
                                 {
                                     key: "condition",
@@ -632,7 +628,7 @@ export const useStore = create<StoreState>((set, get) => ({
                                     value: "straight",
                                     type: "string" as const,
                                     editable: true,
-                                    options: ["straight", "bezier", "rounded"],
+                                    options: ["straight", "rounded"],
                                 },
                                 {
                                     key: "condition",

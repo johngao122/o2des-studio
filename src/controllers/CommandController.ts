@@ -288,11 +288,6 @@ export class CommandController {
             if (!change.dragging) continue;
 
             if (!this.dragState.has(change.id)) {
-                console.warn(
-                    "Drag state missing for node:",
-                    change.id,
-                    "- this indicates a timing issue"
-                );
                 const node = currentNodes.find((n) => n.id === change.id);
                 if (!node) continue;
 
