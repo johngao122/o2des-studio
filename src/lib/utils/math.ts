@@ -121,10 +121,16 @@ export function parseTransformMatrix(transformStyle: string): {
     if (transformStyle && transformStyle !== "none") {
         const matrix = transformStyle.match(/matrix.*\((.+)\)/);
         if (matrix && matrix[1]) {
-            const values = matrix[1].split(", ");
-            scale = parseFloat(values[0]);
-            offsetX = parseFloat(values[4]);
-            offsetY = parseFloat(values[5]);
+            // Split on commas or whitespace to be robust across browsers
+            const values = matrix[1].split(/[\s,]+/).filter((v) => v.length);
+            // matrix(a, b, c, d, e, f) → a/d: scale, e: offsetX, f: offsetY
+            // Fallback to defaults if parsing fails
+            const parsedScale = parseFloat(values[0]);
+            const parsedOffsetX = parseFloat(values[4]);
+            const parsedOffsetY = parseFloat(values[5]);
+            if (Number.isFinite(parsedScale)) scale = parsedScale;
+            if (Number.isFinite(parsedOffsetX)) offsetX = parsedOffsetX;
+            if (Number.isFinite(parsedOffsetY)) offsetY = parsedOffsetY;
         }
     }
 

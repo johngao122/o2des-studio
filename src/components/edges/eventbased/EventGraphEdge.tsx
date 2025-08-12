@@ -86,6 +86,11 @@ const EventGraphEdge = memo(
             typeof parseTransformMatrix
         > | null>(null);
         const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+        const anchorRef = useRef<{
+            condition?: { x: number; y: number };
+            delay?: { x: number; y: number };
+            parameter?: { x: number; y: number };
+        }>({});
 
         const hasCondition = !!(
             data?.condition && data.condition.trim() !== ""
@@ -115,11 +120,84 @@ const EventGraphEdge = memo(
                     transformMatrixRef.current =
                         parseTransformMatrix(transformStyle);
 
+                    let labelEl: HTMLDivElement | null = null;
+                    if (type === "condition")
+                        labelEl = conditionLabelRef.current;
+                    if (type === "delay") labelEl = delayLabelRef.current;
+                    if (type === "parameter") labelEl = paramLabelRef.current;
+
+                    if (labelEl && transformMatrixRef.current) {
+                        let defaultOffset: { x: number; y: number } = {
+                            x: 0,
+                            y: 0,
+                        };
+                        let currentOffset: { x: number; y: number } | undefined;
+                        switch (type) {
+                            case "condition":
+                                defaultOffset = { x: 0, y: -40 };
+                                currentOffset = data?.conditionLabelOffset;
+                                break;
+                            case "delay":
+                                defaultOffset = { x: 0, y: -30 };
+                                currentOffset = data?.delayLabelOffset;
+                                break;
+                            case "parameter":
+                                defaultOffset = { x: 0, y: -50 };
+                                currentOffset = data?.parameterLabelOffset;
+                                break;
+                        }
+
+                        const rect = labelEl.getBoundingClientRect();
+                        const labelCenterClientX = rect.left + rect.width / 2;
+                        const labelCenterClientY = rect.top + rect.height / 2;
+
+                        const labelFlowPos = clientToFlowPosition(
+                            labelCenterClientX,
+                            labelCenterClientY,
+                            transformMatrixRef.current
+                        );
+                        const mouseFlowPos = clientToFlowPosition(
+                            e.clientX,
+                            e.clientY,
+                            transformMatrixRef.current
+                        );
+
+                        const offsetX = labelFlowPos.x - mouseFlowPos.x;
+                        const offsetY = labelFlowPos.y - mouseFlowPos.y;
+
+                        dragOffsetRef.current = { x: offsetX, y: offsetY };
+
+                        if (type === "condition")
+                            setTempConditionPosition(labelFlowPos);
+                        if (type === "delay")
+                            setTempDelayPosition(labelFlowPos);
+                        if (type === "parameter")
+                            setTempParamPosition(labelFlowPos);
+                        const usedOffset = currentOffset || defaultOffset;
+                        const anchorPoint = {
+                            x: labelFlowPos.x - usedOffset.x,
+                            y: labelFlowPos.y - usedOffset.y,
+                        };
+                        if (type === "condition")
+                            anchorRef.current.condition = anchorPoint;
+                        if (type === "delay")
+                            anchorRef.current.delay = anchorPoint;
+                        if (type === "parameter")
+                            anchorRef.current.parameter = anchorPoint;
+                        setDragging(true);
+                        document.body.style.cursor = "grabbing";
+                        return;
+                    }
+
                     const edgeType = data?.edgeType || "straight";
                     const hasCustomControlPoints =
                         data?.controlPoints && data.controlPoints.length > 0;
+                    const useOrthogonalRouting =
+                        data?.useOrthogonalRouting ?? true;
                     const isSimpleMode =
-                        edgeType === "straight" && !hasCustomControlPoints;
+                        edgeType === "straight" &&
+                        !hasCustomControlPoints &&
+                        !useOrthogonalRouting;
 
                     let position: number;
                     let defaultOffset: { x: number; y: number };
@@ -215,12 +293,7 @@ const EventGraphEdge = memo(
                             y: mousePosition.y + dragOffsetRef.current.y,
                         };
 
-                        const snappedPosition = {
-                            x: snapToGrid(rawPosition.x),
-                            y: snapToGrid(rawPosition.y),
-                        };
-
-                        setTempPosition(snappedPosition);
+                        setTempPosition(rawPosition);
                     }
                 }, 16),
                 [isDragging]
@@ -235,58 +308,79 @@ const EventGraphEdge = memo(
         ) =>
             useCallback(() => {
                 if (isDragging && tempPosition) {
-                    const edgeType = data?.edgeType || "straight";
-                    const hasCustomControlPoints =
-                        data?.controlPoints && data.controlPoints.length > 0;
-                    const isSimpleMode =
-                        edgeType === "straight" && !hasCustomControlPoints;
-
-                    let position: number;
-                    switch (type) {
-                        case "condition":
-                            position = data?.conditionPosition ?? 0.5;
-                            break;
-                        case "delay":
-                            position = data?.delayPosition ?? 0.25;
-                            break;
-                        case "parameter":
-                            position = data?.parameterPosition ?? 0.75;
-                            break;
-                    }
-
-                    let edgePoint: { x: number; y: number };
-
-                    if (isSimpleMode) {
-                        const dx = targetX - sourceX;
-                        const dy = targetY - sourceY;
-                        edgePoint = {
-                            x: sourceX + dx * position,
-                            y: sourceY + dy * position,
+                    const anchor =
+                        (type === "condition" && anchorRef.current.condition) ||
+                        (type === "delay" && anchorRef.current.delay) ||
+                        (type === "parameter" && anchorRef.current.parameter);
+                    if (anchor) {
+                        const offset = {
+                            x: tempPosition.x - anchor.x,
+                            y: tempPosition.y - anchor.y,
                         };
+                        const offsetKey =
+                            `${type}LabelOffset` as keyof EventGraphEdgeData;
+                        const command =
+                            commandController.createUpdateEdgeCommand(id, {
+                                data: { ...data, [offsetKey]: offset } as any,
+                            });
+                        commandController.execute(command);
                     } else {
-                        const centerX = (sourceX + targetX) / 2;
-                        const centerY = (sourceY + targetY) / 2;
-                        edgePoint = { x: centerX, y: centerY };
-                    }
+                        const edgeType = data?.edgeType || "straight";
+                        const hasCustomControlPoints =
+                            data?.controlPoints &&
+                            data.controlPoints.length > 0;
+                        const useOrthogonalRouting =
+                            data?.useOrthogonalRouting ?? true;
+                        const isSimpleMode =
+                            edgeType === "straight" &&
+                            !hasCustomControlPoints &&
+                            !useOrthogonalRouting;
 
-                    const offset = {
-                        x: tempPosition.x - edgePoint.x,
-                        y: tempPosition.y - edgePoint.y,
-                    };
-
-                    const offsetKey =
-                        `${type}LabelOffset` as keyof EventGraphEdgeData;
-
-                    const command = commandController.createUpdateEdgeCommand(
-                        id,
-                        {
-                            data: {
-                                ...data,
-                                [offsetKey]: offset,
-                            },
+                        let position: number;
+                        switch (type) {
+                            case "condition":
+                                position = data?.conditionPosition ?? 0.5;
+                                break;
+                            case "delay":
+                                position = data?.delayPosition ?? 0.25;
+                                break;
+                            case "parameter":
+                                position = data?.parameterPosition ?? 0.75;
+                                break;
                         }
-                    );
-                    commandController.execute(command);
+
+                        let edgePoint: { x: number; y: number };
+
+                        if (isSimpleMode) {
+                            const dx = targetX - sourceX;
+                            const dy = targetY - sourceY;
+                            edgePoint = {
+                                x: sourceX + dx * position,
+                                y: sourceY + dy * position,
+                            };
+                        } else {
+                            const centerX = (sourceX + targetX) / 2;
+                            const centerY = (sourceY + targetY) / 2;
+                            edgePoint = { x: centerX, y: centerY };
+                        }
+
+                        const offset = {
+                            x: tempPosition.x - edgePoint.x,
+                            y: tempPosition.y - edgePoint.y,
+                        };
+
+                        const offsetKey =
+                            `${type}LabelOffset` as keyof EventGraphEdgeData;
+
+                        const command =
+                            commandController.createUpdateEdgeCommand(id, {
+                                data: {
+                                    ...data,
+                                    [offsetKey]: offset,
+                                },
+                            });
+                        commandController.execute(command);
+                    }
                 }
 
                 setDragging(false);
@@ -498,12 +592,8 @@ const EventGraphEdge = memo(
                     const conditionLabelOffset =
                         isConditionDragging && tempConditionPosition
                             ? {
-                                  x:
-                                      tempConditionPosition.x -
-                                      conditionEdgePoint.x,
-                                  y:
-                                      tempConditionPosition.y -
-                                      conditionEdgePoint.y,
+                                  x: tempConditionPosition.x - conditionPoint.x,
+                                  y: tempConditionPosition.y - conditionPoint.y,
                               }
                             : data?.conditionLabelOffset ||
                               defaultConditionOffset;
@@ -511,42 +601,42 @@ const EventGraphEdge = memo(
                     const delayLabelOffset =
                         isDelayDragging && tempDelayPosition
                             ? {
-                                  x: tempDelayPosition.x - delayEdgePoint.x,
-                                  y: tempDelayPosition.y - delayEdgePoint.y,
+                                  x: tempDelayPosition.x - delayPoint.x,
+                                  y: tempDelayPosition.y - delayPoint.y,
                               }
                             : data?.delayLabelOffset || defaultDelayOffset;
 
                     const paramLabelOffset =
                         isParamDragging && tempParamPosition
                             ? {
-                                  x: tempParamPosition.x - paramEdgePoint.x,
-                                  y: tempParamPosition.y - paramEdgePoint.y,
+                                  x: tempParamPosition.x - paramPoint.x,
+                                  y: tempParamPosition.y - paramPoint.y,
                               }
                             : data?.parameterLabelOffset || defaultParamOffset;
 
                     const conditionLabelX =
-                        conditionEdgePoint.x + conditionLabelOffset.x;
+                        conditionPoint.x + conditionLabelOffset.x;
                     const conditionLabelY =
-                        conditionEdgePoint.y + conditionLabelOffset.y;
-                    const delayLabelX = delayEdgePoint.x + delayLabelOffset.x;
-                    const delayLabelY = delayEdgePoint.y + delayLabelOffset.y;
-                    const paramLabelX = paramEdgePoint.x + paramLabelOffset.x;
-                    const paramLabelY = paramEdgePoint.y + paramLabelOffset.y;
+                        conditionPoint.y + conditionLabelOffset.y;
+                    const delayLabelX = delayPoint.x + delayLabelOffset.x;
+                    const delayLabelY = delayPoint.y + delayLabelOffset.y;
+                    const paramLabelX = paramPoint.x + paramLabelOffset.x;
+                    const paramLabelY = paramPoint.y + paramLabelOffset.y;
 
                     const allX = [];
                     const allY = [];
 
                     if (hasCondition) {
-                        allX.push(conditionEdgePoint.x, conditionLabelX);
-                        allY.push(conditionEdgePoint.y, conditionLabelY);
+                        allX.push(conditionPoint.x, conditionLabelX);
+                        allY.push(conditionPoint.y, conditionLabelY);
                     }
                     if (hasDelay) {
-                        allX.push(delayEdgePoint.x, delayLabelX);
-                        allY.push(delayEdgePoint.y, delayLabelY);
+                        allX.push(delayPoint.x, delayLabelX);
+                        allY.push(delayPoint.y, delayLabelY);
                     }
                     if (hasParameter) {
-                        allX.push(paramEdgePoint.x, paramLabelX);
-                        allY.push(paramEdgePoint.y, paramLabelY);
+                        allX.push(paramPoint.x, paramLabelX);
+                        allY.push(paramPoint.y, paramLabelY);
                     }
 
                     if (allX.length === 0) {
@@ -592,8 +682,8 @@ const EventGraphEdge = memo(
                                             }) rotate(${conditionAngle})`}
                                         />
                                         <line
-                                            x1={conditionEdgePoint.x - minX}
-                                            y1={conditionEdgePoint.y - minY}
+                                            x1={conditionPoint.x - minX}
+                                            y1={conditionPoint.y - minY}
                                             x2={conditionLabelX - minX}
                                             y2={conditionLabelY - minY}
                                             stroke={
@@ -641,8 +731,8 @@ const EventGraphEdge = memo(
                                             />
                                         </g>
                                         <line
-                                            x1={delayEdgePoint.x - minX}
-                                            y1={delayEdgePoint.y - minY}
+                                            x1={delayPoint.x - minX}
+                                            y1={delayPoint.y - minY}
                                             x2={delayLabelX - minX}
                                             y2={delayLabelY - minY}
                                             stroke={
@@ -657,8 +747,8 @@ const EventGraphEdge = memo(
 
                                 {hasParameter && (
                                     <line
-                                        x1={paramEdgePoint.x - minX}
-                                        y1={paramEdgePoint.y - minY}
+                                        x1={paramPoint.x - minX}
+                                        y1={paramPoint.y - minY}
                                         x2={paramLabelX - minX}
                                         y2={paramLabelY - minY}
                                         stroke={
@@ -673,6 +763,7 @@ const EventGraphEdge = memo(
 
                             {hasCondition && (
                                 <div
+                                    ref={conditionLabelRef}
                                     style={{
                                         position: "absolute",
                                         transform: `translate(-50%, -50%) translate(${
@@ -692,7 +783,6 @@ const EventGraphEdge = memo(
                                     className="nodrag nopan"
                                 >
                                     <div
-                                        ref={conditionLabelRef}
                                         onMouseDown={handleConditionDragStart}
                                         className={`edge-label-condition flex justify-center items-center ${
                                             selected
@@ -730,6 +820,7 @@ const EventGraphEdge = memo(
 
                             {hasDelay && (
                                 <div
+                                    ref={delayLabelRef}
                                     style={{
                                         position: "absolute",
                                         transform: `translate(-50%, -50%) translate(${
@@ -747,7 +838,6 @@ const EventGraphEdge = memo(
                                     className="nodrag nopan"
                                 >
                                     <div
-                                        ref={delayLabelRef}
                                         onMouseDown={handleDelayDragStart}
                                         className={`edge-label-delay flex justify-center items-center ${
                                             selected
@@ -794,6 +884,7 @@ const EventGraphEdge = memo(
                             {/* Parameter Label */}
                             {hasParameter && (
                                 <div
+                                    ref={paramLabelRef}
                                     style={{
                                         position: "absolute",
                                         transform: `translate(-50%, -50%) translate(${
@@ -811,7 +902,6 @@ const EventGraphEdge = memo(
                                     className="nodrag nopan"
                                 >
                                     <div
-                                        ref={paramLabelRef}
                                         onMouseDown={handleParamDragStart}
                                         className={`edge-label-param flex justify-center items-center ${
                                             selected

@@ -16,7 +16,6 @@ import {
     parseTransformMatrix,
     clientToFlowPosition,
     throttle,
-    snapToGrid,
 } from "@/lib/utils/math";
 import BaseEdgeComponent, {
     BaseEdgeData,
@@ -29,6 +28,104 @@ const commandController = CommandController.getInstance();
 interface RCQEdgeData extends BaseEdgeData {
     condition?: string;
     conditionLabelOffset?: { x: number; y: number };
+    conditionPosition?: number;
+}
+
+function buildPolyline(
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+    controlPoints: { x: number; y: number }[]
+): Array<{ x: number; y: number }> {
+    const points: Array<{ x: number; y: number }> = [
+        { x: sourceX, y: sourceY },
+        ...controlPoints,
+        { x: targetX, y: targetY },
+    ];
+    return points;
+}
+
+function getPolylineCumulativeLengths(points: Array<{ x: number; y: number }>) {
+    const lengths: number[] = [0];
+    let total = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        const dx = points[i + 1].x - points[i].x;
+        const dy = points[i + 1].y - points[i].y;
+        const seg = Math.hypot(dx, dy);
+        total += seg;
+        lengths.push(total);
+    }
+    return { cumulative: lengths, total };
+}
+
+function clamp01(v: number) {
+    return Math.max(0, Math.min(1, v));
+}
+
+function getPointAtT(
+    points: Array<{ x: number; y: number }>,
+    t: number
+): { x: number; y: number } {
+    const { cumulative, total } = getPolylineCumulativeLengths(points);
+    if (total === 0) return points[0] || { x: 0, y: 0 };
+    const target = clamp01(t) * total;
+    let idx = 0;
+    while (idx < cumulative.length - 1 && cumulative[idx + 1] < target) idx++;
+    const segStart = points[idx];
+    const segEnd = points[idx + 1] || segStart;
+    const segLen = cumulative[idx + 1] - cumulative[idx] || 1;
+    const localT = (target - cumulative[idx]) / segLen;
+    return {
+        x: segStart.x + (segEnd.x - segStart.x) * localT,
+        y: segStart.y + (segEnd.y - segStart.y) * localT,
+    };
+}
+
+function getAngleAtT(points: Array<{ x: number; y: number }>, t: number) {
+    const { cumulative, total } = getPolylineCumulativeLengths(points);
+    if (total === 0) return 0;
+    const target = clamp01(t) * total;
+    let idx = 0;
+    while (idx < cumulative.length - 1 && cumulative[idx + 1] < target) idx++;
+    const segStart = points[idx];
+    const segEnd = points[idx + 1] || segStart;
+    const dx = segEnd.x - segStart.x;
+    const dy = segEnd.y - segStart.y;
+    return Math.atan2(dy, dx) * (180 / Math.PI);
+}
+
+function projectPointOntoPolyline(
+    points: Array<{ x: number; y: number }>,
+    p: { x: number; y: number }
+): { x: number; y: number; t: number } {
+    const { cumulative, total } = getPolylineCumulativeLengths(points);
+    if (total === 0)
+        return { x: points[0]?.x || 0, y: points[0]?.y || 0, t: 0 };
+    let best = { x: points[0].x, y: points[0].y, t: 0 };
+    let bestDist = Infinity;
+    for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        const abx = b.x - a.x;
+        const aby = b.y - a.y;
+        const abLen2 = abx * abx + aby * aby || 1;
+        const apx = p.x - a.x;
+        const apy = p.y - a.y;
+        const u = Math.max(0, Math.min(1, (apx * abx + apy * aby) / abLen2));
+        const qx = a.x + abx * u;
+        const qy = a.y + aby * u;
+        const dx = p.x - qx;
+        const dy = p.y - qy;
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 < bestDist) {
+            bestDist = dist2;
+            const segLen = cumulative[i + 1] - cumulative[i];
+            const t = (cumulative[i] + u * segLen) / total;
+            best = { x: qx, y: qy, t };
+        }
+    }
+    return best;
 }
 
 interface ExtendedEdgeProps extends EdgeProps<RCQEdgeData> {
@@ -62,12 +159,19 @@ const RCQEdge = memo(
             x: number;
             y: number;
         } | null>(null);
+        const tempConditionTRef = useRef<number | null>(null);
+        const polylineRef = useRef<Array<{ x: number; y: number }>>([]);
+        const currentControlPointsRef = useRef<Array<{ x: number; y: number }>>(
+            []
+        );
 
+        const conditionLabelRef = useRef<HTMLDivElement>(null);
         const flowPaneRef = useRef<Element | null>(null);
         const transformMatrixRef = useRef<ReturnType<
             typeof parseTransformMatrix
         > | null>(null);
         const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+        const anchorRef = useRef<{ x: number; y: number } | null>(null);
 
         const handleConditionDragStart = (e: MouseEvent) => {
             e.stopPropagation();
@@ -78,35 +182,83 @@ const RCQEdge = memo(
             );
 
             if (flowPaneRef.current) {
-                const transformStyle = window.getComputedStyle(
+                const computedStyle = window.getComputedStyle(
                     flowPaneRef.current
-                ).transform;
-                transformMatrixRef.current =
-                    parseTransformMatrix(transformStyle);
-
-                const edgeType = data?.edgeType || "straight";
-                const hasCustomControlPoints =
-                    data?.controlPoints && data.controlPoints.length > 0;
-                const isSimpleMode =
-                    edgeType === "straight" && !hasCustomControlPoints;
-
-                let conditionMarkerX: number, conditionMarkerY: number;
-
-                if (isSimpleMode) {
-                    conditionMarkerX = (sourceX + targetX) / 2;
-                    conditionMarkerY = (sourceY + targetY) / 2;
-                } else {
-                    const controlPoints = data?.controlPoints || [];
-                    const middleIndex = Math.floor(controlPoints.length / 2);
-                    const middlePoint = controlPoints[middleIndex];
-                    if (middlePoint) {
-                        conditionMarkerX = middlePoint.x;
-                        conditionMarkerY = middlePoint.y;
-                    } else {
-                        conditionMarkerX = (sourceX + targetX) / 2;
-                        conditionMarkerY = (sourceY + targetY) / 2;
-                    }
+                );
+                if (!computedStyle) {
+                    return;
                 }
+                const transformStyle = computedStyle.transform;
+                try {
+                    transformMatrixRef.current =
+                        parseTransformMatrix(transformStyle);
+                } catch (error) {
+                    console.warn("Failed to parse transform matrix:", error);
+
+                    transformMatrixRef.current = {
+                        scale: 1,
+                        offsetX: 0,
+                        offsetY: 0,
+                    };
+                }
+
+                if (conditionLabelRef.current && transformMatrixRef.current) {
+                    const defaultOffset = { x: 0, y: -30 };
+                    const usedOffset =
+                        data?.conditionLabelOffset || defaultOffset;
+
+                    const controlPointsToUse =
+                        currentControlPointsRef.current.length > 0
+                            ? currentControlPointsRef.current
+                            : data?.controlPoints || [];
+                    const poly = buildPolyline(
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                        controlPointsToUse
+                    );
+                    polylineRef.current = poly;
+                    const t = data?.conditionPosition ?? 0.5;
+                    const anchorPoint = getPointAtT(poly, t);
+                    const labelFlowPos = {
+                        x: anchorPoint.x + usedOffset.x,
+                        y: anchorPoint.y + usedOffset.y,
+                    };
+                    const mouseFlowPos = clientToFlowPosition(
+                        e.clientX,
+                        e.clientY,
+                        transformMatrixRef.current
+                    );
+
+                    const offsetX = labelFlowPos.x - mouseFlowPos.x;
+                    const offsetY = labelFlowPos.y - mouseFlowPos.y;
+                    dragOffsetRef.current = { x: offsetX, y: offsetY };
+                    setTempConditionPosition(labelFlowPos);
+                    anchorRef.current = anchorPoint;
+                    tempConditionTRef.current = t;
+                    setIsConditionDragging(true);
+                    document.body.style.cursor = "grabbing";
+                    return;
+                }
+
+                const controlPointsToUse =
+                    currentControlPointsRef.current.length > 0
+                        ? currentControlPointsRef.current
+                        : data?.controlPoints || [];
+
+                const poly = buildPolyline(
+                    sourceX,
+                    sourceY,
+                    targetX,
+                    targetY,
+                    controlPointsToUse
+                );
+
+                const t = data?.conditionPosition ?? 0.5;
+                const anchorPoint = getPointAtT(poly, t);
+                const conditionMarkerX = anchorPoint.x;
+                const conditionMarkerY = anchorPoint.y;
 
                 const defaultConditionLabelOffset = { x: 0, y: -30 };
                 const conditionLabelOffset =
@@ -119,13 +271,81 @@ const RCQEdge = memo(
                 const mousePosition = clientToFlowPosition(
                     e.clientX,
                     e.clientY,
-                    transformMatrixRef.current
+                    transformMatrixRef.current || {
+                        scale: 1,
+                        offsetX: 0,
+                        offsetY: 0,
+                    }
                 );
+
+                if (
+                    !mousePosition ||
+                    !isFinite(mousePosition.x) ||
+                    !isFinite(mousePosition.y) ||
+                    !isFinite(conditionLabelX) ||
+                    !isFinite(conditionLabelY)
+                ) {
+                    console.warn(
+                        "RCQEdge: Invalid coordinates in fallback path",
+                        {
+                            mousePosition,
+                            conditionLabelX,
+                            conditionLabelY,
+                            transformMatrix: transformMatrixRef.current,
+                        }
+                    );
+                    return;
+                }
 
                 const offsetX = conditionLabelX - mousePosition.x;
                 const offsetY = conditionLabelY - mousePosition.y;
 
+                const offsetDistance = Math.hypot(offsetX, offsetY);
+                if (offsetDistance > 100) {
+                    console.warn(
+                        "RCQEdge: Large drag offset detected in fallback path (possible coordinate mismatch)",
+                        {
+                            offsetX,
+                            offsetY,
+                            offsetDistance,
+                            conditionLabelX,
+                            conditionLabelY,
+                            mousePosition,
+                        }
+                    );
+                }
+
+                if (process.env.NODE_ENV === "development") {
+                    console.debug(
+                        "RCQEdge: Fallback path calculation details",
+                        {
+                            anchorPoint: {
+                                x: conditionMarkerX,
+                                y: conditionMarkerY,
+                            },
+                            labelOffset: data?.conditionLabelOffset || {
+                                x: 0,
+                                y: -30,
+                            },
+                            calculatedLabel: {
+                                x: conditionLabelX,
+                                y: conditionLabelY,
+                            },
+                            mousePosition,
+                            offset: { x: offsetX, y: offsetY },
+                            offsetDistance,
+                            controlPointsUsed: controlPointsToUse.length,
+                            polylineLength: poly.length,
+                        }
+                    );
+                }
+
                 dragOffsetRef.current = { x: offsetX, y: offsetY };
+
+                setTempConditionPosition({
+                    x: conditionLabelX,
+                    y: conditionLabelY,
+                });
                 setIsConditionDragging(true);
                 document.body.style.cursor = "grabbing";
             }
@@ -146,30 +366,69 @@ const RCQEdge = memo(
 
                 if (flowPaneRef.current) {
                     if (!transformMatrixRef.current) {
-                        const transformStyle = window.getComputedStyle(
+                        const computedStyle = window.getComputedStyle(
                             flowPaneRef.current
-                        ).transform;
-                        transformMatrixRef.current =
-                            parseTransformMatrix(transformStyle);
+                        );
+                        if (!computedStyle) {
+                            return;
+                        }
+                        const transformStyle = computedStyle.transform;
+                        try {
+                            transformMatrixRef.current =
+                                parseTransformMatrix(transformStyle);
+                        } catch (error) {
+                            console.warn(
+                                "Failed to parse transform matrix during drag:",
+                                error
+                            );
+
+                            transformMatrixRef.current = {
+                                scale: 1,
+                                offsetX: 0,
+                                offsetY: 0,
+                            };
+                        }
                     }
 
                     const mousePosition = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrixRef.current
+                        transformMatrixRef.current || {
+                            scale: 1,
+                            offsetX: 0,
+                            offsetY: 0,
+                        }
                     );
 
-                    const rawPosition = {
+                    if (polylineRef.current.length === 0) {
+                        const controlPointsToUse =
+                            currentControlPointsRef.current.length > 0
+                                ? currentControlPointsRef.current
+                                : data?.controlPoints || [];
+                        polylineRef.current = buildPolyline(
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                            controlPointsToUse
+                        );
+                    }
+                    const adjusted = {
                         x: mousePosition.x + dragOffsetRef.current.x,
                         y: mousePosition.y + dragOffsetRef.current.y,
                     };
-
-                    const snappedPosition = {
-                        x: snapToGrid(rawPosition.x),
-                        y: snapToGrid(rawPosition.y),
-                    };
-
-                    setTempConditionPosition(snappedPosition);
+                    const proj = projectPointOntoPolyline(
+                        polylineRef.current,
+                        adjusted
+                    );
+                    tempConditionTRef.current = proj.t;
+                    const dx = adjusted.x - proj.x;
+                    const dy = adjusted.y - proj.y;
+                    const len = Math.hypot(dx, dy);
+                    const maxOffset = 30;
+                    const s = len > maxOffset && len > 0 ? maxOffset / len : 1;
+                    const newPos = { x: proj.x + dx * s, y: proj.y + dy * s };
+                    setTempConditionPosition(newPos);
                 }
             }, 16),
             [isConditionDragging]
@@ -177,40 +436,38 @@ const RCQEdge = memo(
 
         const handleConditionDragEnd = useCallback(() => {
             if (isConditionDragging && tempConditionPosition) {
-                const edgeType = data?.edgeType || "straight";
-                const hasCustomControlPoints =
-                    data?.controlPoints && data.controlPoints.length > 0;
-                const isSimpleMode =
-                    edgeType === "straight" && !hasCustomControlPoints;
-
-                let conditionMarkerX: number, conditionMarkerY: number;
-
-                if (isSimpleMode) {
-                    conditionMarkerX = (sourceX + targetX) / 2;
-                    conditionMarkerY = (sourceY + targetY) / 2;
-                } else {
-                    const controlPoints = data?.controlPoints || [];
-                    const middleIndex = Math.floor(controlPoints.length / 2);
-                    const middlePoint = controlPoints[middleIndex];
-                    if (middlePoint) {
-                        conditionMarkerX = middlePoint.x;
-                        conditionMarkerY = middlePoint.y;
-                    } else {
-                        conditionMarkerX = (sourceX + targetX) / 2;
-                        conditionMarkerY = (sourceY + targetY) / 2;
-                    }
-                }
-
-                const newOffset = {
-                    x: tempConditionPosition.x - conditionMarkerX,
-                    y: tempConditionPosition.y - conditionMarkerY,
+                const poly =
+                    polylineRef.current.length > 0
+                        ? polylineRef.current
+                        : buildPolyline(
+                              sourceX,
+                              sourceY,
+                              targetX,
+                              targetY,
+                              currentControlPointsRef.current.length > 0
+                                  ? currentControlPointsRef.current
+                                  : data?.controlPoints || []
+                          );
+                const t =
+                    tempConditionTRef.current != null
+                        ? (tempConditionTRef.current as number)
+                        : data?.conditionPosition ?? 0.5;
+                const anchor = getPointAtT(poly, t);
+                let newOffset = {
+                    x: tempConditionPosition.x - anchor.x,
+                    y: tempConditionPosition.y - anchor.y,
                 };
-
-                const updatedData = {
+                const len = Math.hypot(newOffset.x, newOffset.y);
+                const maxOffset = 30;
+                if (len > maxOffset && len > 0) {
+                    const s = maxOffset / len;
+                    newOffset = { x: newOffset.x * s, y: newOffset.y * s };
+                }
+                const updatedData: RCQEdgeData = {
                     ...data,
+                    conditionPosition: t,
                     conditionLabelOffset: newOffset,
                 };
-
                 const command = commandController.createUpdateEdgeCommand(id, {
                     data: updatedData,
                 });
@@ -281,65 +538,26 @@ const RCQEdge = memo(
                     currentControlPoints: { x: number; y: number }[];
                     selected: boolean;
                 }) => {
-                    const edgeType = data?.edgeType || "straight";
+                    currentControlPointsRef.current =
+                        currentControlPoints || data?.controlPoints || [];
 
-                    let conditionMarkerX: number, conditionMarkerY: number;
-                    let conditionMarkerAngle: number;
+                    const poly = buildPolyline(
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                        currentControlPointsRef.current
+                    );
 
-                    if (isSimpleMode) {
-                        conditionMarkerX = centerX;
-                        conditionMarkerY = centerY;
-                    } else {
-                        const controlPoints =
-                            data?.controlPoints || currentControlPoints;
-                        const middleIndex = Math.floor(
-                            controlPoints.length / 2
-                        );
-                        const middlePoint = controlPoints[middleIndex];
-                        if (middlePoint) {
-                            conditionMarkerX = middlePoint.x;
-                            conditionMarkerY = middlePoint.y;
-                        } else {
-                            conditionMarkerX = centerX;
-                            conditionMarkerY = centerY;
-                        }
-                    }
-
-                    if (edgeType === "straight" || edgeType === "rounded") {
-                        if (isSimpleMode) {
-                            conditionMarkerAngle =
-                                Math.atan2(
-                                    targetY - sourceY,
-                                    targetX - sourceX
-                                ) *
-                                (180 / Math.PI);
-                        } else {
-                            const controlPoints =
-                                data?.controlPoints || currentControlPoints;
-                            const firstPoint = controlPoints[0];
-                            const lastPoint =
-                                controlPoints[controlPoints.length - 1];
-                            if (firstPoint && lastPoint) {
-                                conditionMarkerAngle =
-                                    Math.atan2(
-                                        lastPoint.y - firstPoint.y,
-                                        lastPoint.x - firstPoint.x
-                                    ) *
-                                    (180 / Math.PI);
-                            } else {
-                                conditionMarkerAngle =
-                                    Math.atan2(
-                                        targetY - sourceY,
-                                        targetX - sourceX
-                                    ) *
-                                    (180 / Math.PI);
-                            }
-                        }
-                    } else {
-                        conditionMarkerAngle =
-                            Math.atan2(targetY - sourceY, targetX - sourceX) *
-                            (180 / Math.PI);
-                    }
+                    polylineRef.current = poly;
+                    const t =
+                        isConditionDragging && tempConditionTRef.current != null
+                            ? (tempConditionTRef.current as number)
+                            : data?.conditionPosition ?? 0.5;
+                    const anchorPoint = getPointAtT(poly, t);
+                    const conditionMarkerX = anchorPoint.x;
+                    const conditionMarkerY = anchorPoint.y;
+                    const conditionMarkerAngle = getAngleAtT(poly, t);
 
                     const hasCondition =
                         data?.condition &&
@@ -348,11 +566,20 @@ const RCQEdge = memo(
                     const showConditionMarker = hasCondition;
 
                     const defaultConditionLabelOffset = { x: 0, y: -30 };
+                    const conditionAnchor = {
+                        x: conditionMarkerX,
+                        y: conditionMarkerY,
+                    };
+                    anchorRef.current = conditionAnchor;
                     const conditionLabelOffset =
                         isConditionDragging && tempConditionPosition
                             ? {
-                                  x: tempConditionPosition.x - conditionMarkerX,
-                                  y: tempConditionPosition.y - conditionMarkerY,
+                                  x:
+                                      tempConditionPosition.x -
+                                      conditionAnchor.x,
+                                  y:
+                                      tempConditionPosition.y -
+                                      conditionAnchor.y,
                               }
                             : data?.conditionLabelOffset ||
                               defaultConditionLabelOffset;
@@ -364,6 +591,73 @@ const RCQEdge = memo(
 
                     return showConditionMarker ? (
                         <EdgeLabelRenderer>
+                            {/* Dotted connector from anchor to label */}
+                            <svg
+                                style={{
+                                    position: "absolute",
+                                    left:
+                                        Math.min(
+                                            conditionMarkerX,
+                                            conditionLabelX
+                                        ) - 20,
+                                    top:
+                                        Math.min(
+                                            conditionMarkerY,
+                                            conditionLabelY
+                                        ) - 20,
+                                    pointerEvents: "none",
+                                    zIndex: 5,
+                                }}
+                                width={
+                                    Math.abs(
+                                        conditionLabelX - conditionMarkerX
+                                    ) + 40
+                                }
+                                height={
+                                    Math.abs(
+                                        conditionLabelY - conditionMarkerY
+                                    ) + 40
+                                }
+                            >
+                                <line
+                                    x1={
+                                        conditionMarkerX -
+                                        (Math.min(
+                                            conditionMarkerX,
+                                            conditionLabelX
+                                        ) -
+                                            20)
+                                    }
+                                    y1={
+                                        conditionMarkerY -
+                                        (Math.min(
+                                            conditionMarkerY,
+                                            conditionLabelY
+                                        ) -
+                                            20)
+                                    }
+                                    x2={
+                                        conditionLabelX -
+                                        (Math.min(
+                                            conditionMarkerX,
+                                            conditionLabelX
+                                        ) -
+                                            20)
+                                    }
+                                    y2={
+                                        conditionLabelY -
+                                        (Math.min(
+                                            conditionMarkerY,
+                                            conditionLabelY
+                                        ) -
+                                            20)
+                                    }
+                                    stroke="#6b7280"
+                                    strokeWidth="1"
+                                    strokeDasharray="3,3"
+                                    opacity={0.7}
+                                />
+                            </svg>
                             {/* Draggable Condition Marker */}
                             {selected && (
                                 <div
@@ -419,6 +713,7 @@ const RCQEdge = memo(
 
                             {/* Draggable Condition Label */}
                             <div
+                                ref={conditionLabelRef}
                                 style={{
                                     position: "absolute",
                                     transform: `translate(-50%, -50%) translate(${conditionLabelX}px,${conditionLabelY}px)`,
