@@ -13,8 +13,8 @@ import {
     parseTransformMatrix,
     clientToFlowPosition,
     throttle,
-    snapToGrid,
     calculateEdgePositions,
+    getPointAndAngleOnPath,
 } from "@/lib/utils/math";
 
 const commandController = CommandController.getInstance();
@@ -63,6 +63,64 @@ const InitializationEdge = memo(
             typeof parseTransformMatrix
         > | null>(null);
         const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+        const anchorRef = useRef<{ delay?: { x: number; y: number } }>({});
+        const pathStringRef = useRef<string>("");
+        const tempDelayTRef = useRef<number | null>(null);
+
+        const projectPointOntoPath = (
+            pathD: string,
+            p: { x: number; y: number }
+        ): { x: number; y: number; t: number } => {
+            try {
+                const svg = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "svg"
+                );
+                const path = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "path"
+                );
+                path.setAttribute("d", pathD);
+                svg.appendChild(path);
+                document.body.appendChild(svg);
+                const total = path.getTotalLength();
+                let bestT = 0;
+                let bestDist = Infinity;
+                const samples = 50;
+                for (let i = 0; i <= samples; i++) {
+                    const t = i / samples;
+                    const pt = path.getPointAtLength(total * t);
+                    const dx = p.x - pt.x;
+                    const dy = p.y - pt.y;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        bestT = t;
+                    }
+                }
+                const refineRange = 0.04;
+                const lower = Math.max(0, bestT - refineRange);
+                const upper = Math.min(1, bestT + refineRange);
+                const steps = 20;
+                bestDist = Infinity;
+                for (let i = 0; i <= steps; i++) {
+                    const t = lower + (i / steps) * (upper - lower);
+                    const pt = path.getPointAtLength(total * t);
+                    const dx = p.x - pt.x;
+                    const dy = p.y - pt.y;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        bestT = t;
+                    }
+                }
+                const bestPt = path.getPointAtLength(total * bestT);
+                document.body.removeChild(svg);
+                return { x: bestPt.x, y: bestPt.y, t: bestT };
+            } catch (e) {
+                return { x: p.x, y: p.y, t: 0.25 };
+            }
+        };
 
         const hasInitialDelay =
             data?.initialDelay && data.initialDelay.trim() !== "";
@@ -79,47 +137,51 @@ const InitializationEdge = memo(
                 const transformStyle = window.getComputedStyle(
                     flowPaneRef.current
                 ).transform;
-                transformMatrixRef.current =
-                    parseTransformMatrix(transformStyle);
-
-                const edgeType = data?.edgeType || "straight";
-                const hasCustomControlPoints =
-                    data?.controlPoints && data.controlPoints.length > 0;
-                const isSimpleMode =
-                    edgeType === "straight" && !hasCustomControlPoints;
-
-                const delayPosition = data?.delayPosition ?? 0.25;
-                let delayPoint: { x: number; y: number };
-
-                if (isSimpleMode) {
-                    const dx = targetX - sourceX;
-                    const dy = targetY - sourceY;
-                    delayPoint = {
-                        x: sourceX + dx * delayPosition,
-                        y: sourceY + dy * delayPosition,
+                try {
+                    transformMatrixRef.current =
+                        parseTransformMatrix(transformStyle);
+                } catch (error) {
+                    console.warn("Failed to parse transform matrix:", error);
+                    transformMatrixRef.current = {
+                        scale: 1,
+                        offsetX: 0,
+                        offsetY: 0,
                     };
-                } else {
-                    const centerX = (sourceX + targetX) / 2;
-                    const centerY = (sourceY + targetY) / 2;
-                    delayPoint = { x: centerX, y: centerY };
                 }
 
                 const defaultDelayLabelOffset = { x: 0, y: -30 };
-                const delayLabelOffset =
+                const usedOffset =
                     data?.delayLabelOffset || defaultDelayLabelOffset;
-                const delayLabelX = delayPoint.x + delayLabelOffset.x;
-                const delayLabelY = delayPoint.y + delayLabelOffset.y;
 
                 const mousePosition = clientToFlowPosition(
                     e.clientX,
                     e.clientY,
-                    transformMatrixRef.current
+                    transformMatrixRef.current || {
+                        scale: 1,
+                        offsetX: 0,
+                        offsetY: 0,
+                    }
                 );
 
-                const offsetX = delayLabelX - mousePosition.x;
-                const offsetY = delayLabelY - mousePosition.y;
+                const anchorPoint =
+                    anchorRef.current.delay ||
+                    ({
+                        x: (sourceX + targetX) / 2,
+                        y: (sourceY + targetY) / 2,
+                    } as const);
 
-                dragOffsetRef.current = { x: offsetX, y: offsetY };
+                const labelFlowPos = {
+                    x: anchorPoint.x + usedOffset.x,
+                    y: anchorPoint.y + usedOffset.y,
+                };
+
+                dragOffsetRef.current = {
+                    x: labelFlowPos.x - mousePosition.x,
+                    y: labelFlowPos.y - mousePosition.y,
+                };
+
+                tempDelayTRef.current = data?.delayPosition ?? 0.25;
+                setTempDelayPosition(labelFlowPos);
                 setIsDelayDragging(true);
                 document.body.style.cursor = "grabbing";
             }
@@ -143,27 +205,70 @@ const InitializationEdge = memo(
                         const transformStyle = window.getComputedStyle(
                             flowPaneRef.current
                         ).transform;
-                        transformMatrixRef.current =
-                            parseTransformMatrix(transformStyle);
+                        try {
+                            transformMatrixRef.current =
+                                parseTransformMatrix(transformStyle);
+                        } catch (error) {
+                            console.warn(
+                                "Failed to parse transform matrix during drag:",
+                                error
+                            );
+                            transformMatrixRef.current = {
+                                scale: 1,
+                                offsetX: 0,
+                                offsetY: 0,
+                            };
+                        }
                     }
 
                     const mousePosition = clientToFlowPosition(
                         e.clientX,
                         e.clientY,
-                        transformMatrixRef.current
+                        transformMatrixRef.current || {
+                            scale: 1,
+                            offsetX: 0,
+                            offsetY: 0,
+                        }
                     );
 
-                    const rawPosition = {
-                        x: mousePosition.x + dragOffsetRef.current.x,
-                        y: mousePosition.y + dragOffsetRef.current.y,
+                    const adjusted = {
+                        x: mousePosition.x + (dragOffsetRef.current?.x || 0),
+                        y: mousePosition.y + (dragOffsetRef.current?.y || 0),
                     };
 
-                    const snappedPosition = {
-                        x: snapToGrid(rawPosition.x),
-                        y: snapToGrid(rawPosition.y),
-                    };
-
-                    setTempDelayPosition(snappedPosition);
+                    const pathD = pathStringRef.current;
+                    if (pathD) {
+                        const proj = projectPointOntoPath(pathD, adjusted);
+                        tempDelayTRef.current = proj.t;
+                        const dx = adjusted.x - proj.x;
+                        const dy = adjusted.y - proj.y;
+                        const len = Math.hypot(dx, dy);
+                        const maxOffset = 30;
+                        const s =
+                            len > maxOffset && len > 0 ? maxOffset / len : 1;
+                        setTempDelayPosition({
+                            x: proj.x + dx * s,
+                            y: proj.y + dy * s,
+                        });
+                    } else {
+                        const anchor = anchorRef.current.delay;
+                        if (anchor) {
+                            const dx = adjusted.x - anchor.x;
+                            const dy = adjusted.y - anchor.y;
+                            const len = Math.hypot(dx, dy);
+                            const maxOffset = 30;
+                            const scale =
+                                len > maxOffset && len > 0
+                                    ? maxOffset / len
+                                    : 1;
+                            setTempDelayPosition({
+                                x: anchor.x + dx * scale,
+                                y: anchor.y + dy * scale,
+                            });
+                        } else {
+                            setTempDelayPosition(adjusted);
+                        }
+                    }
                 }
             }, 16),
             [isDelayDragging]
@@ -171,38 +276,50 @@ const InitializationEdge = memo(
 
         const handleDelayDragEnd = useCallback(() => {
             if (isDelayDragging && tempDelayPosition) {
-                const edgeType = data?.edgeType || "straight";
-                const hasCustomControlPoints =
-                    data?.controlPoints && data.controlPoints.length > 0;
-                const isSimpleMode =
-                    edgeType === "straight" && !hasCustomControlPoints;
-
-                const delayPosition = data?.delayPosition ?? 0.25;
-                let edgePoint: { x: number; y: number };
-
-                if (isSimpleMode) {
-                    const dx = targetX - sourceX;
-                    const dy = targetY - sourceY;
-                    edgePoint = {
-                        x: sourceX + dx * delayPosition,
-                        y: sourceY + dy * delayPosition,
-                    };
-                } else {
-                    const centerX = (sourceX + targetX) / 2;
-                    const centerY = (sourceY + targetY) / 2;
-                    edgePoint = { x: centerX, y: centerY };
+                const pathD = pathStringRef.current;
+                let finalAnchor = anchorRef.current.delay;
+                if (pathD) {
+                    const t = tempDelayTRef.current;
+                    if (t != null) {
+                        const pt = getPointAndAngleOnPath(
+                            pathD,
+                            t,
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY
+                        );
+                        finalAnchor = { x: pt.x, y: pt.y };
+                    }
                 }
 
-                const offset = {
-                    x: tempDelayPosition.x - edgePoint.x,
-                    y: tempDelayPosition.y - edgePoint.y,
+                if (!finalAnchor) {
+                    const centerX = (sourceX + targetX) / 2;
+                    const centerY = (sourceY + targetY) / 2;
+                    finalAnchor = { x: centerX, y: centerY };
+                }
+
+                let offset = {
+                    x: tempDelayPosition.x - finalAnchor.x,
+                    y: tempDelayPosition.y - finalAnchor.y,
                 };
+                const len = Math.hypot(offset.x, offset.y);
+                const maxOffset = 30;
+                if (len > maxOffset && len > 0) {
+                    const s = maxOffset / len;
+                    offset = { x: offset.x * s, y: offset.y * s };
+                }
+
+                const nextData: any = {
+                    ...data,
+                    delayLabelOffset: offset,
+                };
+                if (tempDelayTRef.current != null) {
+                    nextData.delayPosition = tempDelayTRef.current;
+                }
 
                 const command = commandController.createUpdateEdgeCommand(id, {
-                    data: {
-                        ...data,
-                        delayLabelOffset: offset,
-                    },
+                    data: nextData,
                 });
                 commandController.execute(command);
             }
@@ -260,6 +377,7 @@ const InitializationEdge = memo(
                     centerX: number;
                     centerY: number;
                 }) => {
+                    pathStringRef.current = edgePath;
                     const delayPosition = data?.delayPosition ?? 0.25;
 
                     const { pathPoints, edgePoints } = calculateEdgePositions(
@@ -279,47 +397,74 @@ const InitializationEdge = memo(
 
                     const delayPoint = { x: delayData.x, y: delayData.y };
 
+                    const liveDelay =
+                        isDelayDragging && tempDelayTRef.current != null
+                            ? getPointAndAngleOnPath(
+                                  edgePath,
+                                  tempDelayTRef.current,
+                                  sourceX,
+                                  sourceY,
+                                  targetX,
+                                  targetY
+                              )
+                            : { x: delayPoint.x, y: delayPoint.y, angle: 0 };
+
+                    anchorRef.current.delay = {
+                        x: liveDelay.x,
+                        y: liveDelay.y,
+                    };
+
                     const defaultDelayLabelOffset = { x: 0, y: -30 };
-                    const delayLabelOffset =
+                    const interactiveOffset =
                         isDelayDragging && tempDelayPosition
                             ? {
-                                  x: tempDelayPosition.x - delayEdgePoint.x,
-                                  y: tempDelayPosition.y - delayEdgePoint.y,
+                                  x: tempDelayPosition.x - delayPoint.x,
+                                  y: tempDelayPosition.y - delayPoint.y,
                               }
-                            : data?.delayLabelOffset || defaultDelayLabelOffset;
+                            : undefined;
 
-                    const delayLabelX = delayEdgePoint.x + delayLabelOffset.x;
-                    const delayLabelY = delayEdgePoint.y + delayLabelOffset.y;
+                    const unclampedOffset =
+                        interactiveOffset ||
+                        data?.delayLabelOffset ||
+                        defaultDelayLabelOffset;
+
+                    // Clamp to max distance from anchor (30px)
+                    const dx = unclampedOffset.x;
+                    const dy = unclampedOffset.y;
+                    const len = Math.hypot(dx, dy);
+                    const maxOffset = 30;
+                    const scale =
+                        len > maxOffset && len > 0 ? maxOffset / len : 1;
+                    const delayLabelOffset = { x: dx * scale, y: dy * scale };
+
+                    const delayLabelX = liveDelay.x + delayLabelOffset.x;
+                    const delayLabelY = liveDelay.y + delayLabelOffset.y;
 
                     return (
                         <EdgeLabelRenderer>
                             {/* Connection line from edge to label */}
-                            {(hasInitialDelay || !hasInitialDelay) && (
-                                <svg
-                                    style={{
-                                        position: "absolute",
-                                        left: 0,
-                                        top: 0,
-                                        pointerEvents: "none",
-                                        zIndex: 5,
-                                    }}
-                                    width="100%"
-                                    height="100%"
-                                >
-                                    <line
-                                        x1={delayEdgePoint.x}
-                                        y1={delayEdgePoint.y}
-                                        x2={delayLabelX}
-                                        y2={delayLabelY}
-                                        stroke={
-                                            selected ? "#3b82f6" : "#6b7280"
-                                        }
-                                        strokeWidth="1"
-                                        strokeDasharray="3,3"
-                                        opacity={0.7}
-                                    />
-                                </svg>
-                            )}
+                            <svg
+                                style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: 0,
+                                    pointerEvents: "none",
+                                    zIndex: 5,
+                                }}
+                                width="100%"
+                                height="100%"
+                            >
+                                <line
+                                    x1={liveDelay.x}
+                                    y1={liveDelay.y}
+                                    x2={delayLabelX}
+                                    y2={delayLabelY}
+                                    stroke={selected ? "#3b82f6" : "#6b7280"}
+                                    strokeWidth="1"
+                                    strokeDasharray="3,3"
+                                    opacity={0.7}
+                                />
+                            </svg>
 
                             {/* Draggable Initial Delay Label */}
                             <div
