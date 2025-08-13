@@ -117,6 +117,7 @@ describe("EdgeMigrationService", () => {
                 targetHandle: "target-left",
                 data: {
                     useOrthogonalRouting: true,
+                    edgeRoutingType: "orthogonal",
                     routingType: "horizontal-first",
                     routingMetrics: mockRoutingMetrics,
                     selectedHandles: {
@@ -528,8 +529,12 @@ describe("EdgeMigrationService", () => {
                     conditions: [],
                     data: {
                         useOrthogonalRouting: true,
+                        edgeRoutingType: "orthogonal",
                         routingMetrics: mockRoutingMetrics,
-                        selectedHandles: {},
+                        selectedHandles: {
+                            source: mockHandleCombination.sourceHandle,
+                            target: mockHandleCombination.targetHandle,
+                        },
                     },
                 },
                 {

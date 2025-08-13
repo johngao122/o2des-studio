@@ -16,6 +16,8 @@ import {
     parseTransformMatrix,
     clientToFlowPosition,
     throttle,
+    calculateEdgePositions,
+    getPointAndAngleOnPath,
 } from "@/lib/utils/math";
 import BaseEdgeComponent, {
     BaseEdgeData,
@@ -128,6 +130,67 @@ function projectPointOntoPolyline(
     return best;
 }
 
+function makeSvgPath(pathD: string) {
+    const ns = "http://www.w3.org/2000/svg";
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("d", pathD);
+    return path as SVGPathElement;
+}
+
+function getPointOnPathAtT(pathD: string, t: number) {
+    try {
+        const path = makeSvgPath(pathD);
+        const len = path.getTotalLength();
+        const pos = path.getPointAtLength(clamp01(t) * len);
+        return { x: pos.x, y: pos.y };
+    } catch {
+        return null;
+    }
+}
+
+function getAngleOnPathAtT(pathD: string, t: number) {
+    try {
+        const path = makeSvgPath(pathD);
+        const len = path.getTotalLength();
+        const s = clamp01(t) * len;
+        const p1 = path.getPointAtLength(Math.max(0, s - 0.5));
+        const p2 = path.getPointAtLength(Math.min(len, s + 0.5));
+        return Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+    } catch {
+        return 0;
+    }
+}
+
+function projectPointToPath(pathD: string, p: { x: number; y: number }) {
+    try {
+        const path = makeSvgPath(pathD);
+        const len = path.getTotalLength();
+        let bestT = 0;
+        let bestDist = Infinity;
+        const sample = (steps: number, start: number, end: number) => {
+            for (let i = 0; i <= steps; i++) {
+                const s = start + ((end - start) * i) / steps;
+                const pt = path.getPointAtLength(s);
+                const dx = pt.x - p.x;
+                const dy = pt.y - p.y;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < bestDist) {
+                    bestDist = d2;
+                    bestT = s / len;
+                }
+            }
+        };
+        sample(64, 0, len);
+        const centerS = bestT * len;
+        const half = Math.max(2, len * 0.02);
+        sample(32, Math.max(0, centerS - half), Math.min(len, centerS + half));
+        const anchor = path.getPointAtLength(bestT * len);
+        return { x: anchor.x, y: anchor.y, t: clamp01(bestT) };
+    } catch {
+        return null;
+    }
+}
+
 interface ExtendedEdgeProps extends EdgeProps<RCQEdgeData> {
     onClick?: () => void;
 }
@@ -160,10 +223,12 @@ const RCQEdge = memo(
             y: number;
         } | null>(null);
         const tempConditionTRef = useRef<number | null>(null);
+        const edgePathRef = useRef<string | null>(null);
         const polylineRef = useRef<Array<{ x: number; y: number }>>([]);
         const currentControlPointsRef = useRef<Array<{ x: number; y: number }>>(
             []
         );
+        const pathStringRef = useRef<string>("");
 
         const conditionLabelRef = useRef<HTMLDivElement>(null);
         const flowPaneRef = useRef<Element | null>(null);
@@ -207,20 +272,29 @@ const RCQEdge = memo(
                     const usedOffset =
                         data?.conditionLabelOffset || defaultOffset;
 
-                    const controlPointsToUse =
-                        currentControlPointsRef.current.length > 0
-                            ? currentControlPointsRef.current
-                            : data?.controlPoints || [];
-                    const poly = buildPolyline(
-                        sourceX,
-                        sourceY,
-                        targetX,
-                        targetY,
-                        controlPointsToUse
-                    );
-                    polylineRef.current = poly;
                     const t = data?.conditionPosition ?? 0.5;
-                    const anchorPoint = getPointAtT(poly, t);
+                    let anchorPoint: { x: number; y: number };
+                    const pathD = pathStringRef.current || edgePathRef.current;
+                    if (pathD) {
+                        anchorPoint = getPointOnPathAtT(pathD, t) || {
+                            x: sourceX,
+                            y: sourceY,
+                        };
+                    } else {
+                        const controlPointsToUse =
+                            currentControlPointsRef.current.length > 0
+                                ? currentControlPointsRef.current
+                                : data?.controlPoints || [];
+                        const poly = buildPolyline(
+                            sourceX,
+                            sourceY,
+                            targetX,
+                            targetY,
+                            controlPointsToUse
+                        );
+                        polylineRef.current = poly;
+                        anchorPoint = getPointAtT(poly, t);
+                    }
                     const labelFlowPos = {
                         x: anchorPoint.x + usedOffset.x,
                         y: anchorPoint.y + usedOffset.y,
@@ -400,34 +474,49 @@ const RCQEdge = memo(
                         }
                     );
 
-                    if (polylineRef.current.length === 0) {
-                        const controlPointsToUse =
-                            currentControlPointsRef.current.length > 0
-                                ? currentControlPointsRef.current
-                                : data?.controlPoints || [];
-                        polylineRef.current = buildPolyline(
-                            sourceX,
-                            sourceY,
-                            targetX,
-                            targetY,
-                            controlPointsToUse
-                        );
-                    }
                     const adjusted = {
                         x: mousePosition.x + dragOffsetRef.current.x,
                         y: mousePosition.y + dragOffsetRef.current.y,
                     };
-                    const proj = projectPointOntoPolyline(
-                        polylineRef.current,
-                        adjusted
-                    );
-                    tempConditionTRef.current = proj.t;
-                    const dx = adjusted.x - proj.x;
-                    const dy = adjusted.y - proj.y;
+                    let anchor = null as {
+                        x: number;
+                        y: number;
+                        t: number;
+                    } | null;
+                    const pathD2 = pathStringRef.current || edgePathRef.current;
+                    if (pathD2) {
+                        anchor = projectPointToPath(pathD2, adjusted);
+                    }
+                    if (!anchor) {
+                        if (polylineRef.current.length === 0) {
+                            const controlPointsToUse =
+                                currentControlPointsRef.current.length > 0
+                                    ? currentControlPointsRef.current
+                                    : data?.controlPoints || [];
+                            polylineRef.current = buildPolyline(
+                                sourceX,
+                                sourceY,
+                                targetX,
+                                targetY,
+                                controlPointsToUse
+                            );
+                        }
+                        const proj = projectPointOntoPolyline(
+                            polylineRef.current,
+                            adjusted
+                        );
+                        anchor = proj;
+                    }
+                    tempConditionTRef.current = anchor.t;
+                    const dx = adjusted.x - anchor.x;
+                    const dy = adjusted.y - anchor.y;
                     const len = Math.hypot(dx, dy);
                     const maxOffset = 30;
                     const s = len > maxOffset && len > 0 ? maxOffset / len : 1;
-                    const newPos = { x: proj.x + dx * s, y: proj.y + dy * s };
+                    const newPos = {
+                        x: anchor.x + dx * s,
+                        y: anchor.y + dy * s,
+                    };
                     setTempConditionPosition(newPos);
                 }
             }, 16),
@@ -436,23 +525,32 @@ const RCQEdge = memo(
 
         const handleConditionDragEnd = useCallback(() => {
             if (isConditionDragging && tempConditionPosition) {
-                const poly =
-                    polylineRef.current.length > 0
-                        ? polylineRef.current
-                        : buildPolyline(
-                              sourceX,
-                              sourceY,
-                              targetX,
-                              targetY,
-                              currentControlPointsRef.current.length > 0
-                                  ? currentControlPointsRef.current
-                                  : data?.controlPoints || []
-                          );
                 const t =
                     tempConditionTRef.current != null
                         ? (tempConditionTRef.current as number)
                         : data?.conditionPosition ?? 0.5;
-                const anchor = getPointAtT(poly, t);
+                let anchor: { x: number; y: number };
+                const pathD3 = pathStringRef.current || edgePathRef.current;
+                if (pathD3) {
+                    anchor = getPointOnPathAtT(pathD3, t) || {
+                        x: sourceX,
+                        y: sourceY,
+                    };
+                } else {
+                    const poly =
+                        polylineRef.current.length > 0
+                            ? polylineRef.current
+                            : buildPolyline(
+                                  sourceX,
+                                  sourceY,
+                                  targetX,
+                                  targetY,
+                                  currentControlPointsRef.current.length > 0
+                                      ? currentControlPointsRef.current
+                                      : data?.controlPoints || []
+                              );
+                    anchor = getPointAtT(poly, t);
+                }
                 let newOffset = {
                     x: tempConditionPosition.x - anchor.x,
                     y: tempConditionPosition.y - anchor.y,
@@ -526,12 +624,14 @@ const RCQEdge = memo(
                 onClick={onClick}
             >
                 {({
+                    edgePath,
                     isSimpleMode,
                     centerX,
                     centerY,
                     currentControlPoints,
                     selected,
                 }: {
+                    edgePath: string;
                     isSimpleMode: boolean;
                     centerX: number;
                     centerY: number;
@@ -540,24 +640,41 @@ const RCQEdge = memo(
                 }) => {
                     currentControlPointsRef.current =
                         currentControlPoints || data?.controlPoints || [];
+                    edgePathRef.current = edgePath || null;
+                    pathStringRef.current = edgePath || "";
 
-                    const poly = buildPolyline(
+                    const conditionT = data?.conditionPosition ?? 0.5;
+                    const { pathPoints } = calculateEdgePositions(
+                        edgePath,
                         sourceX,
                         sourceY,
                         targetX,
                         targetY,
-                        currentControlPointsRef.current
+                        [conditionT],
+                        isSimpleMode,
+                        centerX,
+                        centerY
                     );
-
-                    polylineRef.current = poly;
-                    const t =
+                    const [cData] = pathPoints;
+                    const baseAnchor = { x: cData.x, y: cData.y };
+                    const live =
                         isConditionDragging && tempConditionTRef.current != null
-                            ? (tempConditionTRef.current as number)
-                            : data?.conditionPosition ?? 0.5;
-                    const anchorPoint = getPointAtT(poly, t);
-                    const conditionMarkerX = anchorPoint.x;
-                    const conditionMarkerY = anchorPoint.y;
-                    const conditionMarkerAngle = getAngleAtT(poly, t);
+                            ? getPointAndAngleOnPath(
+                                  edgePath,
+                                  tempConditionTRef.current,
+                                  sourceX,
+                                  sourceY,
+                                  targetX,
+                                  targetY
+                              )
+                            : {
+                                  x: baseAnchor.x,
+                                  y: baseAnchor.y,
+                                  angle: cData.angle,
+                              };
+                    const conditionMarkerX = live.x;
+                    const conditionMarkerY = live.y;
+                    const conditionMarkerAngle = live.angle;
 
                     const hasCondition =
                         data?.condition &&
@@ -591,104 +708,34 @@ const RCQEdge = memo(
 
                     return showConditionMarker ? (
                         <EdgeLabelRenderer>
-                            {/* Dotted connector from anchor to label */}
                             <svg
                                 style={{
                                     position: "absolute",
-                                    left:
-                                        Math.min(
-                                            conditionMarkerX,
-                                            conditionLabelX
-                                        ) - 20,
-                                    top:
-                                        Math.min(
-                                            conditionMarkerY,
-                                            conditionLabelY
-                                        ) - 20,
+                                    left: 0,
+                                    top: 0,
                                     pointerEvents: "none",
                                     zIndex: 5,
                                 }}
-                                width={
-                                    Math.abs(
-                                        conditionLabelX - conditionMarkerX
-                                    ) + 40
-                                }
-                                height={
-                                    Math.abs(
-                                        conditionLabelY - conditionMarkerY
-                                    ) + 40
-                                }
+                                width="100%"
+                                height="100%"
                             >
                                 <line
-                                    x1={
-                                        conditionMarkerX -
-                                        (Math.min(
-                                            conditionMarkerX,
-                                            conditionLabelX
-                                        ) -
-                                            20)
-                                    }
-                                    y1={
-                                        conditionMarkerY -
-                                        (Math.min(
-                                            conditionMarkerY,
-                                            conditionLabelY
-                                        ) -
-                                            20)
-                                    }
-                                    x2={
-                                        conditionLabelX -
-                                        (Math.min(
-                                            conditionMarkerX,
-                                            conditionLabelX
-                                        ) -
-                                            20)
-                                    }
-                                    y2={
-                                        conditionLabelY -
-                                        (Math.min(
-                                            conditionMarkerY,
-                                            conditionLabelY
-                                        ) -
-                                            20)
-                                    }
-                                    stroke="#6b7280"
+                                    x1={conditionMarkerX}
+                                    y1={conditionMarkerY}
+                                    x2={conditionLabelX}
+                                    y2={conditionLabelY}
+                                    stroke={selected ? "#3b82f6" : "#6b7280"}
                                     strokeWidth="1"
                                     strokeDasharray="3,3"
                                     opacity={0.7}
                                 />
                             </svg>
-                            {/* Draggable Condition Marker */}
-                            {selected && (
-                                <div
-                                    style={{
-                                        position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${conditionMarkerX}px,${conditionMarkerY}px)`,
-                                        pointerEvents: "all",
-                                        cursor: isConditionDragging
-                                            ? "grabbing"
-                                            : "grab",
-                                    }}
-                                    className="nodrag nopan"
-                                    onMouseDown={handleConditionDragStart}
-                                >
-                                    <div
-                                        className={`w-3 h-3 rounded-full border-2 ${
-                                            isConditionDragging
-                                                ? "bg-blue-500 border-blue-600"
-                                                : "bg-white border-blue-500"
-                                        } shadow-md hover:scale-110 transition-transform`}
-                                    />
-                                </div>
-                            )}
 
                             {/* Condition Marker */}
                             <div
                                 style={{
                                     position: "absolute",
-                                    transform: `translate(-50%, -50%) translate(${conditionMarkerX}px,${conditionMarkerY}px) rotate(${
-                                        conditionMarkerAngle + 90
-                                    }deg)`,
+                                    transform: `translate(-50%, -50%) translate(${conditionMarkerX}px,${conditionMarkerY}px) rotate(${conditionMarkerAngle}deg)`,
                                     pointerEvents: "none",
                                 }}
                                 className="nodrag nopan"

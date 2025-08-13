@@ -248,7 +248,7 @@ export class EdgeMigrationService {
         const edgeData = edge.data || {};
 
         if (
-            edgeData.useOrthogonalRouting === true &&
+            edgeData.edgeRoutingType &&
             edgeData.routingMetrics &&
             edgeData.selectedHandles
         ) {
@@ -256,7 +256,7 @@ export class EdgeMigrationService {
         }
 
         if (
-            edgeData.useOrthogonalRouting === true ||
+            edgeData.useOrthogonalRouting !== undefined ||
             edgeData.routingType ||
             edgeData.routingMetrics
         ) {
@@ -362,7 +362,10 @@ export class EdgeMigrationService {
             targetHandle: handleCombination.targetHandle.id,
             data: {
                 ...edge.data,
+
                 useOrthogonalRouting: true,
+
+                edgeRoutingType: "orthogonal",
                 routingType: orthogonalPath.routingType,
                 routingMetrics,
                 selectedHandles: {
@@ -426,13 +429,30 @@ export class EdgeMigrationService {
             edgeData.controlPoints ||
             this.routingEngine.generateControlPoints(orthogonalPath);
 
+        const getRoutingType = (): "orthogonal" | "straight" | "bezier" => {
+            if (edgeData.edgeRoutingType) {
+                return edgeData.edgeRoutingType;
+            }
+
+            if (edgeData.useOrthogonalRouting === false) {
+                return "straight";
+            }
+
+            return "orthogonal";
+        };
+
+        const migratedRoutingType = getRoutingType();
+
         return {
             ...edge,
             sourceHandle: sourceHandle.id,
             targetHandle: targetHandle.id,
             data: {
                 ...edgeData,
-                useOrthogonalRouting: true,
+
+                useOrthogonalRouting: migratedRoutingType === "orthogonal",
+
+                edgeRoutingType: migratedRoutingType,
                 routingType: orthogonalPath.routingType,
                 routingMetrics,
                 selectedHandles: {
@@ -497,6 +517,20 @@ export class EdgeMigrationService {
                   )
                 : this.routingEngine.generateControlPoints(orthogonalPath);
 
+        const getRoutingType = (): "orthogonal" | "straight" | "bezier" => {
+            if (edgeData.edgeRoutingType) {
+                return edgeData.edgeRoutingType;
+            }
+
+            if (edgeData.useOrthogonalRouting === false) {
+                return "straight";
+            }
+
+            return "orthogonal";
+        };
+
+        const migratedRoutingType = getRoutingType();
+
         return {
             ...edge,
             sourceHandle: handleCombination.sourceHandle.id,
@@ -506,7 +540,10 @@ export class EdgeMigrationService {
             label: preservedCustomizations.label,
             data: {
                 ...edgeData,
-                useOrthogonalRouting: true,
+
+                useOrthogonalRouting: migratedRoutingType === "orthogonal",
+
+                edgeRoutingType: migratedRoutingType,
                 routingType: orthogonalPath.routingType,
                 routingMetrics,
                 selectedHandles: {

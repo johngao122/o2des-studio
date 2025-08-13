@@ -512,6 +512,19 @@ export const useStore = create<StoreState>((set, get) => ({
                                         options: ["straight", "rounded"],
                                     };
                                 }
+                                if (key === "edgeRoutingType") {
+                                    return {
+                                        key: "edgeRoutingType",
+                                        value: value as string,
+                                        type: "string" as const,
+                                        editable: true,
+                                        options: [
+                                            "orthogonal",
+                                            "straight",
+                                            "bezier",
+                                        ],
+                                    };
+                                }
                                 return {
                                     key,
                                     value: value as string | number | boolean,
@@ -537,6 +550,17 @@ export const useStore = create<StoreState>((set, get) => ({
                                 type: "string" as const,
                                 editable: true,
                                 options: ["straight", "rounded"],
+                            });
+                        }
+
+                        // Add routing type property if missing
+                        if (!selectedEdge.data.edgeRoutingType) {
+                            dataProps.push({
+                                key: "edgeRoutingType",
+                                value: "orthogonal",
+                                type: "string" as const,
+                                editable: true,
+                                options: ["orthogonal", "straight", "bezier"],
                             });
                         }
 
@@ -608,6 +632,17 @@ export const useStore = create<StoreState>((set, get) => ({
                                     options: ["straight", "rounded"],
                                 },
                                 {
+                                    key: "edgeRoutingType",
+                                    value: "orthogonal",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: [
+                                        "orthogonal",
+                                        "straight",
+                                        "bezier",
+                                    ],
+                                },
+                                {
                                     key: "condition",
                                     value: "True",
                                     type: "string" as const,
@@ -629,6 +664,17 @@ export const useStore = create<StoreState>((set, get) => ({
                                     type: "string" as const,
                                     editable: true,
                                     options: ["straight", "rounded"],
+                                },
+                                {
+                                    key: "edgeRoutingType",
+                                    value: "orthogonal",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: [
+                                        "orthogonal",
+                                        "straight",
+                                        "bezier",
+                                    ],
                                 },
                                 {
                                     key: "condition",
@@ -904,6 +950,26 @@ export const useStore = create<StoreState>((set, get) => ({
                         [prop.key]: prop.value,
                     };
                 }, {});
+
+                // If routing type is changed away from orthogonal, clear orthogonal control data
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        newData,
+                        "edgeRoutingType"
+                    )
+                ) {
+                    const rt = (newData as any).edgeRoutingType as string;
+                    // Keep legacy flag in sync
+                    (newData as any).useOrthogonalRouting = rt === "orthogonal";
+
+                    if (rt === "straight" || rt === "bezier") {
+                        // Drop preserved orthogonal geometry so straight/bezier renders as expected
+                        (newData as any).controlPoints = undefined;
+                        (newData as any).routingType = undefined;
+                        (newData as any).routingMetrics = undefined;
+                        (newData as any).selectedHandles = undefined;
+                    }
+                }
 
                 const updateData: any = { data: { ...edge.data, ...newData } };
 

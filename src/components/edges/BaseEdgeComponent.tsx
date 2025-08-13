@@ -16,14 +16,11 @@ import {
     getStraightPath,
     getBezierPath,
     Position,
+    useReactFlow,
 } from "reactflow";
 import { CommandController } from "@/controllers/CommandController";
-import {
-    parseTransformMatrix,
-    clientToFlowPosition,
-    throttle,
-    snapToGrid,
-} from "@/lib/utils/math";
+import { parseTransformMatrix, throttle, snapToGrid } from "@/lib/utils/math";
+import { absoluteToFlowPosition } from "@/lib/utils/coordinates";
 import {
     calculateDefaultControlPoints,
     simplifyControlPoints,
@@ -53,11 +50,78 @@ import {
     MovementConstraint,
 } from "@/services/OrthogonalConstraintEngine";
 
+const BEZ_T_LEFT = 1 / 3;
+const BEZ_T_CENTER = 0.5;
+const BEZ_T_RIGHT = 2 / 3;
+
+function bezierPointAtT(
+    s: { x: number; y: number },
+    c1: { x: number; y: number },
+    c3: { x: number; y: number },
+    e: { x: number; y: number },
+    t: number
+) {
+    const u = 1 - t;
+    const a = u * u * u;
+    const b = 3 * u * u * t;
+    const c = 3 * u * t * t;
+    const d = t * t * t;
+    return {
+        x: a * s.x + b * c1.x + c * c3.x + d * e.x,
+        y: a * s.y + b * c1.y + c * c3.y + d * e.y,
+    };
+}
+
+function solveC1FromOnCurvePoint(
+    p: { x: number; y: number },
+    s: { x: number; y: number },
+    c3: { x: number; y: number },
+    e: { x: number; y: number },
+    t: number
+) {
+    const u = 1 - t;
+    const a = u * u * u;
+    const b = 3 * u * u * t;
+    const c = 3 * u * t * t;
+    const d = t * t * t;
+    return {
+        x: (p.x - a * s.x - c * c3.x - d * e.x) / b,
+        y: (p.y - a * s.y - c * c3.y - d * e.y) / b,
+    };
+}
+
+function solveC3FromOnCurvePoint(
+    p: { x: number; y: number },
+    s: { x: number; y: number },
+    c1: { x: number; y: number },
+    e: { x: number; y: number },
+    t: number
+) {
+    const u = 1 - t;
+    const a = u * u * u;
+    const b = 3 * u * u * t;
+    const c = 3 * u * t * t;
+    const d = t * t * t;
+    return {
+        x: (p.x - a * s.x - b * c1.x - d * e.x) / c,
+        y: (p.y - a * s.y - b * c1.y - d * e.y) / c,
+    };
+}
+
 const commandController = CommandController.getInstance();
 const orthogonalRoutingEngine = new OrthogonalRoutingEngine();
 const handleSelectionService = new HandleSelectionService();
 
 export type EdgeTypeOption = "straight" | "bezier" | "rounded" | "orthogonal";
+
+export type RoutingType = "orthogonal" | "straight" | "bezier";
+
+export const isValidRoutingType = (value: any): value is RoutingType => {
+    return (
+        typeof value === "string" &&
+        ["orthogonal", "straight", "bezier"].includes(value)
+    );
+};
 
 export interface BaseEdgeData {
     edgeType?: EdgeTypeOption;
@@ -71,6 +135,7 @@ export interface BaseEdgeData {
         target: HandleInfo;
     };
     useOrthogonalRouting?: boolean;
+    edgeRoutingType?: RoutingType;
 }
 
 export interface BaseEdgeProps<T extends BaseEdgeData = BaseEdgeData>
@@ -106,6 +171,7 @@ export const BaseEdgeComponent = memo(
         ...props
     }: BaseEdgeProps<T>) => {
         const [isDragging, setIsDragging] = useState<number | null>(null);
+        const reactFlowInstance = useReactFlow();
         const [isCenterDragging, setIsCenterDragging] = useState(false);
         const [tempControlPoints, setTempControlPoints] = useState<
             {
@@ -141,7 +207,10 @@ export const BaseEdgeComponent = memo(
         const controlPointStartRef = useRef<{ x: number; y: number } | null>(
             null
         );
-        const CONTROL_POINT_GRID = 20;
+        const bezierDragKindRef = useRef<"left" | "center" | "right" | null>(
+            null
+        );
+        const CONTROL_POINT_GRID = 10;
 
         const edgeStyle = {
             strokeWidth: selected ? 3 : 2,
@@ -150,12 +219,52 @@ export const BaseEdgeComponent = memo(
             ...style,
         };
 
+        const getMouseFlowPosition = useCallback(
+            (e: MouseEvent) => {
+                try {
+                    const pos = reactFlowInstance.screenToFlowPosition({
+                        x: e.clientX,
+                        y: e.clientY,
+                    });
+                    return { x: pos.x, y: pos.y };
+                } catch {
+                    const rfRoot = document.querySelector(
+                        ".react-flow"
+                    ) as HTMLElement | null;
+                    if (!rfRoot) return { x: 0, y: 0 };
+                    const rect = rfRoot.getBoundingClientRect();
+                    const viewport = reactFlowInstance.getViewport();
+                    const pos = absoluteToFlowPosition(
+                        { x: e.clientX, y: e.clientY },
+                        viewport,
+                        rect
+                    );
+                    return { x: pos.x, y: pos.y };
+                }
+            },
+            [reactFlowInstance]
+        );
+
+        const getEffectiveRoutingType = (): RoutingType => {
+            if (data?.edgeRoutingType) {
+                return data.edgeRoutingType;
+            }
+
+            if (data?.useOrthogonalRouting === false) {
+                return "straight";
+            }
+
+            return "orthogonal";
+        };
+
+        const effectiveRoutingType = getEffectiveRoutingType();
+        const useOrthogonalRouting = effectiveRoutingType === "orthogonal";
+
         const edgeTypeRaw = data?.edgeType || "straight";
         const edgeType: "straight" | "rounded" =
             edgeTypeRaw === "rounded" || edgeTypeRaw === "bezier"
                 ? "rounded"
                 : "straight";
-        const useOrthogonalRouting = data?.useOrthogonalRouting ?? true;
 
         const edges = useStore((state) => state.edges);
         const currentEdge = edges.find((edge) => edge.id === id);
@@ -183,8 +292,9 @@ export const BaseEdgeComponent = memo(
         const hasInitializedControlPoints = useRef(new Set<string>());
 
         useEffect(() => {
+            if (effectiveRoutingType !== "bezier") return;
+
             if (
-                !useOrthogonalRouting &&
                 !hasCustomControlPoints &&
                 id &&
                 !hasInitializedControlPoints.current.has(id)
@@ -219,7 +329,30 @@ export const BaseEdgeComponent = memo(
                     commandController.execute(command);
                 }
             }
-        }, [hasCustomControlPoints, id]);
+        }, [effectiveRoutingType, hasCustomControlPoints, id]);
+
+        useEffect(() => {
+            if (effectiveRoutingType !== "bezier") return;
+            const cps = data?.controlPoints || [];
+            if (cps.length !== 3) {
+                const next = [
+                    cps[0] || defaultControlPoints.cp1,
+                    cps[1] || defaultControlPoints.cp2,
+                    cps[2] || defaultControlPoints.cp3,
+                ];
+                const command = commandController.createUpdateEdgeCommand(id, {
+                    data: { ...data, controlPoints: next },
+                });
+                commandController.execute(command);
+            }
+        }, [
+            effectiveRoutingType,
+            id,
+            data,
+            defaultControlPoints.cp1,
+            defaultControlPoints.cp2,
+            defaultControlPoints.cp3,
+        ]);
 
         const getControlPoint = (index: number) => {
             if (isDragging === index + 1 && tempControlPoints[index]) {
@@ -356,11 +489,10 @@ export const BaseEdgeComponent = memo(
                 return null;
             }
         }, [
-            useOrthogonalRouting,
+            effectiveRoutingType,
             sourceHandle,
             targetHandle,
             id,
-
             nodes,
             sourceX,
             sourceY,
@@ -376,137 +508,188 @@ export const BaseEdgeComponent = memo(
             controlPoints: { x: number; y: number }[];
         } | null = null;
 
-        if (useOrthogonalRouting) {
-            orthogonalResult = calculateOrthogonalPath();
-        }
+        switch (effectiveRoutingType) {
+            case "orthogonal":
+                orthogonalResult = calculateOrthogonalPath();
 
-        if (orthogonalResult) {
-            const orthogonalControlPoints = orthogonalResult.controlPoints;
+                if (orthogonalResult) {
+                    const orthogonalControlPoints =
+                        orthogonalResult.controlPoints;
 
-            if (edgeType === "rounded") {
-                const sourcePoint = { x: sourceX, y: sourceY };
-                const targetPoint = { x: targetX, y: targetY };
-                const rounded = pathCalculator.calculatePath(
-                    sourcePoint,
-                    targetPoint,
-                    orthogonalControlPoints,
-                    { edgeType: "rounded", cornerRadius: 8 }
-                );
-                edgePath = rounded.svgPath;
-            } else {
-                edgePath = orthogonalResult.path;
-            }
+                    if (edgeType === "rounded") {
+                        const sourcePoint = { x: sourceX, y: sourceY };
+                        const targetPoint = { x: targetX, y: targetY };
+                        const rounded = pathCalculator.calculatePath(
+                            sourcePoint,
+                            targetPoint,
+                            orthogonalControlPoints,
+                            { edgeType: "rounded", cornerRadius: 8 }
+                        );
+                        edgePath = rounded.svgPath;
+                    } else {
+                        edgePath = orthogonalResult.path;
+                    }
 
-            if (orthogonalControlPoints.length > 0) {
-                const midIndex = Math.floor(orthogonalControlPoints.length / 2);
-                labelX = orthogonalControlPoints[midIndex].x;
-                labelY = orthogonalControlPoints[midIndex].y;
-            } else {
-                labelX = (sourceX + targetX) / 2;
-                labelY = (sourceY + targetY) / 2;
-            }
-        }
+                    if (orthogonalControlPoints.length > 0) {
+                        const midIndex = Math.floor(
+                            orthogonalControlPoints.length / 2
+                        );
+                        labelX = orthogonalControlPoints[midIndex].x;
+                        labelY = orthogonalControlPoints[midIndex].y;
+                    }
+                }
 
-        if (
-            useOrthogonalRouting &&
-            currentControlPoints &&
-            currentControlPoints.length > 0 &&
-            !tempSegmentPath
-        ) {
-            const sourcePoint = { x: sourceX, y: sourceY };
-            const targetPoint = { x: targetX, y: targetY };
-            const result = pathCalculator.calculatePath(
-                sourcePoint,
-                targetPoint,
-                currentControlPoints,
-                { edgeType: "orthogonal" }
-            );
-            edgePath = result.svgPath;
-        }
+                if (
+                    currentControlPoints &&
+                    currentControlPoints.length > 0 &&
+                    !tempSegmentPath
+                ) {
+                    const sourcePoint = { x: sourceX, y: sourceY };
+                    const targetPoint = { x: targetX, y: targetY };
+                    const result = pathCalculator.calculatePath(
+                        sourcePoint,
+                        targetPoint,
+                        currentControlPoints,
+                        { edgeType: "orthogonal" }
+                    );
+                    edgePath = result.svgPath;
+                }
+                break;
 
-        if (!orthogonalResult) {
-            switch (edgeType) {
-                case "rounded":
-                    const roundedControlPoints =
+            case "bezier":
+                {
+                    const cp1Render = controlPoint1 || defaultControlPoints.cp1;
+                    const cp3Render = controlPoint3 || defaultControlPoints.cp3;
+
+                    let c1 = cp1Render;
+                    let c3 = cp3Render;
+                    if (isCenterDragging && tempCenterPosition) {
+                        c1 = {
+                            x:
+                                sourceX +
+                                (tempCenterPosition.x - sourceX) * 0.33,
+                            y:
+                                sourceY +
+                                (tempCenterPosition.y - sourceY) * 0.33,
+                        };
+                        c3 = {
+                            x:
+                                tempCenterPosition.x +
+                                (targetX - tempCenterPosition.x) * 0.33,
+                            y:
+                                tempCenterPosition.y +
+                                (targetY - tempCenterPosition.y) * 0.33,
+                        };
+                    }
+
+                    const hasBezierControls =
+                        (data?.controlPoints &&
+                            data.controlPoints.length >= 3) ||
+                        (tempControlPoints && tempControlPoints.length >= 3) ||
+                        isCenterDragging;
+
+                    if (
+                        effectiveRoutingType === "bezier" &&
+                        tempControlPoints &&
+                        tempControlPoints.length >= 3
+                    ) {
+                        c1 = tempControlPoints[0] || c1;
+                        c3 = tempControlPoints[2] || c3;
+                    }
+
+                    if (hasBezierControls) {
+                        edgePath = `M ${sourceX} ${sourceY} C ${c1.x} ${c1.y} ${c3.x} ${c3.y} ${targetX} ${targetY}`;
+
+                        const t = 0.5;
+                        const oneMinusT = 1 - t;
+                        const bx =
+                            oneMinusT * oneMinusT * oneMinusT * sourceX +
+                            3 * oneMinusT * oneMinusT * t * c1.x +
+                            3 * oneMinusT * t * t * c3.x +
+                            t * t * t * targetX;
+                        const by =
+                            oneMinusT * oneMinusT * oneMinusT * sourceY +
+                            3 * oneMinusT * oneMinusT * t * c1.y +
+                            3 * oneMinusT * t * t * c3.y +
+                            t * t * t * targetY;
+                        labelX = bx;
+                        labelY = by;
+                    } else {
+                        const [bezierPath, bezierLabelX, bezierLabelY] =
+                            getBezierPath({
+                                sourceX,
+                                sourceY,
+                                sourcePosition,
+                                targetX,
+                                targetY,
+                                targetPosition,
+                            });
+                        edgePath = bezierPath;
+                        labelX = bezierLabelX;
+                        labelY = bezierLabelY;
+                    }
+                }
+                break;
+
+            case "straight":
+            default:
+                if (isCenterDragging && tempCenterPosition) {
+                    edgePath = `M ${sourceX} ${sourceY} L ${tempCenterPosition.x} ${tempCenterPosition.y} L ${targetX} ${targetY}`;
+                } else if (
+                    hasCustomControlPoints &&
+                    !isSimpleMode &&
+                    !isCenterDragging
+                ) {
+                    const controlPoints =
                         isDragging !== null && tempControlPoints.length > 0
                             ? tempControlPoints
-                            : data?.controlPoints &&
-                              data.controlPoints.length > 0
-                            ? data.controlPoints
-                            : [controlPoint1, controlPoint2, controlPoint3];
+                            : data?.controlPoints || [
+                                  defaultControlPoints.cp1,
+                                  defaultControlPoints.cp2,
+                                  defaultControlPoints.cp3,
+                              ];
+                    const pathSegments = [];
 
-                    if (isSimpleMode && !isCenterDragging) {
-                        const [simplePath] = getStraightPath({
-                            sourceX,
-                            sourceY,
-                            targetX,
-                            targetY,
+                    const [firstSegment] = getStraightPath({
+                        sourceX,
+                        sourceY,
+                        targetX:
+                            controlPoints[0]?.x || defaultControlPoints.cp1.x,
+                        targetY:
+                            controlPoints[0]?.y || defaultControlPoints.cp1.y,
+                    });
+                    pathSegments.push(firstSegment);
+
+                    for (let i = 0; i < controlPoints.length - 1; i++) {
+                        const [segment] = getStraightPath({
+                            sourceX: controlPoints[i].x,
+                            sourceY: controlPoints[i].y,
+                            targetX: controlPoints[i + 1].x,
+                            targetY: controlPoints[i + 1].y,
                         });
-                        edgePath = simplePath;
-                    } else {
-                        edgePath = createRoundedPath(
-                            sourceX,
-                            sourceY,
-                            targetX,
-                            targetY,
-                            roundedControlPoints
-                        );
+                        pathSegments.push(segment.replace("M", "L"));
                     }
-                    break;
 
-                case "straight":
-                default:
-                    if (isSimpleMode && !isCenterDragging) {
-                        const [simplePath] = getStraightPath({
-                            sourceX,
-                            sourceY,
-                            targetX,
-                            targetY,
-                        });
-                        edgePath = simplePath;
-                    } else {
-                        const controlPoints =
-                            isDragging !== null && tempControlPoints.length > 0
-                                ? tempControlPoints
-                                : data?.controlPoints || [
-                                      controlPoint1,
-                                      controlPoint2,
-                                      controlPoint3,
-                                  ];
-                        const pathSegments = [];
-
-                        const [firstSegment] = getStraightPath({
-                            sourceX,
-                            sourceY,
-                            targetX: controlPoints[0]?.x || controlPoint1.x,
-                            targetY: controlPoints[0]?.y || controlPoint1.y,
-                        });
-                        pathSegments.push(firstSegment);
-
-                        for (let i = 0; i < controlPoints.length - 1; i++) {
-                            const [segment] = getStraightPath({
-                                sourceX: controlPoints[i].x,
-                                sourceY: controlPoints[i].y,
-                                targetX: controlPoints[i + 1].x,
-                                targetY: controlPoints[i + 1].y,
-                            });
-                            pathSegments.push(segment.replace("M", "L"));
-                        }
-
-                        const lastControlPoint =
-                            controlPoints[controlPoints.length - 1];
-                        const [lastSegment] = getStraightPath({
-                            sourceX: lastControlPoint.x,
-                            sourceY: lastControlPoint.y,
-                            targetX,
-                            targetY,
-                        });
-                        pathSegments.push(lastSegment.replace("M", "L"));
-
-                        edgePath = pathSegments.join(" ");
-                    }
-                    break;
-            }
+                    const lastControlPoint =
+                        controlPoints[controlPoints.length - 1];
+                    const [lastSegment] = getStraightPath({
+                        sourceX: lastControlPoint.x,
+                        sourceY: lastControlPoint.y,
+                        targetX,
+                        targetY,
+                    });
+                    pathSegments.push(lastSegment.replace("M", "L"));
+                    edgePath = pathSegments.join(" ");
+                } else {
+                    const [straightPath] = getStraightPath({
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                    });
+                    edgePath = straightPath;
+                }
+                break;
         }
 
         if (!edgePath) {
@@ -557,7 +740,7 @@ export const BaseEdgeComponent = memo(
                 setCurrentSegments([]);
             }
         }, [
-            useOrthogonalRouting,
+            effectiveRoutingType,
             id,
             sourceX,
             sourceY,
@@ -607,7 +790,7 @@ export const BaseEdgeComponent = memo(
                 }
             }
         }, [
-            useOrthogonalRouting,
+            effectiveRoutingType,
             sourceX,
             sourceY,
             targetX,
@@ -633,11 +816,7 @@ export const BaseEdgeComponent = memo(
                 transformMatrixRef.current =
                     parseTransformMatrix(transformStyle);
 
-                const mousePosition = clientToFlowPosition(
-                    e.clientX,
-                    e.clientY,
-                    transformMatrixRef.current
-                );
+                const mousePosition = getMouseFlowPosition(e);
 
                 const offsetX = centerX - mousePosition.x;
                 const offsetY = centerY - mousePosition.y;
@@ -670,11 +849,7 @@ export const BaseEdgeComponent = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    const mousePosition = clientToFlowPosition(
-                        e.clientX,
-                        e.clientY,
-                        transformMatrixRef.current
-                    );
+                    const mousePosition = getMouseFlowPosition(e);
 
                     const rawPosition = {
                         x: mousePosition.x + dragOffsetRef.current.x,
@@ -707,17 +882,20 @@ export const BaseEdgeComponent = memo(
                 };
 
                 const initialControlPoints = [cp1, draggedPoint, cp3];
-                const simplifiedControlPoints = simplifyControlPoints(
-                    initialControlPoints,
-                    sourceX,
-                    sourceY,
-                    targetX,
-                    targetY
-                );
+                const controlPointsToSave =
+                    effectiveRoutingType === "bezier"
+                        ? initialControlPoints
+                        : simplifyControlPoints(
+                              initialControlPoints,
+                              sourceX,
+                              sourceY,
+                              targetX,
+                              targetY
+                          );
 
                 const updatedData = {
                     ...data,
-                    controlPoints: simplifiedControlPoints,
+                    controlPoints: controlPointsToSave,
                 };
 
                 const command = commandController.createUpdateEdgeCommand(id, {
@@ -759,25 +937,46 @@ export const BaseEdgeComponent = memo(
                     transformMatrixRef.current =
                         parseTransformMatrix(transformStyle);
 
-                    const currentControlPoints = data?.controlPoints || [];
-                    const currentControlPoint = currentControlPoints[
-                        controlPointIndex - 1
-                    ] || { x: centerX, y: centerY };
+                    if (effectiveRoutingType === "bezier") {
+                        const cp1 = controlPoint1 || defaultControlPoints.cp1;
+                        const cp3 = controlPoint3 || defaultControlPoints.cp3;
+                        const s = { x: sourceX, y: sourceY };
+                        const ept = { x: targetX, y: targetY };
+                        const t =
+                            controlPointIndex === 1
+                                ? BEZ_T_LEFT
+                                : controlPointIndex === 2
+                                ? BEZ_T_CENTER
+                                : BEZ_T_RIGHT;
+                        const onCurve = bezierPointAtT(s, cp1, cp3, ept, t);
 
-                    controlPointStartRef.current = currentControlPoint;
+                        controlPointStartRef.current = onCurve;
+                        bezierDragKindRef.current =
+                            controlPointIndex === 1
+                                ? "left"
+                                : controlPointIndex === 2
+                                ? "center"
+                                : "right";
 
-                    const mousePosition = clientToFlowPosition(
-                        e.clientX,
-                        e.clientY,
-                        transformMatrixRef.current
-                    );
-
-                    const offsetX = currentControlPoint.x - mousePosition.x;
-                    const offsetY = currentControlPoint.y - mousePosition.y;
-
-                    dragOffsetRef.current = { x: offsetX, y: offsetY };
-                    setIsDragging(controlPointIndex);
-                    document.body.style.cursor = "grabbing";
+                        const mousePosition = getMouseFlowPosition(e);
+                        const offsetX = onCurve.x - mousePosition.x;
+                        const offsetY = onCurve.y - mousePosition.y;
+                        dragOffsetRef.current = { x: offsetX, y: offsetY };
+                        setIsDragging(controlPointIndex);
+                        document.body.style.cursor = "grabbing";
+                    } else {
+                        const currentControlPoints = data?.controlPoints || [];
+                        const currentControlPoint = currentControlPoints[
+                            controlPointIndex - 1
+                        ] || { x: centerX, y: centerY };
+                        controlPointStartRef.current = currentControlPoint;
+                        const mousePosition = getMouseFlowPosition(e);
+                        const offsetX = currentControlPoint.x - mousePosition.x;
+                        const offsetY = currentControlPoint.y - mousePosition.y;
+                        dragOffsetRef.current = { x: offsetX, y: offsetY };
+                        setIsDragging(controlPointIndex);
+                        document.body.style.cursor = "grabbing";
+                    }
                 }
             };
 
@@ -803,11 +1002,7 @@ export const BaseEdgeComponent = memo(
                             parseTransformMatrix(transformStyle);
                     }
 
-                    const mousePosition = clientToFlowPosition(
-                        e.clientX,
-                        e.clientY,
-                        transformMatrixRef.current
-                    );
+                    const mousePosition = getMouseFlowPosition(e);
 
                     const rawPosition = {
                         x: mousePosition.x + dragOffsetRef.current.x,
@@ -831,24 +1026,115 @@ export const BaseEdgeComponent = memo(
                     };
 
                     setTempControlPoints((prev) => {
+                        if (effectiveRoutingType === "bezier") {
+                            const base = (
+                                prev.length
+                                    ? prev
+                                    : data?.controlPoints || [
+                                          defaultControlPoints.cp1,
+                                          defaultControlPoints.cp2,
+                                          defaultControlPoints.cp3,
+                                      ]
+                            ).slice(0, 3);
+                            while (base.length < 3)
+                                base.push({ x: centerX, y: centerY });
+
+                            const s = { x: sourceX, y: sourceY };
+                            const ept = { x: targetX, y: targetY };
+
+                            const kind = bezierDragKindRef.current;
+                            if (kind === "center" || isDragging === 2) {
+                                const center = steppedPosition;
+                                const derivedCp1 = {
+                                    x: sourceX + (center.x - sourceX) * 0.33,
+                                    y: sourceY + (center.y - sourceY) * 0.33,
+                                };
+                                const derivedCp3 = {
+                                    x: center.x + (targetX - center.x) * 0.33,
+                                    y: center.y + (targetY - center.y) * 0.33,
+                                };
+                                base[0] = derivedCp1;
+                                base[1] = center;
+                                base[2] = derivedCp3;
+                                return base;
+                            }
+
+                            if (kind === "left" || isDragging === 1) {
+                                const c3 = base[2] || defaultControlPoints.cp3;
+                                const c1 = solveC1FromOnCurvePoint(
+                                    steppedPosition,
+                                    s,
+                                    c3,
+                                    ept,
+                                    BEZ_T_LEFT
+                                );
+                                base[0] = c1;
+                                return base;
+                            }
+
+                            if (kind === "right" || isDragging === 3) {
+                                const c1 = base[0] || defaultControlPoints.cp1;
+                                const c3 = solveC3FromOnCurvePoint(
+                                    steppedPosition,
+                                    s,
+                                    c1,
+                                    ept,
+                                    BEZ_T_RIGHT
+                                );
+                                base[2] = c3;
+                                return base;
+                            }
+
+                            return base;
+                        }
+
                         const currentControlPoints = data?.controlPoints || [];
                         const newControlPoints = [...currentControlPoints];
-
                         while (newControlPoints.length < isDragging) {
                             newControlPoints.push({ x: centerX, y: centerY });
                         }
-
                         newControlPoints[isDragging - 1] = steppedPosition;
-
                         return newControlPoints;
                     });
                 }
             }, 16),
-            [isDragging, data?.controlPoints, centerX, centerY]
+            [
+                isDragging,
+                data?.controlPoints,
+                centerX,
+                centerY,
+                effectiveRoutingType,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+            ]
         );
 
         const handleDragEnd = useCallback(() => {
             if (isDragging !== null && tempControlPoints[isDragging - 1]) {
+                if (
+                    effectiveRoutingType === ("bezier" as RoutingType) ||
+                    effectiveRoutingType === "bezier"
+                ) {
+                    let next = tempControlPoints.slice(0, 3);
+                    while (next.length < 3)
+                        next.push({ x: centerX, y: centerY });
+                    const updatedData = { ...data, controlPoints: next };
+                    const command = commandController.createUpdateEdgeCommand(
+                        id,
+                        { data: updatedData }
+                    );
+                    commandController.execute(command);
+                    setIsDragging(null);
+                    setTempControlPoints([]);
+                    dragOffsetRef.current = null;
+                    document.body.style.cursor = "";
+                    controlPointStartRef.current = null;
+                    bezierDragKindRef.current = null;
+                    return;
+                }
+
                 let currentControlPoints = data?.controlPoints || [];
 
                 while (currentControlPoints.length < isDragging) {
@@ -997,6 +1283,7 @@ export const BaseEdgeComponent = memo(
             dragOffsetRef.current = null;
             document.body.style.cursor = "";
             controlPointStartRef.current = null;
+            bezierDragKindRef.current = null;
         }, [
             isDragging,
             tempControlPoints,
@@ -1033,11 +1320,7 @@ export const BaseEdgeComponent = memo(
                 transformMatrixRef.current =
                     parseTransformMatrix(transformStyle);
 
-                const mousePosition = clientToFlowPosition(
-                    e.clientX,
-                    e.clientY,
-                    transformMatrixRef.current
-                );
+                const mousePosition = getMouseFlowPosition(e);
 
                 const dragState = segmentDragHandler.startSegmentDrag(
                     segment,
@@ -1069,13 +1352,7 @@ export const BaseEdgeComponent = memo(
                         parseTransformMatrix(transformStyle);
                 }
 
-                if (!transformMatrixRef.current) return;
-
-                const mousePosition = clientToFlowPosition(
-                    e.clientX,
-                    e.clientY,
-                    transformMatrixRef.current
-                );
+                const mousePosition = getMouseFlowPosition(e);
 
                 const segment = currentSegments.find(
                     (s) => s.id === isSegmentDragging
@@ -1347,45 +1624,138 @@ export const BaseEdgeComponent = memo(
                                 {/* Control Points - Only show if no segment handles are active */}
                                 {(!useOrthogonalRouting ||
                                     currentSegments.length === 0) &&
-                                    (
-                                        orthogonalResult?.controlPoints ||
-                                        data?.controlPoints ||
-                                        []
-                                    ).map((controlPoint, index) => {
-                                        const actualControlPoint =
-                                            isDragging === index + 1 &&
-                                            tempControlPoints.length > index &&
-                                            tempControlPoints[index]
-                                                ? tempControlPoints[index]
-                                                : controlPoint;
+                                    (() => {
+                                        if (effectiveRoutingType === "bezier") {
+                                            const base = (
+                                                data?.controlPoints || [
+                                                    defaultControlPoints.cp1,
+                                                    defaultControlPoints.cp2,
+                                                    defaultControlPoints.cp3,
+                                                ]
+                                            ).slice(0, 3);
+                                            while (base.length < 3)
+                                                base.push({
+                                                    x: centerX,
+                                                    y: centerY,
+                                                });
 
-                                        return (
-                                            <div
-                                                key={`control-point-${index}`}
-                                                style={{
-                                                    position: "absolute",
-                                                    transform: `translate(-50%, -50%) translate(${actualControlPoint.x}px,${actualControlPoint.y}px)`,
-                                                    pointerEvents: "all",
-                                                    cursor:
-                                                        isDragging === index + 1
-                                                            ? "grabbing"
-                                                            : "grab",
-                                                }}
-                                                className="nodrag nopan"
-                                                onMouseDown={handleDragStart(
-                                                    index + 1
-                                                )}
-                                            >
+                                            const s = {
+                                                x: sourceX,
+                                                y: sourceY,
+                                            };
+                                            const ept = {
+                                                x: targetX,
+                                                y: targetY,
+                                            };
+                                            const cp1 = base[0];
+                                            const cp3 = base[2];
+
+                                            const positions = [
+                                                { t: BEZ_T_LEFT, idx: 1 },
+                                                { t: BEZ_T_CENTER, idx: 2 },
+                                                { t: BEZ_T_RIGHT, idx: 3 },
+                                            ];
+
+                                            return positions.map(
+                                                ({ t, idx }) => {
+                                                    const c1Render =
+                                                        (tempControlPoints &&
+                                                            tempControlPoints.length >=
+                                                                1 &&
+                                                            tempControlPoints[0]) ||
+                                                        cp1;
+                                                    const c3Render =
+                                                        (tempControlPoints &&
+                                                            tempControlPoints.length >=
+                                                                3 &&
+                                                            tempControlPoints[2]) ||
+                                                        cp3;
+                                                    const onCurve =
+                                                        bezierPointAtT(
+                                                            s,
+                                                            c1Render,
+                                                            c3Render,
+                                                            ept,
+                                                            t
+                                                        );
+
+                                                    return (
+                                                        <div
+                                                            key={`bezier-handle-${idx}`}
+                                                            style={{
+                                                                position:
+                                                                    "absolute",
+                                                                transform: `translate(-50%, -50%) translate(${onCurve.x}px,${onCurve.y}px)`,
+                                                                pointerEvents:
+                                                                    "all",
+                                                                cursor:
+                                                                    isDragging ===
+                                                                    idx
+                                                                        ? "grabbing"
+                                                                        : "grab",
+                                                            }}
+                                                            className="nodrag nopan"
+                                                            onMouseDown={handleDragStart(
+                                                                idx
+                                                            )}
+                                                        >
+                                                            <div
+                                                                className={`w-3 h-3 rounded-full border-2 ${
+                                                                    isDragging ===
+                                                                    idx
+                                                                        ? "bg-blue-500 border-blue-600"
+                                                                        : "bg-white border-blue-500"
+                                                                } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50`}
+                                                            />
+                                                        </div>
+                                                    );
+                                                }
+                                            );
+                                        }
+
+                                        const base =
+                                            orthogonalResult?.controlPoints ||
+                                            data?.controlPoints ||
+                                            [];
+                                        return base.map((cp, i) => {
+                                            const isTempIdx = i + 1;
+                                            const showPoint =
+                                                isDragging === isTempIdx &&
+                                                tempControlPoints.length > i &&
+                                                tempControlPoints[i]
+                                                    ? tempControlPoints[i]
+                                                    : cp;
+                                            if (!showPoint) return null;
+                                            return (
                                                 <div
-                                                    className={`w-3 h-3 rounded-full border-2 ${
-                                                        isDragging === index + 1
-                                                            ? "bg-blue-500 border-blue-600"
-                                                            : "bg-white border-blue-500"
-                                                    } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50`}
-                                                />
-                                            </div>
-                                        );
-                                    })}
+                                                    key={`control-point-${i}`}
+                                                    style={{
+                                                        position: "absolute",
+                                                        transform: `translate(-50%, -50%) translate(${showPoint.x}px,${showPoint.y}px)`,
+                                                        pointerEvents: "all",
+                                                        cursor:
+                                                            isDragging ===
+                                                            isTempIdx
+                                                                ? "grabbing"
+                                                                : "grab",
+                                                    }}
+                                                    className="nodrag nopan"
+                                                    onMouseDown={handleDragStart(
+                                                        isTempIdx
+                                                    )}
+                                                >
+                                                    <div
+                                                        className={`w-3 h-3 rounded-full border-2 ${
+                                                            isDragging ===
+                                                            isTempIdx
+                                                                ? "bg-blue-500 border-blue-600"
+                                                                : "bg-white border-blue-500"
+                                                        } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50`}
+                                                    />
+                                                </div>
+                                            );
+                                        });
+                                    })()}
 
                                 {/* Segment Midpoint Handles for Orthogonal Edges */}
                                 {useOrthogonalRouting &&
@@ -1467,6 +1837,7 @@ export const getDefaultBaseEdgeData = (): BaseEdgeData => ({
     isDependency: false,
     controlPoints: undefined,
     useOrthogonalRouting: true,
+    edgeRoutingType: "orthogonal",
     routingType: undefined,
     routingMetrics: undefined,
     selectedHandles: undefined,

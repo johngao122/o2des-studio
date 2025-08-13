@@ -16,6 +16,7 @@ jest.mock("../eventbased/EventGraphEdge", () => {
         edgeType: "straight",
         condition: "True",
         useOrthogonalRouting: true,
+        edgeRoutingType: "orthogonal",
     }));
     return {
         __esModule: true,
@@ -35,6 +36,7 @@ jest.mock("../activitybased/resourceconstrained/RCQEdge", () => {
         condition: "True",
         isDependency: false,
         useOrthogonalRouting: true,
+        edgeRoutingType: "orthogonal",
     }));
     return {
         __esModule: true,
@@ -53,6 +55,7 @@ jest.mock("../eventbased/InitializationEdge", () => {
         edgeType: "straight",
         initialDelay: "0",
         useOrthogonalRouting: true,
+        edgeRoutingType: "orthogonal",
     }));
     return {
         __esModule: true,
@@ -142,6 +145,7 @@ describe("Edge Type Compatibility with Orthogonal Routing", () => {
 
     const baseRoutingData: BaseEdgeData = {
         useOrthogonalRouting: true,
+        edgeRoutingType: "orthogonal",
         routingType: "horizontal-first",
         routingMetrics: {
             pathLength: 223.6,
@@ -486,6 +490,7 @@ describe("Edge Type Compatibility with Orthogonal Routing", () => {
             const disabledRoutingData = {
                 ...baseRoutingData,
                 useOrthogonalRouting: false,
+                edgeRoutingType: "straight" as const,
                 condition: "disabledRouting",
             };
 
@@ -497,6 +502,43 @@ describe("Edge Type Compatibility with Orthogonal Routing", () => {
             }).not.toThrow();
 
             expect(disabledRoutingData.useOrthogonalRouting).toBe(false);
+            expect(disabledRoutingData.edgeRoutingType).toBe("straight");
+        });
+
+        it("should handle bezier routing type", () => {
+            const bezierRoutingData = {
+                ...baseRoutingData,
+                useOrthogonalRouting: false,
+                edgeRoutingType: "bezier" as const,
+                condition: "bezierRouting",
+            };
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    data: bezierRoutingData,
+                });
+            }).not.toThrow();
+
+            expect(bezierRoutingData.edgeRoutingType).toBe("bezier");
+        });
+
+        it("should handle straight routing type", () => {
+            const straightRoutingData = {
+                ...baseRoutingData,
+                useOrthogonalRouting: false,
+                edgeRoutingType: "straight" as const,
+                condition: "straightRouting",
+            };
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    data: straightRoutingData,
+                });
+            }).not.toThrow();
+
+            expect(straightRoutingData.edgeRoutingType).toBe("straight");
         });
     });
 
@@ -556,6 +598,7 @@ describe("Edge Type Compatibility with Orthogonal Routing", () => {
             expect(defaultData).toBeDefined();
             expect(defaultData?.edgeType).toBe("straight");
             expect(defaultData?.condition).toBe("True");
+            expect(defaultData?.edgeRoutingType).toBe("orthogonal");
         });
 
         it("should verify RCQEdge default data includes routing", () => {
@@ -565,6 +608,7 @@ describe("Edge Type Compatibility with Orthogonal Routing", () => {
             expect(defaultData?.edgeType).toBe("straight");
             expect(defaultData?.condition).toBe("True");
             expect(defaultData?.isDependency).toBe(false);
+            expect(defaultData?.edgeRoutingType).toBe("orthogonal");
         });
 
         it("should verify InitializationEdge default data includes routing", () => {
@@ -573,6 +617,103 @@ describe("Edge Type Compatibility with Orthogonal Routing", () => {
             expect(defaultData).toBeDefined();
             expect(defaultData?.edgeType).toBe("straight");
             expect(defaultData?.initialDelay).toBe("0");
+            expect(defaultData?.edgeRoutingType).toBe("orthogonal");
+        });
+    });
+
+    describe("Routing type backward compatibility", () => {
+        it("should handle migration from useOrthogonalRouting boolean to edgeRoutingType", () => {
+            // Old format with useOrthogonalRouting: true
+            const oldOrthogonalData = {
+                edgeType: "straight" as const,
+                useOrthogonalRouting: true,
+                condition: "oldOrthogonal",
+            };
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    data: oldOrthogonalData,
+                });
+            }).not.toThrow();
+
+            // Old format with useOrthogonalRouting: false
+            const oldStraightData = {
+                edgeType: "straight" as const,
+                useOrthogonalRouting: false,
+                condition: "oldStraight",
+            };
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    data: oldStraightData,
+                });
+            }).not.toThrow();
+        });
+
+        it("should handle new edgeRoutingType property", () => {
+            // New format with edgeRoutingType
+            const newOrthogonalData = {
+                edgeType: "straight" as const,
+                edgeRoutingType: "orthogonal" as const,
+                condition: "newOrthogonal",
+            };
+
+            const newStraightData = {
+                edgeType: "straight" as const,
+                edgeRoutingType: "straight" as const,
+                condition: "newStraight",
+            };
+
+            const newBezierData = {
+                edgeType: "straight" as const,
+                edgeRoutingType: "bezier" as const,
+                condition: "newBezier",
+            };
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    id: "new-orthogonal",
+                    data: newOrthogonalData,
+                });
+            }).not.toThrow();
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    id: "new-straight",
+                    data: newStraightData,
+                });
+            }).not.toThrow();
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    id: "new-bezier",
+                    data: newBezierData,
+                });
+            }).not.toThrow();
+        });
+
+        it("should handle mixed old and new properties", () => {
+            // Edge with both old and new properties - new should take precedence
+            const mixedData = {
+                edgeType: "straight" as const,
+                useOrthogonalRouting: true,
+                edgeRoutingType: "bezier" as const,
+                condition: "mixedProperties",
+            };
+
+            expect(() => {
+                React.createElement(EventGraphEdge, {
+                    ...commonEdgeProps,
+                    data: mixedData,
+                });
+            }).not.toThrow();
+
+            expect(mixedData.edgeRoutingType).toBe("bezier");
         });
     });
 });
