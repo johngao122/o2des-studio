@@ -12,7 +12,7 @@ import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { getStandardHandlePositions, snapToGrid } from "@/lib/utils/math";
+import { getEllipseHandlePositions } from "@/lib/utils/math";
 import {
     getDynamicPaddingStyles,
     getNodeTypePaddingConfig,
@@ -29,7 +29,8 @@ const commandController = CommandController.getInstance();
 
 interface EventNodeData {
     stateUpdate: string;
-    eventParameters?: string;
+    
+    stateUpdatePosition?: string;
     width?: number;
     height?: number;
 }
@@ -56,9 +57,6 @@ const EventNode = memo(
         const [editStateUpdate, setEditStateUpdate] = useState(
             data?.stateUpdate || ""
         );
-        const [editEventParameters, setEditEventParameters] = useState(
-            data?.eventParameters || ""
-        );
         const [isHovered, setIsHovered] = useState(false);
         const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
         const nodeRef = useRef<HTMLDivElement>(null);
@@ -82,8 +80,37 @@ const EventNode = memo(
 
         const nodeName = storeNode?.name || "Event Node";
         const storeData = storeNode?.data || {};
-        const nodeWidth = storeData?.width || 200;
-        const nodeHeight = storeData?.height || 120;
+        const rawDimensions = {
+            width: storeData?.width || 120,
+            height: storeData?.height || 50,
+        };
+
+        const defaultData = EventNode.getDefaultData();
+        const defaultRatio =
+            (defaultData.height || 50) / (defaultData.width || 120);
+
+        let constrainedWidth = rawDimensions.width;
+        let constrainedHeight = rawDimensions.height;
+
+        const currentRatio = constrainedHeight / constrainedWidth;
+
+        if (currentRatio > defaultRatio) {
+            constrainedHeight = constrainedWidth * defaultRatio;
+        }
+
+        constrainedWidth = Math.max(constrainedWidth, defaultData.width || 120);
+        constrainedHeight = Math.max(
+            constrainedHeight,
+            defaultData.height || 50
+        );
+
+        const dimensions = {
+            width: constrainedWidth,
+            height: constrainedHeight,
+        };
+
+        const nodeWidth = dimensions.width;
+        const nodeHeight = dimensions.height;
 
         const paddingConfig = getNodeTypePaddingConfig("event");
         const paddingStyles = getDynamicPaddingStyles(
@@ -105,39 +132,238 @@ const EventNode = memo(
             typographyConfig
         );
 
-        const handleDoubleClick = useCallback(() => {
-            setIsEditing(true);
-            setEditStateUpdate(data?.stateUpdate || "");
-            setEditEventParameters(data?.eventParameters || "");
-        }, [data?.stateUpdate, data?.eventParameters]);
+        
+        const [isDraggingBadge, setIsDraggingBadge] = useState(false);
+        const [dragBadgePos, setDragBadgePos] = useState<{
+            left: number;
+            top: number;
+        } | null>(null);
+        const [draggedAnchor, setDraggedAnchor] = useState<string>("right");
 
-        const handleBlur = useCallback(
-            (e: React.FocusEvent) => {
-                const relatedTarget = e.relatedTarget as HTMLElement;
-                if (relatedTarget?.classList.contains("event-node-input")) {
-                    return;
-                }
+        const getStateUpdateAnchor = useCallback(() => {
+            return data?.stateUpdatePosition || "right";
+        }, [data?.stateUpdatePosition]);
 
-                setIsEditing(false);
-                const command = commandController.createUpdateNodeCommand(id, {
-                    data: {
-                        ...data,
-                        stateUpdate: editStateUpdate,
-                        eventParameters: editEventParameters,
+        const getBadgeOffset = useCallback(() => 12, []);
+
+        const getAnchorCoordinates = useCallback(
+            (anchor: string, width: number, height: number) => {
+                const offset = getBadgeOffset();
+
+                const positions: Record<
+                    string,
+                    { left: number; top: number; transform?: string }
+                > = {
+                    top: {
+                        left: width / 2,
+                        top: -offset,
+                        transform: "translate(-50%, -100%)",
                     },
-                });
-                commandController.execute(command);
+                    topRight: {
+                        left: width + offset,
+                        top: -offset,
+                        transform: "translate(0%, -100%)",
+                    },
+                    right: {
+                        left: width + offset,
+                        top: height / 2,
+                        transform: "translate(0%, -50%)",
+                    },
+                    bottomRight: {
+                        left: width + offset,
+                        top: height + offset,
+                        transform: "translate(0%, 0%)",
+                    },
+                    bottom: {
+                        left: width / 2,
+                        top: height + offset,
+                        transform: "translate(-50%, 0%)",
+                    },
+                    bottomLeft: {
+                        left: -offset,
+                        top: height + offset,
+                        transform: "translate(-100%, 0%)",
+                    },
+                    left: {
+                        left: -offset,
+                        top: height / 2,
+                        transform: "translate(-100%, -50%)",
+                    },
+                    topLeft: {
+                        left: -offset,
+                        top: -offset,
+                        transform: "translate(-100%, -100%)",
+                    },
+                };
+                return positions[anchor] || positions.right;
             },
-            [editStateUpdate, editEventParameters, id, data]
+            [getBadgeOffset]
         );
+
+        const getAllAnchors = useCallback(
+            () => [
+                "top",
+                "topRight",
+                "right",
+                "bottomRight",
+                "bottom",
+                "bottomLeft",
+                "left",
+                "topLeft",
+            ],
+            []
+        );
+
+        const startBadgeDrag = useCallback((e: React.MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsDraggingBadge(true);
+
+            const rect = (
+                nodeRef.current as HTMLDivElement
+            ).getBoundingClientRect();
+            setDragBadgePos({
+                left: e.clientX - rect.left,
+                top: e.clientY - rect.top,
+            });
+        }, []);
+
+        const onBadgeDrag = useCallback(
+            (e: MouseEvent) => {
+                if (!isDraggingBadge || !nodeRef.current) return;
+                const rect = nodeRef.current.getBoundingClientRect();
+                const rawPos = {
+                    left: e.clientX - rect.left,
+                    top: e.clientY - rect.top,
+                };
+
+                
+                const anchors = getAllAnchors();
+                let bestAnchor = anchors[0];
+                let bestDist = Number.POSITIVE_INFINITY;
+
+                anchors.forEach((a) => {
+                    const pos = getAnchorCoordinates(a, nodeWidth, nodeHeight);
+                    const dx = pos.left - rawPos.left;
+                    const dy = pos.top - rawPos.top;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        bestAnchor = a;
+                    }
+                });
+
+                
+                const snappedPos = getAnchorCoordinates(
+                    bestAnchor,
+                    nodeWidth,
+                    nodeHeight
+                );
+                setDragBadgePos({
+                    left: snappedPos.left,
+                    top: snappedPos.top,
+                });
+
+                
+                setDraggedAnchor(bestAnchor);
+            },
+            [
+                isDraggingBadge,
+                getAllAnchors,
+                getAnchorCoordinates,
+                nodeWidth,
+                nodeHeight,
+            ]
+        );
+
+        const stopBadgeDrag = useCallback(() => {
+            if (!isDraggingBadge || !dragBadgePos) return;
+            setIsDraggingBadge(false);
+            setDraggedAnchor("right"); 
+
+            
+            const anchors = getAllAnchors();
+            let bestAnchor = anchors[0];
+            let bestDist = Number.POSITIVE_INFINITY;
+
+            anchors.forEach((a) => {
+                const pos = getAnchorCoordinates(a, nodeWidth, nodeHeight);
+                const dx = pos.left - dragBadgePos.left;
+                const dy = pos.top - dragBadgePos.top;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < bestDist) {
+                    bestDist = d2;
+                    bestAnchor = a;
+                }
+            });
+
+            const command = commandController.createUpdateNodeCommand(id, {
+                data: {
+                    ...storeData,
+                    stateUpdatePosition: bestAnchor,
+                },
+            });
+            commandController.execute(command);
+
+            setDragBadgePos(null);
+        }, [
+            dragBadgePos,
+            getAllAnchors,
+            getAnchorCoordinates,
+            id,
+            nodeHeight,
+            nodeWidth,
+            isDraggingBadge,
+            storeData,
+        ]);
+
+        useEffect(() => {
+            if (isDraggingBadge) {
+                window.addEventListener("mousemove", onBadgeDrag);
+                window.addEventListener("mouseup", stopBadgeDrag);
+                return () => {
+                    window.removeEventListener("mousemove", onBadgeDrag);
+                    window.removeEventListener("mouseup", stopBadgeDrag);
+                };
+            }
+        }, [isDraggingBadge, onBadgeDrag, stopBadgeDrag]);
+        
+
+        const handleBlur = useCallback(() => {
+            setIsEditing(false);
+            const command = commandController.createUpdateNodeCommand(id, {
+                data: {
+                    ...storeData,
+                    stateUpdate: editStateUpdate,
+                },
+            });
+            commandController.execute(command);
+        }, [editStateUpdate, id, storeData]);
 
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
+                const defaultData = EventNode.getDefaultData();
+                const defaultWidth = defaultData.width || 200;
+                const defaultHeight = defaultData.height || 120;
+                const defaultRatio = defaultHeight / defaultWidth;
+
+                let constrainedWidth = params.width;
+                let constrainedHeight = params.height;
+
+                const currentRatio = constrainedHeight / constrainedWidth;
+
+                if (currentRatio > defaultRatio) {
+                    constrainedHeight = constrainedWidth * defaultRatio;
+                }
+
+                constrainedWidth = Math.max(constrainedWidth, defaultWidth);
+                constrainedHeight = Math.max(constrainedHeight, defaultHeight);
+
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
                         ...storeData,
-                        width: params.width,
-                        height: params.height,
+                        width: constrainedWidth,
+                        height: constrainedHeight,
                     },
                 });
                 commandController.execute(command);
@@ -159,153 +385,184 @@ const EventNode = memo(
             }, 200);
         }, []);
 
-        const handlePositions = getStandardHandlePositions(
-            nodeWidth,
-            nodeHeight
-        );
+        const ellipseHandles = getEllipseHandlePositions(nodeWidth, nodeHeight);
 
         return (
             <div
                 ref={nodeRef}
-                className={`relative border-2 rounded-[40px] ${
-                    selected
-                        ? "border-blue-500"
-                        : "border-black dark:border-white"
-                } bg-white dark:bg-zinc-800 ${selected ? "shadow-lg" : ""}`}
+                className={`relative ${selected ? "shadow-lg" : ""}`}
                 style={{
-                    width: nodeWidth,
-                    height: nodeHeight,
-                    minWidth: 200,
-                    minHeight: 120,
-                    ...paddingStyles,
+                    width: `${nodeWidth + 2}px`,
+                    height: `${nodeHeight + 2}px`,
+                    minWidth: 120,
+                    minHeight: 50,
                 }}
-                onDoubleClick={handleDoubleClick}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
+                {/* SVG Ellipse */}
+                <svg
+                    width={nodeWidth}
+                    height={nodeHeight}
+                    viewBox={`0 0 ${nodeWidth} ${nodeHeight}`}
+                    className="absolute"
+                    style={{ left: "1px", top: "1px" }}
+                    preserveAspectRatio="none"
+                >
+                    <ellipse
+                        cx={nodeWidth / 2}
+                        cy={nodeHeight / 2}
+                        rx={(nodeWidth - 2) / 2}
+                        ry={(nodeHeight - 2) / 2}
+                        fill="white"
+                        stroke={selected ? "#3b82f6" : "currentColor"}
+                        strokeWidth={2}
+                        className="dark:fill-zinc-800"
+                    />
+                </svg>
+
+                {/* Centered text */}
+                <div
+                    className="absolute flex items-center justify-center text-center dark:text-white text-black"
+                    style={{
+                        left: "1px",
+                        top: "1px",
+                        width: `${nodeWidth}px`,
+                        height: `${nodeHeight}px`,
+                    }}
+                >
+                    <ResponsiveText
+                        nodeWidth={nodeWidth}
+                        nodeHeight={nodeHeight}
+                        maxWidth={Math.max(40, nodeWidth * 0.95)}
+                        fontWeight="medium"
+                        centerAlign
+                        className="dark:text-white text-black"
+                        style={{ lineHeight: 0.9, padding: 0, margin: 0 }}
+                    >
+                        {nodeName}
+                    </ResponsiveText>
+                </div>
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={200}
-                    minHeight={120}
+                    minWidth={120}
+                    minHeight={50}
                     onResize={handleResize}
                     handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
                     lineClassName="!border-blue-500 !border-2"
                 />
 
-                {/* Node Name/Title */}
-                <div className="mb-2 pb-1 dark:text-white text-black">
-                    <ResponsiveText
-                        nodeWidth={nodeWidth}
-                        nodeHeight={nodeHeight}
-                        maxWidth={contentArea.width}
-                        fontWeight="medium"
-                        centerAlign
+                {/* External state-update badge */}
+                {(isEditing ||
+                    (data?.stateUpdate && data.stateUpdate.trim() !== "")) && (
+                    <div
+                        className="absolute text-sm select-none cursor-move nodrag"
+                        style={{
+                            left:
+                                dragBadgePos?.left ??
+                                getAnchorCoordinates(
+                                    getStateUpdateAnchor(),
+                                    nodeWidth,
+                                    nodeHeight
+                                ).left,
+                            top:
+                                dragBadgePos?.top ??
+                                getAnchorCoordinates(
+                                    getStateUpdateAnchor(),
+                                    nodeWidth,
+                                    nodeHeight
+                                ).top,
+                            transform: dragBadgePos
+                                ? getAnchorCoordinates(
+                                      draggedAnchor,
+                                      nodeWidth,
+                                      nodeHeight
+                                  ).transform
+                                : getAnchorCoordinates(
+                                      getStateUpdateAnchor(),
+                                      nodeWidth,
+                                      nodeHeight
+                                  ).transform,
+                            maxWidth: Math.max(120, nodeWidth * 0.8),
+                        }}
+                        onMouseDown={startBadgeDrag}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditing(true);
+                            setEditStateUpdate(data?.stateUpdate || "");
+                        }}
                     >
-                        {nodeName +
-                            (data?.eventParameters &&
-                            data.eventParameters.trim() !== ""
-                                ? ` (${data.eventParameters})`
-                                : "")}
-                    </ResponsiveText>
-                </div>
-
-                {/* Content */}
-                <div
-                    className="space-y-2"
-                    style={{ height: contentArea.height - 40 }}
-                >
-                    {isEditing ? (
-                        <div className="space-y-2 h-full">
+                        {isEditing ? (
                             <textarea
                                 value={editStateUpdate}
                                 onChange={(e) =>
                                     setEditStateUpdate(e.target.value)
                                 }
                                 onBlur={handleBlur}
-                                className="w-full flex-1 p-2 border rounded dark:bg-zinc-700 dark:text-white event-node-input focus:outline-none focus:border-blue-500 nodrag resize-none"
+                                className="event-node-input nodrag p-1 border rounded dark:bg-zinc-700 dark:text-white bg-white text-black"
                                 style={{
-                                    height: contentArea.height - 80,
-                                    fontSize: `${typography.fontSize}px`,
-                                    lineHeight: `${typography.lineHeight}px`,
-                                }}
-                                placeholder="State Update"
-                                autoFocus
-                            />
-                            <input
-                                type="text"
-                                value={editEventParameters}
-                                onChange={(e) =>
-                                    setEditEventParameters(e.target.value)
-                                }
-                                onBlur={handleBlur}
-                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white event-node-input nodrag"
-                                style={{
+                                    minWidth: 120,
+                                    maxWidth: Math.max(120, nodeWidth * 0.8),
                                     fontSize: `${Math.max(
                                         12,
                                         typography.fontSize - 2
                                     )}px`,
                                 }}
-                                placeholder="Event Parameters (optional)"
+                                placeholder="State update"
+                                autoFocus
                             />
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-full overflow-hidden">
-                            {data?.stateUpdate &&
-                            data.stateUpdate.trim() !== "" ? (
-                                <ResponsiveText
-                                    nodeWidth={nodeWidth}
-                                    nodeHeight={nodeHeight}
-                                    maxWidth={contentArea.width}
-                                    maxHeight={contentArea.height - 40}
-                                    multiline
-                                    centerAlign
-                                    className="dark:text-white text-black"
-                                >
-                                    {data.stateUpdate}
-                                </ResponsiveText>
-                            ) : (
-                                <ResponsiveText
-                                    nodeWidth={nodeWidth}
-                                    nodeHeight={nodeHeight}
-                                    maxWidth={contentArea.width}
-                                    centerAlign
-                                    className="text-gray-400 dark:text-gray-500"
-                                >
-                                    No state update
-                                </ResponsiveText>
-                            )}
-                        </div>
-                    )}
-                </div>
+                        ) : (
+                            <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-stretch">
+                                <span className="text-blue-400 dark:text-blue-300 text-lg mr-1 flex items-center">
+                                    {"{"}
+                                </span>
+                                <div className="flex flex-col justify-center">
+                                    {String(data?.stateUpdate || "")
+                                        .trim()
+                                        .split("\n")
+                                        .map((line, index) => (
+                                            <div
+                                                key={index}
+                                                className="text-center"
+                                            >
+                                                <ReactKatex>{line}</ReactKatex>
+                                            </div>
+                                        ))}
+                                </div>
+                                <span className="text-blue-400 dark:text-blue-300 text-lg ml-1 flex items-center">
+                                    {"}"}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Handles */}
                 {id !== "preview" && (
                     <>
-                        {/* Top handles */}
-                        {handlePositions.horizontal
-                            .slice(1, -1)
-                            .map((leftPos, index) => (
-                                <Handle
-                                    key={`top-${index}`}
-                                    id={`${id}-top-${index}`}
-                                    type="source"
-                                    position={Position.Top}
-                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                        selected || isHovered
-                                            ? "!bg-transparent"
-                                            : "!bg-transparent !opacity-0"
-                                    }`}
-                                    isConnectable={isConnectable}
-                                    style={{
-                                        left: `${leftPos}px`,
-                                        top: "5px",
-                                        transform: "translate(-50%, -50%)",
-                                    }}
-                                />
-                            ))}
+                        {/* Top handles (ellipse) */}
+                        {ellipseHandles.top.map((h, index) => (
+                            <Handle
+                                key={`top-${index}`}
+                                id={`${id}-top-${index}`}
+                                type="source"
+                                position={Position.Top}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${h.x}px`,
+                                    top: `${h.y + 5}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
-                        {/* Right handles */}
-                        {handlePositions.vertical.map((topPos, index) => (
+                        {/* Right handles (ellipse) */}
+                        {ellipseHandles.right.map((h, index) => (
                             <Handle
                                 key={`right-${index}`}
                                 id={`${id}-right-${index}`}
@@ -318,38 +575,36 @@ const EventNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: `${nodeWidth - 10}px`,
-                                    top: `${topPos - 10}px`,
+                                    left: `${h.x}px`,
+                                    top: `${h.y}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}
 
-                        {/* Bottom handles */}
-                        {handlePositions.horizontal
-                            .slice(1, -1)
-                            .map((leftPos, index) => (
-                                <Handle
-                                    key={`bottom-${index}`}
-                                    id={`${id}-bottom-${index}`}
-                                    type="source"
-                                    position={Position.Bottom}
-                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                        selected || isHovered
-                                            ? "!bg-transparent"
-                                            : "!bg-transparent !opacity-0"
-                                    }`}
-                                    isConnectable={isConnectable}
-                                    style={{
-                                        left: `${leftPos}px`,
-                                        top: `${nodeHeight - 10}px`,
-                                        transform: "translate(-50%, -50%)",
-                                    }}
-                                />
-                            ))}
+                        {/* Bottom handles (ellipse) */}
+                        {ellipseHandles.bottom.map((h, index) => (
+                            <Handle
+                                key={`bottom-${index}`}
+                                id={`${id}-bottom-${index}`}
+                                type="source"
+                                position={Position.Bottom}
+                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                    selected || isHovered
+                                        ? "!bg-transparent"
+                                        : "!bg-transparent !opacity-0"
+                                }`}
+                                isConnectable={isConnectable}
+                                style={{
+                                    left: `${h.x}px`,
+                                    top: `${h.y - 5}px`,
+                                    transform: "translate(-50%, -50%)",
+                                }}
+                            />
+                        ))}
 
-                        {/* Left handles */}
-                        {handlePositions.vertical.map((topPos, index) => (
+                        {/* Left handles (ellipse) */}
+                        {ellipseHandles.left.map((h, index) => (
                             <Handle
                                 key={`left-${index}`}
                                 id={`${id}-left-${index}`}
@@ -362,8 +617,8 @@ const EventNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: "5px",
-                                    top: `${topPos - 10}px`,
+                                    left: `${h.x}px`,
+                                    top: `${h.y}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
@@ -391,7 +646,7 @@ const EventNode = memo(
             prev.isConnectable === next.isConnectable &&
             prevName === nextName &&
             prev.data.stateUpdate === next.data.stateUpdate &&
-            prev.data.eventParameters === next.data.eventParameters &&
+            prev.data.stateUpdatePosition === next.data.stateUpdatePosition &&
             prev.data.width === next.data.width &&
             prev.data.height === next.data.height
         );
@@ -400,9 +655,9 @@ const EventNode = memo(
 
 EventNode.getDefaultData = (): EventNodeData => ({
     stateUpdate: "",
-    eventParameters: "",
-    width: 200,
-    height: 120,
+    stateUpdatePosition: "right",
+    width: 120,
+    height: 50,
 });
 
 EventNode.getGraphType = (): string => "eventBased";
@@ -412,14 +667,30 @@ EventNode.displayName = "EventNode";
 
 export const EventNodePreview = () => {
     return (
-        <div className="relative px-4 py-2 border-2 rounded-[40px] border-black dark:border-white bg-white dark:bg-zinc-800 min-w-[200px] aspect-[2/1]">
-            <div className="font-medium text-sm text-center mb-2 pb-1 dark:text-white text-black">
-                <span>Event</span>
-            </div>
-            <div className="space-y-2">
-                <div className="space-y-1 flex flex-col items-center justify-center">
-                    <span>s = s + 1</span>
-                </div>
+        <div className="relative" style={{ width: "120px", height: "50px" }}>
+            {/* SVG Ellipse */}
+            <svg
+                width="120"
+                height="50"
+                viewBox="0 0 120 50"
+                className="absolute inset-0"
+                preserveAspectRatio="none"
+            >
+                <ellipse
+                    cx="60"
+                    cy="25"
+                    rx="59"
+                    ry="24"
+                    fill="white"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="dark:fill-zinc-800"
+                />
+            </svg>
+
+            {/* Content */}
+            <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black">
+                <span className="font-medium text-sm">Event</span>
             </div>
         </div>
     );
