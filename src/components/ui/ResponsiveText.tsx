@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
     getTypographyScale,
     truncateText,
@@ -35,7 +36,7 @@ export const ResponsiveText: React.FC<ResponsiveTextProps> = ({
     nodeHeight,
     className = "",
     style = {},
-    showTooltip = true,
+    showTooltip = false,
     multiline = false,
     centerAlign = false,
     fontWeight = "normal",
@@ -135,31 +136,31 @@ export const ResponsiveText: React.FC<ResponsiveTextProps> = ({
                 style={textStyles}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
-                title={
-                    showTooltip && processedText.isTruncated
-                        ? children
-                        : undefined
-                }
             >
                 {processedText.text}
             </div>
 
-            {/* Custom Tooltip */}
-            {showTooltip && isTooltipVisible && processedText.isTruncated && (
-                <div
-                    className="fixed z-50 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg pointer-events-none"
-                    style={{
-                        left: tooltipPosition.x,
-                        top: tooltipPosition.y,
-                        transform: "translate(-50%, -100%)",
-                        maxWidth: "300px",
-                        wordWrap: "break-word",
-                        whiteSpace: "pre-wrap",
-                    }}
-                >
-                    {children}
-                </div>
-            )}
+            {/* Custom Tooltip (portal to body to avoid transform clipping) */}
+            {showTooltip &&
+                isTooltipVisible &&
+                processedText.isTruncated &&
+                typeof window !== "undefined" &&
+                createPortal(
+                    <div
+                        className="fixed z-50 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg pointer-events-none"
+                        style={{
+                            left: tooltipPosition.x,
+                            top: tooltipPosition.y,
+                            transform: "translate(-50%, -100%)",
+                            maxWidth: "300px",
+                            wordWrap: "break-word",
+                            whiteSpace: "pre-wrap",
+                        }}
+                    >
+                        {children}
+                    </div>,
+                    document.body
+                )}
         </>
     );
 };
@@ -181,7 +182,7 @@ export const ResponsiveKaTeX: React.FC<ResponsiveKaTeXProps> = ({
     nodeHeight,
     className = "",
     style = {},
-    showTooltip = true,
+    showTooltip = false,
     centerAlign = true,
     ...props
 }) => {
@@ -198,7 +199,6 @@ export const ResponsiveKaTeX: React.FC<ResponsiveKaTeXProps> = ({
         <div
             className={`${centerAlign ? "text-center" : ""} ${className}`}
             style={katexStyles}
-            title={showTooltip ? expression : undefined}
         >
             {/* This would be replaced with actual KaTeX rendering */}
             {expression}

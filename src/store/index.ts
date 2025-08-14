@@ -509,10 +509,19 @@ export const useStore = create<StoreState>((set, get) => ({
                                         value: value as string,
                                         type: "string" as const,
                                         editable: true,
+                                        options: ["straight", "rounded"],
+                                    };
+                                }
+                                if (key === "edgeRoutingType") {
+                                    return {
+                                        key: "edgeRoutingType",
+                                        value: value as string,
+                                        type: "string" as const,
+                                        editable: true,
                                         options: [
+                                            "orthogonal",
                                             "straight",
                                             "bezier",
-                                            "rounded",
                                         ],
                                     };
                                 }
@@ -540,7 +549,18 @@ export const useStore = create<StoreState>((set, get) => ({
                                 value: "straight",
                                 type: "string" as const,
                                 editable: true,
-                                options: ["straight", "bezier", "rounded"],
+                                options: ["straight", "rounded"],
+                            });
+                        }
+
+                        // Add routing type property if missing
+                        if (!selectedEdge.data.edgeRoutingType) {
+                            dataProps.push({
+                                key: "edgeRoutingType",
+                                value: "orthogonal",
+                                type: "string" as const,
+                                editable: true,
+                                options: ["orthogonal", "straight", "bezier"],
                             });
                         }
 
@@ -609,7 +629,18 @@ export const useStore = create<StoreState>((set, get) => ({
                                     value: "straight",
                                     type: "string" as const,
                                     editable: true,
-                                    options: ["straight", "bezier", "rounded"],
+                                    options: ["straight", "rounded"],
+                                },
+                                {
+                                    key: "edgeRoutingType",
+                                    value: "orthogonal",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: [
+                                        "orthogonal",
+                                        "straight",
+                                        "bezier",
+                                    ],
                                 },
                                 {
                                     key: "condition",
@@ -632,7 +663,18 @@ export const useStore = create<StoreState>((set, get) => ({
                                     value: "straight",
                                     type: "string" as const,
                                     editable: true,
-                                    options: ["straight", "bezier", "rounded"],
+                                    options: ["straight", "rounded"],
+                                },
+                                {
+                                    key: "edgeRoutingType",
+                                    value: "orthogonal",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: [
+                                        "orthogonal",
+                                        "straight",
+                                        "bezier",
+                                    ],
                                 },
                                 {
                                     key: "condition",
@@ -740,7 +782,7 @@ export const useStore = create<StoreState>((set, get) => ({
         return superjson.stringify(serializedModel);
     },
 
-    loadSerializedState: (serialized: string) => {
+    loadSerializedState: async (serialized: string) => {
         if (!serialized || typeof serialized !== "string") {
             throw new Error("Invalid serialized data: empty or not a string");
         }
@@ -785,7 +827,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
         try {
             const { nodes, edges, projectName, metadata } =
-                serializationService.deserializeModel(parsed);
+                await serializationService.deserializeModel(parsed);
 
             const updatedMetadata = {
                 ...metadata,
@@ -908,6 +950,26 @@ export const useStore = create<StoreState>((set, get) => ({
                         [prop.key]: prop.value,
                     };
                 }, {});
+
+                // If routing type is changed away from orthogonal, clear orthogonal control data
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        newData,
+                        "edgeRoutingType"
+                    )
+                ) {
+                    const rt = (newData as any).edgeRoutingType as string;
+                    // Keep legacy flag in sync
+                    (newData as any).useOrthogonalRouting = rt === "orthogonal";
+
+                    if (rt === "straight" || rt === "bezier") {
+                        // Drop preserved orthogonal geometry so straight/bezier renders as expected
+                        (newData as any).controlPoints = undefined;
+                        (newData as any).routingType = undefined;
+                        (newData as any).routingMetrics = undefined;
+                        (newData as any).selectedHandles = undefined;
+                    }
+                }
 
                 const updateData: any = { data: { ...edge.data, ...newData } };
 

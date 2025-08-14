@@ -217,6 +217,15 @@ export function PropertiesBar({
         return null;
     };
 
+    const hiddenKeys = new Set<string>([
+        "useOrthogonalRouting",
+        "routingType",
+        "routingMetrics",
+        "selectedHandles",
+        "conditionPosition",
+    ]);
+    const visibleProperties = properties.filter((p) => !hiddenKeys.has(p.key));
+
     return (
         <div
             className={cn(
@@ -229,7 +238,7 @@ export function PropertiesBar({
             {renderMultiSelectionMessage()}
 
             <div className="space-y-4 overflow-y-auto flex-1">
-                {properties.map((property) => {
+                {visibleProperties.map((property) => {
                     return (
                         <div key={property.key}>
                             <Label className="text-sm font-medium flex items-center gap-2">

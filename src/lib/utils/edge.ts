@@ -44,46 +44,56 @@ export function simplifyControlPoints(
     targetX: number,
     targetY: number
 ): { x: number; y: number }[] {
-    if (controlPoints.length <= 1) return controlPoints;
+    if (controlPoints.length === 0) return controlPoints;
 
-    const simplified: { x: number; y: number }[] = [];
+    // Consider the full path including endpoints so we can prune
+    // the first/last control points if they are redundant with
+    // the source/target (previous implementation always preserved them).
+    const allPoints = [
+        { x: sourceX, y: sourceY },
+        ...controlPoints,
+        { x: targetX, y: targetY },
+    ];
 
-    simplified.push(controlPoints[0]);
+    const cleaned: { x: number; y: number }[] = [{ x: sourceX, y: sourceY }];
 
-    for (let i = 1; i < controlPoints.length - 1; i++) {
-        const prevPoint =
-            i === 0 ? { x: sourceX, y: sourceY } : controlPoints[i - 1];
-        const currentPoint = controlPoints[i];
-        const nextPoint = controlPoints[i + 1];
+    for (let i = 1; i < allPoints.length - 1; i++) {
+        const prevPoint = allPoints[i - 1];
+        const currentPoint = allPoints[i];
+        const nextPoint = allPoints[i + 1];
 
         if (!arePointsCollinear(prevPoint, currentPoint, nextPoint, 1)) {
-            simplified.push(currentPoint);
-        } else {
-            const midpoint = {
-                x: (prevPoint.x + nextPoint.x) / 2,
-                y: (prevPoint.y + nextPoint.y) / 2,
-            };
-            const distanceFromMidpoint = Math.sqrt(
-                Math.pow(currentPoint.x - midpoint.x, 2) +
-                    Math.pow(currentPoint.y - midpoint.y, 2)
-            );
+            cleaned.push(currentPoint);
+            continue;
+        }
 
-            if (distanceFromMidpoint > 10) {
-                simplified.push(currentPoint);
-            }
+        // If perfectly (or near-)collinear, still keep points that are
+        // materially offset from the straight line so slight user intent
+        // is preserved.
+        const midpoint = {
+            x: (prevPoint.x + nextPoint.x) / 2,
+            y: (prevPoint.y + nextPoint.y) / 2,
+        };
+        const distanceFromMidpoint = Math.sqrt(
+            Math.pow(currentPoint.x - midpoint.x, 2) +
+                Math.pow(currentPoint.y - midpoint.y, 2)
+        );
+        if (distanceFromMidpoint > 10) {
+            cleaned.push(currentPoint);
         }
     }
 
-    if (controlPoints.length > 1) {
-        simplified.push(controlPoints[controlPoints.length - 1]);
-    }
+    cleaned.push({ x: targetX, y: targetY });
 
-    if (simplified.length === 0) {
+    // Remove the synthetic endpoints before returning
+    const result = cleaned.slice(1, -1);
+
+    if (result.length === 0) {
         const middleIndex = Math.floor(controlPoints.length / 2);
         return [controlPoints[middleIndex]];
     }
 
-    return simplified;
+    return result;
 }
 
 /**

@@ -32,6 +32,8 @@ interface InitializationNodeData {
     updateNodeData?: (nodeId: string, data: any) => void;
     width?: number;
     height?: number;
+
+    initializationsPosition?: string;
 }
 
 interface ExtendedNodeProps extends NodeProps<InitializationNodeData> {
@@ -95,14 +97,12 @@ export const createJSON = (
 
 export const InitializationNodePreview = () => {
     return (
-        <div className="relative px-4 py-2 border-2 border-black dark:border-white bg-white dark:bg-zinc-800 min-w-[200px]">
-            <div className="font-medium text-sm text-center mb-2 border-b border-gray-200 dark:border-gray-700 pb-1">
-                Initialization
-            </div>
-            <div className="mt-2 min-h-[40px] text-center dark:text-gray-300">
-                <div className="my-1">
-                    <span>s = 0</span>
-                </div>
+        <div
+            className="relative border-2 border-black dark:border-white bg-white dark:bg-zinc-800"
+            style={{ width: "120px", height: "50px" }}
+        >
+            <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black">
+                <span className="font-medium text-sm">Initialization</span>
             </div>
         </div>
     );
@@ -110,8 +110,9 @@ export const InitializationNodePreview = () => {
 
 export const getDefaultData = (): InitializationNodeData => ({
     initializations: [],
-    width: 200,
-    height: 120,
+    width: 120,
+    height: 50,
+    initializationsPosition: "right",
 });
 
 const InitializationNode = memo(
@@ -121,16 +122,17 @@ const InitializationNode = memo(
         selected,
         isConnectable,
         dragging,
-        xPos,
-        yPos,
     }: ExtendedNodeProps) => {
-        const node = useStore
-            .getState()
-            .nodes.find((n: BaseNode) => n.id === id);
+        const storeNode = useStore((state) =>
+            state.nodes.find((n: BaseNode) => n.id === id)
+        );
+        const storeData = (storeNode?.data || {}) as InitializationNodeData;
+
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState("");
         const [isHovered, setIsHovered] = useState(false);
         const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+        const nodeRef = useRef<HTMLDivElement>(null);
 
         const handleMouseEnter = useCallback(() => {
             if (hoverTimeoutRef.current) {
@@ -150,18 +152,18 @@ const InitializationNode = memo(
             (event: any, params: { width: number; height: number }) => {
                 const command = commandController.createUpdateNodeCommand(id, {
                     data: {
-                        ...data,
+                        ...storeData,
                         width: params.width,
                         height: params.height,
                     },
                 });
                 commandController.execute(command);
             },
-            [id, data]
+            [id, storeData]
         );
 
-        const nodeWidth = data?.width || 200;
-        const nodeHeight = data?.height || 120;
+        const nodeWidth = storeData?.width || 120;
+        const nodeHeight = storeData?.height || 50;
         const handlePositions = getStandardHandlePositions(
             nodeWidth,
             nodeHeight
@@ -188,61 +190,236 @@ const InitializationNode = memo(
         );
 
         useEffect(() => {
-            if (
-                node?.data?.initializations &&
-                Array.isArray(node.data.initializations)
-            ) {
-                const initialText = node.data.initializations
+            const current = (storeNode?.data?.initializations ||
+                []) as string[];
+            if (Array.isArray(current)) {
+                const initialText = current
                     .filter(
-                        (init: any) =>
-                            init &&
-                            typeof init === "string" &&
-                            init.trim() !== ""
+                        (init) => typeof init === "string" && init.trim() !== ""
                     )
                     .join("\n");
                 setEditValue(initialText);
             } else {
                 setEditValue("");
             }
-        }, [node?.data?.initializations]);
+        }, [storeNode?.data?.initializations]);
 
         const validItems = useMemo(() => {
-            if (
-                !node?.data?.initializations ||
-                !Array.isArray(node.data.initializations)
-            ) {
-                return [];
-            }
-            return node.data.initializations.filter(
-                (init: any) =>
-                    init && typeof init === "string" && init.trim() !== ""
+            const arr = (storeNode?.data?.initializations || []) as string[];
+            if (!Array.isArray(arr)) return [];
+            return arr.filter(
+                (init) => typeof init === "string" && init.trim() !== ""
             );
-        }, [node?.data?.initializations]);
+        }, [storeNode?.data?.initializations]);
 
-        const handleDoubleClick = useCallback(() => {
-            setIsEditing(true);
+        const [isDraggingBadge, setIsDraggingBadge] = useState(false);
+        const [dragBadgePos, setDragBadgePos] = useState<{
+            left: number;
+            top: number;
+        } | null>(null);
+        const [draggedAnchor, setDraggedAnchor] = useState<string>("right");
+
+        const getInitializationsAnchor = useCallback(() => {
+            return storeData?.initializationsPosition || "right";
+        }, [storeData?.initializationsPosition]);
+
+        const getBadgeOffset = useCallback(() => 12, []);
+
+        const getAnchorCoordinates = useCallback(
+            (anchor: string, width: number, height: number) => {
+                const offset = getBadgeOffset();
+
+                const positions: Record<
+                    string,
+                    { left: number; top: number; transform?: string }
+                > = {
+                    top: {
+                        left: width / 2,
+                        top: -offset,
+                        transform: "translate(-50%, -100%)",
+                    },
+                    topRight: {
+                        left: width + offset,
+                        top: -offset,
+                        transform: "translate(0%, -100%)",
+                    },
+                    right: {
+                        left: width + offset,
+                        top: height / 2,
+                        transform: "translate(0%, -50%)",
+                    },
+                    bottomRight: {
+                        left: width + offset,
+                        top: height + offset,
+                        transform: "translate(0%, 0%)",
+                    },
+                    bottom: {
+                        left: width / 2,
+                        top: height + offset,
+                        transform: "translate(-50%, 0%)",
+                    },
+                    bottomLeft: {
+                        left: -offset,
+                        top: height + offset,
+                        transform: "translate(-100%, 0%)",
+                    },
+                    left: {
+                        left: -offset,
+                        top: height / 2,
+                        transform: "translate(-100%, -50%)",
+                    },
+                    topLeft: {
+                        left: -offset,
+                        top: -offset,
+                        transform: "translate(-100%, -100%)",
+                    },
+                };
+                return positions[anchor] || positions.right;
+            },
+            [getBadgeOffset]
+        );
+
+        const getAllAnchors = useCallback(
+            () => [
+                "top",
+                "topRight",
+                "right",
+                "bottomRight",
+                "bottom",
+                "bottomLeft",
+                "left",
+                "topLeft",
+            ],
+            []
+        );
+
+        const startBadgeDrag = useCallback((e: React.MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsDraggingBadge(true);
+
+            const rect = (
+                nodeRef.current as HTMLDivElement
+            ).getBoundingClientRect();
+            setDragBadgePos({
+                left: e.clientX - rect.left,
+                top: e.clientY - rect.top,
+            });
         }, []);
 
-        const handleBlur = useCallback(() => {
-            setIsEditing(false);
+        const onBadgeDrag = useCallback(
+            (e: MouseEvent) => {
+                if (!isDraggingBadge || !nodeRef.current) return;
+                const rect = nodeRef.current.getBoundingClientRect();
+                const rawPos = {
+                    left: e.clientX - rect.left,
+                    top: e.clientY - rect.top,
+                };
 
-            const newInitializations = editValue
-                .split("\n")
-                .map((line: any) => line.trim())
-                .filter((line: any) => line !== "");
+                const anchors = getAllAnchors();
+                let bestAnchor = anchors[0];
+                let bestDist = Number.POSITIVE_INFINITY;
+
+                anchors.forEach((a) => {
+                    const pos = getAnchorCoordinates(a, nodeWidth, nodeHeight);
+                    const dx = pos.left - rawPos.left;
+                    const dy = pos.top - rawPos.top;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        bestAnchor = a;
+                    }
+                });
+
+                const snappedPos = getAnchorCoordinates(
+                    bestAnchor,
+                    nodeWidth,
+                    nodeHeight
+                );
+                setDragBadgePos({ left: snappedPos.left, top: snappedPos.top });
+                setDraggedAnchor(bestAnchor);
+            },
+            [
+                isDraggingBadge,
+                getAllAnchors,
+                getAnchorCoordinates,
+                nodeWidth,
+                nodeHeight,
+            ]
+        );
+
+        const stopBadgeDrag = useCallback(() => {
+            if (!isDraggingBadge || !dragBadgePos) return;
+            setIsDraggingBadge(false);
+            setDraggedAnchor("right");
+
+            const anchors = getAllAnchors();
+            let bestAnchor = anchors[0];
+            let bestDist = Number.POSITIVE_INFINITY;
+
+            anchors.forEach((a) => {
+                const pos = getAnchorCoordinates(a, nodeWidth, nodeHeight);
+                const dx = pos.left - dragBadgePos.left;
+                const dy = pos.top - dragBadgePos.top;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < bestDist) {
+                    bestDist = d2;
+                    bestAnchor = a;
+                }
+            });
 
             const command = commandController.createUpdateNodeCommand(id, {
                 data: {
+                    ...storeData,
+                    initializationsPosition: bestAnchor,
+                },
+            });
+            commandController.execute(command);
+
+            setDragBadgePos(null);
+        }, [
+            dragBadgePos,
+            getAllAnchors,
+            getAnchorCoordinates,
+            id,
+            nodeHeight,
+            nodeWidth,
+            isDraggingBadge,
+            storeData,
+        ]);
+
+        useEffect(() => {
+            if (isDraggingBadge) {
+                window.addEventListener("mousemove", onBadgeDrag);
+                window.addEventListener("mouseup", stopBadgeDrag);
+                return () => {
+                    window.removeEventListener("mousemove", onBadgeDrag);
+                    window.removeEventListener("mouseup", stopBadgeDrag);
+                };
+            }
+        }, [isDraggingBadge, onBadgeDrag, stopBadgeDrag]);
+
+        const handleBlur = useCallback(() => {
+            setIsEditing(false);
+            const newInitializations = editValue
+                .split("\n")
+                .map((line) => line.trim())
+                .filter((line) => line !== "");
+
+            const command = commandController.createUpdateNodeCommand(id, {
+                data: {
+                    ...storeData,
                     initializations: newInitializations,
                 },
             });
             commandController.execute(command);
-        }, [editValue, id]);
+        }, [editValue, id, storeData]);
 
-        const nodeName = node?.name || id;
+        const nodeName = storeNode?.name || id;
 
         return (
             <div
+                ref={nodeRef}
                 className={`relative border-2 ${
                     selected
                         ? "border-blue-500"
@@ -251,33 +428,117 @@ const InitializationNode = memo(
                 style={{
                     width: nodeWidth,
                     height: nodeHeight,
-                    minWidth: 200,
-                    minHeight: 120,
+                    minWidth: 120,
+                    minHeight: 50,
                     ...paddingStyles,
                 }}
-                onDoubleClick={handleDoubleClick}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                <NodeResizer
-                    isVisible={selected || isHovered}
-                    minWidth={200}
-                    minHeight={120}
-                    onResize={handleResize}
-                />
-                {/* Node Name/Title */}
-                <div className="mb-2 border-b border-gray-200 dark:border-gray-700 pb-1 dark:text-white text-black">
+                {/* Centered name */}
+                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black">
                     <ResponsiveText
                         nodeWidth={nodeWidth}
                         nodeHeight={nodeHeight}
-                        maxWidth={contentArea.width}
+                        maxWidth={Math.max(40, nodeWidth * 0.95)}
                         fontWeight="medium"
                         centerAlign
+                        className="dark:text-white text-black"
+                        style={{ lineHeight: 0.9, padding: 0, margin: 0 }}
                     >
                         {nodeName}
                     </ResponsiveText>
                 </div>
 
+                <NodeResizer
+                    isVisible={selected || isHovered}
+                    minWidth={120}
+                    minHeight={50}
+                    onResize={handleResize}
+                    handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
+                    lineClassName="!border-blue-500 !border-2"
+                />
+
+                {/* External initializations badge */}
+                {(isEditing || validItems.length > 0) && (
+                    <div
+                        className="absolute text-sm select-none cursor-move nodrag"
+                        style={{
+                            left:
+                                dragBadgePos?.left ??
+                                getAnchorCoordinates(
+                                    getInitializationsAnchor(),
+                                    nodeWidth,
+                                    nodeHeight
+                                ).left,
+                            top:
+                                dragBadgePos?.top ??
+                                getAnchorCoordinates(
+                                    getInitializationsAnchor(),
+                                    nodeWidth,
+                                    nodeHeight
+                                ).top,
+                            transform: dragBadgePos
+                                ? getAnchorCoordinates(
+                                      draggedAnchor,
+                                      nodeWidth,
+                                      nodeHeight
+                                  ).transform
+                                : getAnchorCoordinates(
+                                      getInitializationsAnchor(),
+                                      nodeWidth,
+                                      nodeHeight
+                                  ).transform,
+                            maxWidth: Math.max(120, nodeWidth * 0.8),
+                        }}
+                        onMouseDown={startBadgeDrag}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditing(true);
+                            setEditValue(validItems.join("\n"));
+                        }}
+                    >
+                        {isEditing ? (
+                            <textarea
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={handleBlur}
+                                className="event-node-input nodrag p-1 border rounded dark:bg-zinc-700 dark:text-white bg-white text-black"
+                                style={{
+                                    minWidth: 120,
+                                    maxWidth: Math.max(120, nodeWidth * 0.8),
+                                    fontSize: `${Math.max(
+                                        12,
+                                        typography.fontSize - 2
+                                    )}px`,
+                                }}
+                                placeholder="Initializations"
+                                autoFocus
+                            />
+                        ) : (
+                            <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-stretch">
+                                <span className="text-blue-400 dark:text-blue-300 text-lg mr-1 flex items-center">
+                                    {"{"}
+                                </span>
+                                <div className="flex flex-col justify-center">
+                                    {validItems.map((line, index) => (
+                                        <div
+                                            key={index}
+                                            className="text-center"
+                                        >
+                                            <ReactKatex>{line}</ReactKatex>
+                                        </div>
+                                    ))}
+                                </div>
+                                <span className="text-blue-400 dark:text-blue-300 text-lg ml-1 flex items-center">
+                                    {"}"}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Handles */}
                 {id !== "preview" && (
                     <>
                         {/* Top handles */}
@@ -318,7 +579,10 @@ const InitializationNode = memo(
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${nodeWidth - 10}px`,
-                                    top: `${topPos - 10}px`,
+                                    top: `${Math.max(
+                                        6,
+                                        Math.min(nodeHeight - 6, topPos - 10)
+                                    )}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
@@ -362,61 +626,16 @@ const InitializationNode = memo(
                                 isConnectable={isConnectable}
                                 style={{
                                     left: "5px",
-                                    top: `${topPos - 10}px`,
+                                    top: `${Math.max(
+                                        6,
+                                        Math.min(nodeHeight - 6, topPos - 10)
+                                    )}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}
                     </>
                 )}
-
-                {/* Content */}
-                <div
-                    className="mt-2"
-                    style={{ height: contentArea.height - 50 }}
-                >
-                    {isEditing ? (
-                        <textarea
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={handleBlur}
-                            className="w-full p-2 border rounded dark:bg-zinc-700 dark:text-white nodrag resize-none"
-                            style={{
-                                height: contentArea.height - 90,
-                                fontSize: `${typography.fontSize}px`,
-                                lineHeight: `${typography.lineHeight}px`,
-                            }}
-                            placeholder="Enter initializations..."
-                            autoFocus
-                        />
-                    ) : (
-                        <div className="h-full overflow-hidden">
-                            {validItems.length > 0 ? (
-                                <ResponsiveText
-                                    nodeWidth={nodeWidth}
-                                    nodeHeight={nodeHeight}
-                                    maxWidth={contentArea.width}
-                                    maxHeight={contentArea.height - 50}
-                                    multiline
-                                    centerAlign
-                                    className="dark:text-white text-black"
-                                >
-                                    {validItems.join("\n")}
-                                </ResponsiveText>
-                            ) : (
-                                <ResponsiveText
-                                    nodeWidth={nodeWidth}
-                                    nodeHeight={nodeHeight}
-                                    maxWidth={contentArea.width}
-                                    centerAlign
-                                    className="text-gray-400 dark:text-gray-500"
-                                >
-                                    No initializations
-                                </ResponsiveText>
-                            )}
-                        </div>
-                    )}
-                </div>
             </div>
         );
     },
@@ -443,6 +662,8 @@ const InitializationNode = memo(
             prevName === nextName &&
             prev.data?.width === next.data?.width &&
             prev.data?.height === next.data?.height &&
+            (prevNode?.data as any)?.initializationsPosition ===
+                (nextNode?.data as any)?.initializationsPosition &&
             JSON.stringify(prevNode?.data?.initializations) ===
                 JSON.stringify(nextNode?.data?.initializations)
         );
@@ -451,8 +672,9 @@ const InitializationNode = memo(
 
 InitializationNode.getDefaultData = (): InitializationNodeData => ({
     initializations: [],
-    width: 200,
-    height: 120,
+    width: 120,
+    height: 50,
+    initializationsPosition: "right",
 });
 
 InitializationNode.getGraphType = (): string => "eventBased";

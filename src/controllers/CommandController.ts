@@ -288,11 +288,6 @@ export class CommandController {
             if (!change.dragging) continue;
 
             if (!this.dragState.has(change.id)) {
-                console.warn(
-                    "Drag state missing for node:",
-                    change.id,
-                    "- this indicates a timing issue"
-                );
                 const node = currentNodes.find((n) => n.id === change.id);
                 if (!node) continue;
 
@@ -459,15 +454,18 @@ export class CommandController {
             defaultData = {
                 condition: "True",
                 edgeType: "straight",
+                useOrthogonalRouting: true,
             };
         } else if (edgeType === "initialization") {
             defaultData = {
                 parameter: "1",
                 edgeType: "straight",
+                useOrthogonalRouting: true,
             };
         } else if (edgeType === "rcq") {
             defaultData = {
                 edgeType: "straight",
+                useOrthogonalRouting: true,
             };
         }
 
@@ -498,9 +496,8 @@ export class CommandController {
         return {
             execute: () => {
                 useStore.setState((state) => {
-                    return {
-                        edges: addEdge(edge, state.edges) as BaseEdge[],
-                    };
+                    const result = addEdge(edge, state.edges) as BaseEdge[];
+                    return { edges: result };
                 });
             },
             undo: () => {

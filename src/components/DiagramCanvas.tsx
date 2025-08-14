@@ -32,6 +32,7 @@ import { CommandController } from "@/controllers/CommandController";
 import { BaseNode } from "@/types/base";
 import { AutosaveService } from "@/services/AutosaveService";
 import { DragProxy } from "./DragProxy";
+import { OrthogonalEdgePreview } from "./edges/OrthogonalEdgePreview";
 import {
     Position,
     ViewportTransform,
@@ -67,6 +68,7 @@ const flowOptions = {
     zoomOnScroll: true,
     zoomOnPinch: true,
     snapGrid: [GRID_SIZE, GRID_SIZE] as [number, number],
+    connectionLineComponent: OrthogonalEdgePreview,
 } as const;
 
 interface FlowCanvasProps {
@@ -154,6 +156,8 @@ function FlowCanvas({
 
     const handleConnect = useCallback(
         (params: any) => {
+            try {
+            } catch {}
             const connection = {
                 source: params.source,
                 sourceHandle: params.sourceHandle,
@@ -162,10 +166,17 @@ function FlowCanvas({
             };
 
             if (!connection.sourceHandle || !connection.targetHandle) {
-                console.warn("Connection missing handle IDs:", connection);
                 return;
             }
 
+            try {
+                console.log(
+                    "[Flow] handleConnect → normalized connection",
+                    connection
+                );
+
+                console.groupEnd?.();
+            } catch {}
             onConnect(connection);
         },
         [onConnect]
@@ -499,6 +510,7 @@ function FlowCanvas({
                 onMouseMove={handleMouseMove}
                 onInit={onInit}
                 {...flowOptions}
+                edgeTypes={edgeTypes}
                 nodesDraggable={!dragProxy.isActive}
                 deleteKeyCode={["Backspace", "Delete"]}
                 selectionMode={SelectionMode.Partial}

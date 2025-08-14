@@ -121,10 +121,16 @@ export function parseTransformMatrix(transformStyle: string): {
     if (transformStyle && transformStyle !== "none") {
         const matrix = transformStyle.match(/matrix.*\((.+)\)/);
         if (matrix && matrix[1]) {
-            const values = matrix[1].split(", ");
-            scale = parseFloat(values[0]);
-            offsetX = parseFloat(values[4]);
-            offsetY = parseFloat(values[5]);
+            // Split on commas or whitespace to be robust across browsers
+            const values = matrix[1].split(/[\s,]+/).filter((v) => v.length);
+            // matrix(a, b, c, d, e, f) → a/d: scale, e: offsetX, f: offsetY
+            // Fallback to defaults if parsing fails
+            const parsedScale = parseFloat(values[0]);
+            const parsedOffsetX = parseFloat(values[4]);
+            const parsedOffsetY = parseFloat(values[5]);
+            if (Number.isFinite(parsedScale)) scale = parsedScale;
+            if (Number.isFinite(parsedOffsetX)) offsetX = parsedOffsetX;
+            if (Number.isFinite(parsedOffsetY)) offsetY = parsedOffsetY;
         }
     }
 
@@ -791,6 +797,53 @@ export function getPillHandlePositions(width: number, height: number) {
     }
 
     return handles;
+}
+
+/**
+ * Calculate handle positions for a perfect ellipse (no straight segments)
+ * Places three handles per side similar to pill, but hugging the ellipse.
+ */
+export function getEllipseHandlePositions(width: number, height: number) {
+    const cx = width / 2;
+    const cy = height / 2;
+    const rx = Math.max(1, width / 2);
+    const ry = Math.max(1, height / 2);
+
+    const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+    const yOnEllipseForX = (x: number, top: boolean) => {
+        const dx = (x - cx) / rx;
+        const inside = clamp01(1 - dx * dx);
+        const dy = ry * Math.sqrt(inside);
+        return top ? cy - dy : cy + dy;
+    };
+
+    const xOnEllipseForY = (y: number, right: boolean) => {
+        const dy = (y - cy) / ry;
+        const inside = clamp01(1 - dy * dy);
+        const dx = rx * Math.sqrt(inside);
+        return right ? cx + dx : cx - dx;
+    };
+
+    // One handle on top/bottom, three on left/right
+    const top = [{ x: cx, y: yOnEllipseForX(cx, true) }];
+    const bottom = [{ x: cx, y: yOnEllipseForX(cx, false) }];
+
+    // Left handles: evenly spaced along the left curve
+    const left = [
+        { x: xOnEllipseForY(height * 0.05, false), y: height * 0.05 },
+        { x: xOnEllipseForY(cy, false) + 7, y: cy },
+        { x: xOnEllipseForY(height * 0.95, false), y: height * 0.95 },
+    ];
+
+    // Right handles: evenly spaced along the right curve
+    const right = [
+        { x: xOnEllipseForY(height * 0.05, true), y: height * 0.05 },
+        { x: xOnEllipseForY(cy, true) - 7, y: cy },
+        { x: xOnEllipseForY(height * 0.95, true), y: height * 0.95 },
+    ];
+
+    return { top, right, bottom, left };
 }
 
 /**
