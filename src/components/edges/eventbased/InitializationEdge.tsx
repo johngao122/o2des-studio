@@ -71,8 +71,9 @@ const InitializationEdge = memo(
             pathD: string,
             p: { x: number; y: number }
         ): { x: number; y: number; t: number } => {
+            let svg: SVGElement | null = null;
             try {
-                const svg = document.createElementNS(
+                svg = document.createElementNS(
                     "http://www.w3.org/2000/svg",
                     "svg"
                 );
@@ -115,10 +116,13 @@ const InitializationEdge = memo(
                     }
                 }
                 const bestPt = path.getPointAtLength(total * bestT);
-                document.body.removeChild(svg);
                 return { x: bestPt.x, y: bestPt.y, t: bestT };
             } catch (e) {
                 return { x: p.x, y: p.y, t: 0.25 };
+            } finally {
+                if (svg && svg.parentNode) {
+                    svg.parentNode.removeChild(svg);
+                }
             }
         };
 
