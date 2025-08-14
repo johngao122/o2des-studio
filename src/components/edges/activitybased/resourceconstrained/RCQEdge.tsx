@@ -796,7 +796,7 @@ const RCQEdge = memo(
                                     }}
                                 >
                                     <ReactKatex>
-                                        {data?.condition || "True"}
+                                        {`(${data?.condition || "True"})`}
                                     </ReactKatex>
                                 </div>
                             </div>

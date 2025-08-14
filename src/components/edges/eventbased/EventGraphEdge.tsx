@@ -924,11 +924,13 @@ const EventGraphEdge = memo(
                                     >
                                         {isConditionDragging ? (
                                             <span>
-                                                {data?.condition || "True"}
+                                                ({data?.condition || "True"})
                                             </span>
                                         ) : (
                                             <ReactKatex>
-                                                {data?.condition || "True"}
+                                                {`[${
+                                                    data?.condition || "True"
+                                                }]`}
                                             </ReactKatex>
                                         )}
                                     </div>
