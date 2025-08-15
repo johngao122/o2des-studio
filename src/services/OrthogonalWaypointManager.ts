@@ -35,7 +35,8 @@ export class OrthogonalWaypointManager {
         newMidpoint: Point,
         controlPoints: Point[],
         sourcePoint: Point,
-        targetPoint: Point
+        targetPoint: Point,
+        previewMode: boolean = false
     ): ConnectionAnalysis {
         const allPoints = [sourcePoint, ...controlPoints, targetPoint];
 
@@ -56,14 +57,17 @@ export class OrthogonalWaypointManager {
             safeIndex,
             newSegmentPosition,
             sourcePoint,
-            "source"
+            "source",
+            allPoints.length - 2,
+            previewMode
         );
         const wouldDisconnectTarget = this.wouldDisconnectFromHandle(
             safeIndex,
             newSegmentPosition,
             targetPoint,
             "target",
-            allPoints.length - 2
+            allPoints.length - 2,
+            previewMode
         );
 
         const affectedHandles: ("source" | "target")[] = [];
@@ -92,14 +96,16 @@ export class OrthogonalWaypointManager {
         newMidpoint: Point,
         controlPoints: Point[],
         sourcePoint: Point,
-        targetPoint: Point
+        targetPoint: Point,
+        previewMode: boolean = false
     ): WaypointInsertionResult {
         const connectionAnalysis = this.analyzeConnectionImpact(
             segmentIndex,
             newMidpoint,
             controlPoints,
             sourcePoint,
-            targetPoint
+            targetPoint,
+            previewMode
         );
 
         if (!connectionAnalysis.wouldDisconnect) {
@@ -252,7 +258,8 @@ export class OrthogonalWaypointManager {
         newSegmentPosition: { start: Point; end: Point },
         handlePoint: Point,
         handleType: "source" | "target",
-        lastSegmentIndex?: number
+        lastSegmentIndex?: number,
+        previewMode: boolean = false
     ): boolean {
         const isDirectConnection =
             (handleType === "source" && segmentIndex === 0) ||
@@ -272,7 +279,9 @@ export class OrthogonalWaypointManager {
                 Math.pow(relevantPoint.y - handlePoint.y, 2)
         );
 
-        return distance > this.CONNECTION_TOLERANCE;
+        return previewMode
+            ? distance > 0
+            : distance > this.CONNECTION_TOLERANCE;
     }
 
     private calculateRequiredBridgeSegments(

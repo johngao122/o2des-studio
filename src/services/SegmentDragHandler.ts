@@ -67,7 +67,95 @@ export class SegmentDragHandler {
             });
         }
 
-        return segments;
+        return this.consolidateCollinearSegments(segments);
+    }
+
+    /**
+     * Consolidate collinear segments into single logical segments
+     */
+    private consolidateCollinearSegments(
+        segments: EdgeSegment[]
+    ): EdgeSegment[] {
+        if (segments.length <= 1) return segments;
+
+        const consolidated: EdgeSegment[] = [];
+        let currentGroup: EdgeSegment[] = [segments[0]];
+
+        for (let i = 1; i < segments.length; i++) {
+            const currentSegment = segments[i];
+            const lastInGroup = currentGroup[currentGroup.length - 1];
+
+            const areCollinear = this.areSegmentsCollinear(
+                lastInGroup,
+                currentSegment
+            );
+
+            if (areCollinear) {
+                currentGroup.push(currentSegment);
+            } else {
+                consolidated.push(this.mergeSegmentGroup(currentGroup));
+                currentGroup = [currentSegment];
+            }
+        }
+
+        consolidated.push(this.mergeSegmentGroup(currentGroup));
+
+        return consolidated;
+    }
+
+    /**
+     * Check if two segments are collinear and can be merged
+     */
+    private areSegmentsCollinear(
+        segment1: EdgeSegment,
+        segment2: EdgeSegment
+    ): boolean {
+        if (segment1.direction !== segment2.direction) return false;
+
+        const tolerance = 2;
+        const isConnected =
+            Math.abs(segment1.end.x - segment2.start.x) <= tolerance &&
+            Math.abs(segment1.end.y - segment2.start.y) <= tolerance;
+
+        if (!isConnected) return false;
+
+        if (segment1.direction === "horizontal") {
+            return Math.abs(segment1.start.y - segment2.end.y) <= tolerance;
+        }
+
+        if (segment1.direction === "vertical") {
+            return Math.abs(segment1.start.x - segment2.end.x) <= tolerance;
+        }
+
+        return false;
+    }
+
+    /**
+     * Merge a group of collinear segments into a single logical segment
+     */
+    private mergeSegmentGroup(segmentGroup: EdgeSegment[]): EdgeSegment {
+        if (segmentGroup.length === 1) return segmentGroup[0];
+
+        const firstSegment = segmentGroup[0];
+        const lastSegment = segmentGroup[segmentGroup.length - 1];
+
+        const mergedStart = firstSegment.start;
+        const mergedEnd = lastSegment.end;
+        const mergedDirection = firstSegment.direction;
+        const mergedLength = this.calculateSegmentLength(
+            mergedStart,
+            mergedEnd
+        );
+        const mergedMidpoint = this.calculateMidpoint(mergedStart, mergedEnd);
+
+        return {
+            id: firstSegment.id,
+            start: mergedStart,
+            end: mergedEnd,
+            direction: mergedDirection,
+            length: mergedLength,
+            midpoint: mergedMidpoint,
+        };
     }
 
     /**

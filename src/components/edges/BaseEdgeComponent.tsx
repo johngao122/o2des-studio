@@ -1339,16 +1339,77 @@ export const BaseEdgeComponent = memo(
                 if (updatedDragState) {
                     setSegmentDragState(updatedDragState);
 
-                    const pathResult =
-                        pathCalculator.updatePathAfterSegmentDrag(
-                            currentSegments,
-                            isSegmentDragging,
-                            updatedDragState.constrainedPosition,
-                            { edgeType, cornerRadius: 8 }
-                        );
+                    const segmentArrayIndex = currentSegments.findIndex(
+                        (s) => s.id === isSegmentDragging
+                    );
+                    const isFirstSegment = segmentArrayIndex === 0;
+                    const isLastSegment =
+                        segmentArrayIndex === currentSegments.length - 1;
 
-                    setTempSegments(pathResult.segments);
-                    setTempSegmentPath(pathResult.svgPath);
+                    const isConnectedToSource =
+                        Math.abs(segment.start.x - sourceX) < 1 &&
+                        Math.abs(segment.start.y - sourceY) < 1;
+                    const isConnectedToTarget =
+                        Math.abs(segment.end.x - targetX) < 1 &&
+                        Math.abs(segment.end.y - targetY) < 1;
+                    const isActuallyTerminal =
+                        isConnectedToSource || isConnectedToTarget;
+
+                    if (
+                        (isFirstSegment || isLastSegment) &&
+                        isActuallyTerminal
+                    ) {
+                        const analysisControlPoints =
+                            pathCalculator.extractControlPointsFromSegments(
+                                currentSegments
+                            );
+                        const waypointResult =
+                            orthogonalWaypointManager.insertPreservationWaypoints(
+                                segmentArrayIndex,
+                                updatedDragState.constrainedPosition,
+                                analysisControlPoints,
+                                { x: sourceX, y: sourceY },
+                                { x: targetX, y: targetY },
+                                true
+                            );
+
+                        if (waypointResult.requiresInsertion) {
+                            const enforcedPoints =
+                                orthogonalConstraintEngine.enforceOrthogonalConstraints(
+                                    waypointResult.newControlPoints,
+                                    { x: sourceX, y: sourceY },
+                                    { x: targetX, y: targetY }
+                                );
+                            const pathResult = pathCalculator.calculatePath(
+                                { x: sourceX, y: sourceY },
+                                { x: targetX, y: targetY },
+                                enforcedPoints,
+                                { edgeType, cornerRadius: 8 }
+                            );
+                            setTempSegmentPath(pathResult.svgPath);
+                            setTempSegments(pathResult.segments);
+                        } else {
+                            const pathResult =
+                                pathCalculator.updatePathAfterSegmentDrag(
+                                    currentSegments,
+                                    isSegmentDragging,
+                                    updatedDragState.constrainedPosition,
+                                    { edgeType, cornerRadius: 8 }
+                                );
+                            setTempSegments(pathResult.segments);
+                            setTempSegmentPath(pathResult.svgPath);
+                        }
+                    } else {
+                        const pathResult =
+                            pathCalculator.updatePathAfterSegmentDrag(
+                                currentSegments,
+                                isSegmentDragging,
+                                updatedDragState.constrainedPosition,
+                                { edgeType, cornerRadius: 8 }
+                            );
+                        setTempSegments(pathResult.segments);
+                        setTempSegmentPath(pathResult.svgPath);
+                    }
                 }
             }, 16),
             [
@@ -1388,16 +1449,29 @@ export const BaseEdgeComponent = memo(
                     );
             }
 
-            const rawIndex = parseInt(
-                isSegmentDragging.replace("segment-", "")
+            const segmentArrayIndex = currentSegments.findIndex(
+                (s) => s.id === isSegmentDragging
             );
             const maxIndex = Math.max(0, analysisControlPoints.length);
-            const clampedIndex = Math.min(Math.max(0, rawIndex), maxIndex);
+            const clampedIndex = Math.min(
+                Math.max(0, segmentArrayIndex),
+                maxIndex
+            );
 
-            if (
-                clampedIndex === 0 ||
-                clampedIndex === analysisControlPoints.length
-            ) {
+            const isFirstSegment = segmentArrayIndex === 0;
+            const isLastSegment =
+                segmentArrayIndex === currentSegments.length - 1;
+
+            const isConnectedToSource =
+                Math.abs(segment.start.x - sourceX) < 1 &&
+                Math.abs(segment.start.y - sourceY) < 1;
+            const isConnectedToTarget =
+                Math.abs(segment.end.x - targetX) < 1 &&
+                Math.abs(segment.end.y - targetY) < 1;
+            const isActuallyTerminal =
+                isConnectedToSource || isConnectedToTarget;
+
+            if ((isFirstSegment || isLastSegment) && isActuallyTerminal) {
                 const waypointResult =
                     orthogonalWaypointManager.insertPreservationWaypoints(
                         clampedIndex,
@@ -1584,9 +1658,8 @@ export const BaseEdgeComponent = memo(
                             </div>
                         ) : (
                             <>
-                                {/* Control Points - Only show if no segment handles are active */}
-                                {(!useOrthogonalRouting ||
-                                    currentSegments.length === 0) &&
+                                {/* Control Points */}
+                                {!useOrthogonalRouting &&
                                     (() => {
                                         if (effectiveRoutingType === "bezier") {
                                             const base = (
@@ -1722,55 +1795,68 @@ export const BaseEdgeComponent = memo(
 
                                 {/* Segment Midpoint Handles for Orthogonal Edges */}
                                 {useOrthogonalRouting &&
-                                    (tempSegments || currentSegments).length >
-                                        0 &&
-                                    (tempSegments || currentSegments)
-                                        .filter((segment, idx, arr) => {
-                                            const firstId = "segment-0";
-                                            const lastId = `segment-${
-                                                arr.length - 1
-                                            }`;
+                                    (() => {
+                                        const segmentsToRender =
+                                            tempSegments || currentSegments;
+                                        return segmentsToRender &&
+                                            segmentsToRender.length > 0
+                                            ? segmentsToRender
+                                                  .filter(
+                                                      (segment, idx, arr) => {
+                                                          const firstId =
+                                                              "segment-0";
+                                                          const lastId = `segment-${
+                                                              arr.length - 1
+                                                          }`;
 
-                                            const isTerminal =
-                                                segment.id === firstId ||
-                                                segment.id === lastId;
-                                            const MIN_LEN = 40;
-                                            return (
-                                                !isTerminal ||
-                                                segment.length >= MIN_LEN
-                                            );
-                                        })
-                                        .map((segment) => (
-                                            <div
-                                                key={`segment-handle-${segment.id}`}
-                                                style={{
-                                                    position: "absolute",
-                                                    transform: `translate(-50%, -50%) translate(${segment.midpoint.x}px,${segment.midpoint.y}px)`,
-                                                    pointerEvents: "all",
-                                                    cursor:
-                                                        isSegmentDragging ===
-                                                        segment.id
-                                                            ? "grabbing"
-                                                            : segment.direction ===
-                                                              "horizontal"
-                                                            ? "ns-resize"
-                                                            : "ew-resize",
-                                                }}
-                                                className="nodrag nopan"
-                                                onMouseDown={handleSegmentDragStart(
-                                                    segment.id
-                                                )}
-                                            >
-                                                <div
-                                                    className={`w-3 h-3 rounded-full border-2 ${
-                                                        isSegmentDragging ===
-                                                        segment.id
-                                                            ? "bg-blue-500 border-blue-600"
-                                                            : "bg-white border-blue-500"
-                                                    } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50 opacity-90`}
-                                                />
-                                            </div>
-                                        ))}
+                                                          const isTerminal =
+                                                              segment.id ===
+                                                                  firstId ||
+                                                              segment.id ===
+                                                                  lastId;
+                                                          const MIN_LEN = 40;
+                                                          return (
+                                                              !isTerminal ||
+                                                              segment.length >=
+                                                                  MIN_LEN
+                                                          );
+                                                      }
+                                                  )
+                                                  .map((segment) => (
+                                                      <div
+                                                          key={`segment-handle-${segment.id}`}
+                                                          style={{
+                                                              position:
+                                                                  "absolute",
+                                                              transform: `translate(-50%, -50%) translate(${segment.midpoint.x}px,${segment.midpoint.y}px)`,
+                                                              pointerEvents:
+                                                                  "all",
+                                                              cursor:
+                                                                  isSegmentDragging ===
+                                                                  segment.id
+                                                                      ? "grabbing"
+                                                                      : segment.direction ===
+                                                                        "horizontal"
+                                                                      ? "ns-resize"
+                                                                      : "ew-resize",
+                                                          }}
+                                                          className="nodrag nopan"
+                                                          onMouseDown={handleSegmentDragStart(
+                                                              segment.id
+                                                          )}
+                                                      >
+                                                          <div
+                                                              className={`w-3 h-3 rounded-full border-2 ${
+                                                                  isSegmentDragging ===
+                                                                  segment.id
+                                                                      ? "bg-blue-500 border-blue-600"
+                                                                      : "bg-white border-blue-500"
+                                                              } shadow-md hover:scale-110 transition-transform hover:ring-2 hover:ring-blue-300 hover:bg-blue-50 opacity-90`}
+                                                          />
+                                                      </div>
+                                                  ))
+                                            : null;
+                                    })()}
                             </>
                         )}
                     </EdgeLabelRenderer>
