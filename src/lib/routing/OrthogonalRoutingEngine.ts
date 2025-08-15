@@ -131,6 +131,41 @@ export class OrthogonalRoutingEngine {
     }
 
     /**
+     * Calculate orthogonal path using React Flow edge coordinates
+     */
+    calculateOrthogonalPathFromEdgeCoordinates(
+        sourceX: number,
+        sourceY: number,
+        targetX: number,
+        targetY: number,
+        sourcePosition?: string,
+        targetPosition?: string,
+        options: RoutingOptions = {}
+    ): OrthogonalPath {
+        const sourceHandle: HandleInfo = {
+            id: "source",
+            nodeId: "source",
+            position: { x: sourceX, y: sourceY },
+            side: this.positionToSide(sourcePosition || "right"),
+            type: "source",
+        };
+
+        const targetHandle: HandleInfo = {
+            id: "target",
+            nodeId: "target",
+            position: { x: targetX, y: targetY },
+            side: this.positionToSide(targetPosition || "left"),
+            type: "target",
+        };
+
+        return this.calculateOrthogonalPath(
+            sourceHandle,
+            targetHandle,
+            options
+        );
+    }
+
+    /**
      * Calculate orthogonal path with obstacle avoidance (basic implementation)
      */
     calculatePathWithObstacles(
@@ -190,6 +225,26 @@ export class OrthogonalRoutingEngine {
         }
 
         return compareOrthogonalPaths(horizontalFirst, verticalFirst);
+    }
+
+    /**
+     * Convert React Flow position to handle side
+     */
+    private positionToSide(
+        position: string
+    ): "left" | "right" | "top" | "bottom" {
+        switch (position) {
+            case "left":
+                return "left";
+            case "right":
+                return "right";
+            case "top":
+                return "top";
+            case "bottom":
+                return "bottom";
+            default:
+                return "right";
+        }
     }
 
     /**

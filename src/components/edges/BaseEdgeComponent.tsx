@@ -381,66 +381,30 @@ export const BaseEdgeComponent = memo(
             path: string;
             controlPoints: { x: number; y: number }[];
         } | null => {
-            if (!useOrthogonalRouting || !sourceHandle || !targetHandle) {
+            if (!useOrthogonalRouting) {
                 return null;
             }
 
             try {
-                const sourceHandleInfo = getHandleInfoById(sourceHandle, nodes);
-                const targetHandleInfo = getHandleInfoById(targetHandle, nodes);
-
-                if (!sourceHandleInfo || !targetHandleInfo) {
-                    return null;
-                }
-
-                const sourceRoutingHandle: HandleInfo = {
-                    id: sourceHandleInfo.id,
-                    nodeId: sourceHandleInfo.nodeId,
-                    position: sourceHandleInfo.coordinates,
-                    side: sourceHandleInfo.side,
-                    type: "source",
-                };
-
-                const targetRoutingHandle: HandleInfo = {
-                    id: targetHandleInfo.id,
-                    nodeId: targetHandleInfo.nodeId,
-                    position: targetHandleInfo.coordinates,
-                    side: targetHandleInfo.side,
-                    type: "target",
-                };
-
-                const dx = Math.abs(
-                    targetRoutingHandle.position.x -
-                        sourceRoutingHandle.position.x
-                );
-                const dy = Math.abs(
-                    targetRoutingHandle.position.y -
-                        sourceRoutingHandle.position.y
-                );
+                const dx = Math.abs(targetX - sourceX);
+                const dy = Math.abs(targetY - sourceY);
                 let preferredRouting: "horizontal-first" | "vertical-first";
                 if (dx > dy) {
                     preferredRouting = "horizontal-first";
                 } else if (dy > dx) {
                     preferredRouting = "vertical-first";
                 } else {
-                    const sourceIsHorizontal =
-                        sourceRoutingHandle.side === "left" ||
-                        sourceRoutingHandle.side === "right";
-                    const targetIsHorizontal =
-                        targetRoutingHandle.side === "left" ||
-                        targetRoutingHandle.side === "right";
-                    preferredRouting =
-                        sourceIsHorizontal && targetIsHorizontal
-                            ? "horizontal-first"
-                            : !sourceIsHorizontal && !targetIsHorizontal
-                            ? "vertical-first"
-                            : "horizontal-first";
+                    preferredRouting = "horizontal-first";
                 }
 
                 const orthogonalPath =
-                    orthogonalRoutingEngine.calculateOrthogonalPath(
-                        sourceRoutingHandle,
-                        targetRoutingHandle,
+                    orthogonalRoutingEngine.calculateOrthogonalPathFromEdgeCoordinates(
+                        sourceX,
+                        sourceY,
+                        targetX,
+                        targetY,
+                        sourcePosition,
+                        targetPosition,
                         { preferredRouting }
                     );
 
@@ -469,16 +433,12 @@ export const BaseEdgeComponent = memo(
 
                 const svgPath = pathSegments.join(" ");
 
-                const metrics = orthogonalRoutingEngine.calculateRoutingMetrics(
-                    orthogonalPath,
-                    sourceRoutingHandle,
-                    targetRoutingHandle
-                );
-                routingFeedbackSystem.logRoutingMetrics(metrics);
                 console.info("[EdgeRender] Routing selection", {
                     preferredRouting,
                     selectedRouting: orthogonalPath.routingType,
                     pathLength: orthogonalPath.totalLength,
+                    sourceCoords: { x: sourceX, y: sourceY },
+                    targetCoords: { x: targetX, y: targetY },
                 });
 
                 return {
@@ -486,18 +446,21 @@ export const BaseEdgeComponent = memo(
                     controlPoints: componentControlPoints,
                 };
             } catch (error) {
+                console.error(
+                    "[EdgeRender] Error calculating orthogonal path:",
+                    error
+                );
                 return null;
             }
         }, [
             effectiveRoutingType,
-            sourceHandle,
-            targetHandle,
-            id,
-            nodes,
+            useOrthogonalRouting,
             sourceX,
             sourceY,
             targetX,
             targetY,
+            sourcePosition,
+            targetPosition,
         ]);
 
         let edgePath: string = "";
