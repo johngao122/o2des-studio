@@ -14,6 +14,7 @@ import {
 import { nanoid } from "nanoid";
 import { AutosaveService } from "../services/AutosaveService";
 import { checkAllEdgeControlPointCollisions } from "../lib/utils/collision";
+import { isDependencyConnection } from "../lib/utils/edgeUtils";
 import {
     DagreLayoutService,
     DagreLayoutConfig,
@@ -463,9 +464,17 @@ export class CommandController {
                 useOrthogonalRouting: true,
             };
         } else if (edgeType === "rcq") {
+            const isDependent = isDependencyConnection(
+                sourceNode,
+                targetNode,
+                connection.sourceHandle,
+                connection.targetHandle
+            );
+
             defaultData = {
                 edgeType: "straight",
                 useOrthogonalRouting: true,
+                ...(isDependent && { isDependency: true }),
             };
         }
 
