@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { ValidationError } from "@/types/validation";
+import type { JSX } from "react";
 
 type TooltipWrapperElement = "div" | "span" | "g";
 
@@ -26,15 +27,13 @@ export const ErrorTooltip: React.FC<ErrorTooltipProps> = ({
     const [isVisible, setIsVisible] = useState(false);
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const elementRef = useRef<HTMLElement | SVGElement | null>(null);
+    const elementRef = useRef<any>(null);
 
-    // Don't show tooltip if no errors or show is false
     const shouldShowTooltip = show && errors.length > 0;
 
     const handleMouseEnter = (event: React.MouseEvent) => {
         if (!shouldShowTooltip) return;
 
-        // Clear any existing timeout
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);
         }
@@ -50,13 +49,11 @@ export const ErrorTooltip: React.FC<ErrorTooltipProps> = ({
     const handleMouseLeave = () => {
         if (!shouldShowTooltip) return;
 
-        // Add delay before hiding tooltip
         hoverTimeoutRef.current = setTimeout(() => {
             setIsVisible(false);
         }, 200);
     };
 
-    // Cleanup timeout on unmount
     useEffect(() => {
         return () => {
             if (hoverTimeoutRef.current) {
@@ -93,24 +90,28 @@ export const ErrorTooltip: React.FC<ErrorTooltipProps> = ({
         </div>
     );
 
-    const Wrapper = wrapperElement as keyof JSX.IntrinsicElements;
-    const setElementRef = useCallback(
-        (node: HTMLElement | SVGElement | null) => {
-            elementRef.current = node;
-        },
-        []
-    );
+    const renderWrapper = () => {
+        const wrapperProps = {
+            ref: elementRef,
+            className,
+            onMouseEnter: handleMouseEnter,
+            onMouseLeave: handleMouseLeave,
+            children,
+        };
+
+        switch (wrapperElement) {
+            case "span":
+                return React.createElement("span", wrapperProps);
+            case "g":
+                return React.createElement("g", wrapperProps);
+            default:
+                return React.createElement("div", wrapperProps);
+        }
+    };
 
     return (
         <>
-            <Wrapper
-                ref={setElementRef}
-                className={className}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-            >
-                {children}
-            </Wrapper>
+            {renderWrapper()}
 
             {/* Portal the tooltip to body to avoid transform clipping */}
             {shouldShowTooltip &&
