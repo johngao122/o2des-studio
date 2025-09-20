@@ -24,6 +24,7 @@ import {
     getVariantTypographyConfig,
 } from "@/lib/utils/typography";
 import { ResponsiveText } from "@/components/ui/ResponsiveText";
+import { ErrorTooltip } from "@/components/ui/ErrorTooltip";
 
 const commandController = CommandController.getInstance();
 
@@ -80,6 +81,11 @@ const EventNode = memo(
 
         const nodeName = storeNode?.name || "Event Node";
         const storeData = storeNode?.data || {};
+
+        // Get validation errors for this node
+        const validationErrors = useStore((state) =>
+            state.getValidationErrors(id)
+        );
         const rawDimensions = {
             width: storeData?.width || 120,
             height: storeData?.height || 50,
@@ -421,10 +427,15 @@ const EventNode = memo(
 
         const ellipseHandles = getEllipseHandlePositions(nodeWidth, nodeHeight);
 
+        const hasErrors = validationErrors.length > 0;
+
         return (
-            <div
-                ref={nodeRef}
-                className={`relative ${selected ? "shadow-lg" : ""}`}
+            <ErrorTooltip errors={validationErrors}>
+                <div
+                    ref={nodeRef}
+                    className={`relative ${selected ? "shadow-lg" : ""} ${
+                        hasErrors ? "shadow-red-200" : ""
+                    }`}
                 style={{
                     width: `${nodeWidth + 2}px`,
                     height: `${nodeHeight + 2}px`,
@@ -449,9 +460,17 @@ const EventNode = memo(
                         rx={(nodeWidth - 2) / 2}
                         ry={(nodeHeight - 2) / 2}
                         fill="white"
-                        stroke={selected ? "#3b82f6" : "currentColor"}
-                        strokeWidth={2}
-                        className="dark:fill-zinc-800"
+                        stroke={
+                            hasErrors
+                                ? "#ef4444"
+                                : selected
+                                ? "#3b82f6"
+                                : "currentColor"
+                        }
+                        strokeWidth={hasErrors ? 3 : 2}
+                        className={`dark:fill-zinc-800 ${
+                            hasErrors ? "drop-shadow-sm" : ""
+                        }`}
                     />
                 </svg>
 
@@ -686,6 +705,7 @@ const EventNode = memo(
                     </>
                 )}
             </div>
+            </ErrorTooltip>
         );
     },
     (prev, next) => {

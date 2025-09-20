@@ -608,6 +608,13 @@ const RCQEdge = memo(
             }
         }, [isConditionDragging, handleConditionDrag, handleConditionDragEnd]);
 
+        // Ensure we always have a visible stroke and strokeWidth
+        const edgeStyle = {
+            stroke: "#3b82f6", // Default blue color for RCQ edges
+            strokeWidth: 2,     // Default width
+            ...style,           // Override with provided style
+        };
+
         return (
             <BaseEdgeComponent
                 id={id}
@@ -617,7 +624,7 @@ const RCQEdge = memo(
                 targetY={targetY}
                 sourcePosition={sourcePosition}
                 targetPosition={targetPosition}
-                style={style}
+                style={edgeStyle}
                 data={data}
                 markerEnd={markerEnd}
                 selected={selected}

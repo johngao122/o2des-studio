@@ -1342,63 +1342,36 @@ export const BaseEdgeComponent = memo(
                     const segmentArrayIndex = currentSegments.findIndex(
                         (s) => s.id === isSegmentDragging
                     );
-                    const isFirstSegment = segmentArrayIndex === 0;
-                    const isLastSegment =
-                        segmentArrayIndex === currentSegments.length - 1;
 
-                    const isConnectedToSource =
-                        Math.abs(segment.start.x - sourceX) < 1 &&
-                        Math.abs(segment.start.y - sourceY) < 1;
-                    const isConnectedToTarget =
-                        Math.abs(segment.end.x - targetX) < 1 &&
-                        Math.abs(segment.end.y - targetY) < 1;
-                    const isActuallyTerminal =
-                        isConnectedToSource || isConnectedToTarget;
+                    const analysisControlPoints =
+                        pathCalculator.extractControlPointsFromSegments(
+                            currentSegments
+                        );
+                    const waypointResult =
+                        orthogonalWaypointManager.insertPreservationWaypoints(
+                            segmentArrayIndex,
+                            updatedDragState.constrainedPosition,
+                            analysisControlPoints,
+                            { x: sourceX, y: sourceY },
+                            { x: targetX, y: targetY },
+                            true
+                        );
 
-                    if (
-                        (isFirstSegment || isLastSegment) &&
-                        isActuallyTerminal
-                    ) {
-                        const analysisControlPoints =
-                            pathCalculator.extractControlPointsFromSegments(
-                                currentSegments
-                            );
-                        const waypointResult =
-                            orthogonalWaypointManager.insertPreservationWaypoints(
-                                segmentArrayIndex,
-                                updatedDragState.constrainedPosition,
-                                analysisControlPoints,
+                    if (waypointResult.requiresInsertion) {
+                        const enforcedPoints =
+                            orthogonalConstraintEngine.enforceOrthogonalConstraints(
+                                waypointResult.newControlPoints,
                                 { x: sourceX, y: sourceY },
-                                { x: targetX, y: targetY },
-                                true
+                                { x: targetX, y: targetY }
                             );
-
-                        if (waypointResult.requiresInsertion) {
-                            const enforcedPoints =
-                                orthogonalConstraintEngine.enforceOrthogonalConstraints(
-                                    waypointResult.newControlPoints,
-                                    { x: sourceX, y: sourceY },
-                                    { x: targetX, y: targetY }
-                                );
-                            const pathResult = pathCalculator.calculatePath(
-                                { x: sourceX, y: sourceY },
-                                { x: targetX, y: targetY },
-                                enforcedPoints,
-                                { edgeType, cornerRadius: 8 }
-                            );
-                            setTempSegmentPath(pathResult.svgPath);
-                            setTempSegments(pathResult.segments);
-                        } else {
-                            const pathResult =
-                                pathCalculator.updatePathAfterSegmentDrag(
-                                    currentSegments,
-                                    isSegmentDragging,
-                                    updatedDragState.constrainedPosition,
-                                    { edgeType, cornerRadius: 8 }
-                                );
-                            setTempSegments(pathResult.segments);
-                            setTempSegmentPath(pathResult.svgPath);
-                        }
+                        const pathResult = pathCalculator.calculatePath(
+                            { x: sourceX, y: sourceY },
+                            { x: targetX, y: targetY },
+                            enforcedPoints,
+                            { edgeType, cornerRadius: 8 }
+                        );
+                        setTempSegmentPath(pathResult.svgPath);
+                        setTempSegments(pathResult.segments);
                     } else {
                         const pathResult =
                             pathCalculator.updatePathAfterSegmentDrag(
@@ -1427,14 +1400,8 @@ export const BaseEdgeComponent = memo(
         const handleSegmentDragEnd = useCallback(() => {
             if (!isSegmentDragging || !segmentDragState) return;
 
-            const segment = currentSegments.find(
-                (s) => s.id === isSegmentDragging
-            );
-            if (!segment) return;
-
             const sourcePoint = { x: sourceX, y: sourceY };
             const targetPoint = { x: targetX, y: targetY };
-
             let analysisControlPoints: { x: number; y: number }[] =
                 currentControlPoints || [];
             if (tempSegments && tempSegments.length > 0) {
@@ -1449,32 +1416,94 @@ export const BaseEdgeComponent = memo(
                     );
             }
 
-            const segmentArrayIndex = currentSegments.findIndex(
+            const baseSegments =
+                tempSegments && tempSegments.length > 0
+                    ? tempSegments
+                    : currentSegments;
+
+            const fallbackIndex = currentSegments.findIndex(
                 (s) => s.id === isSegmentDragging
             );
-            const maxIndex = Math.max(0, analysisControlPoints.length);
-            const clampedIndex = Math.min(
-                Math.max(0, segmentArrayIndex),
-                maxIndex
+
+            const preferredDirection =
+                fallbackIndex >= 0
+                    ? currentSegments[fallbackIndex]?.direction
+                    : undefined;
+
+            const determineClosestSegmentIndex = (): number => {
+                if (!segmentDragState || baseSegments.length === 0) {
+                    return -1;
+                }
+
+                let bestIndex = -1;
+                let bestDistance = Number.POSITIVE_INFINITY;
+
+                baseSegments.forEach((seg, idx) => {
+                    if (
+                        preferredDirection &&
+                        seg.direction !== preferredDirection
+                    ) {
+                        return;
+                    }
+
+                    const dx =
+                        seg.midpoint.x - segmentDragState.constrainedPosition.x;
+                    const dy =
+                        seg.midpoint.y - segmentDragState.constrainedPosition.y;
+                    const distance = dx * dx + dy * dy;
+
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        bestIndex = idx;
+                    }
+                });
+
+                return bestIndex;
+            };
+
+            const closestIndex = determineClosestSegmentIndex();
+            const segmentsLength = baseSegments.length;
+            if (segmentsLength === 0) {
+                segmentDragHandler.endSegmentDrag();
+                setIsSegmentDragging(null);
+                setSegmentDragState(null);
+                setTempSegmentPath(null);
+                setTempSegments(null);
+                document.body.style.cursor = "";
+                return;
+            }
+
+            let effectiveIndex =
+                closestIndex >= 0 ? closestIndex : fallbackIndex;
+            if (effectiveIndex < 0) {
+                effectiveIndex = 0;
+            }
+            effectiveIndex = Math.min(
+                Math.max(0, effectiveIndex),
+                segmentsLength - 1
             );
 
-            const isFirstSegment = segmentArrayIndex === 0;
-            const isLastSegment =
-                segmentArrayIndex === currentSegments.length - 1;
+            const maxIndex = Math.max(0, analysisControlPoints.length);
+            const clampedIndex = Math.min(effectiveIndex, maxIndex);
+
+            const activeSegment = baseSegments[effectiveIndex];
+
+            const isFirstSegment = effectiveIndex === 0;
+            const isLastSegment = effectiveIndex === segmentsLength - 1;
 
             const isConnectedToSource =
-                Math.abs(segment.start.x - sourceX) < 1 &&
-                Math.abs(segment.start.y - sourceY) < 1;
+                Math.abs(activeSegment.start.x - sourceX) < 1 &&
+                Math.abs(activeSegment.start.y - sourceY) < 1;
             const isConnectedToTarget =
-                Math.abs(segment.end.x - targetX) < 1 &&
-                Math.abs(segment.end.y - targetY) < 1;
+                Math.abs(activeSegment.end.x - targetX) < 1 &&
+                Math.abs(activeSegment.end.y - targetY) < 1;
             const isActuallyTerminal =
                 isConnectedToSource || isConnectedToTarget;
 
             if ((isFirstSegment || isLastSegment) && isActuallyTerminal) {
                 const waypointResult =
                     orthogonalWaypointManager.insertPreservationWaypoints(
-                        clampedIndex,
+                        effectiveIndex,
                         segmentDragState.constrainedPosition,
                         analysisControlPoints,
                         sourcePoint,
@@ -1510,7 +1539,7 @@ export const BaseEdgeComponent = memo(
 
             const controlPointsForUpdate = analysisControlPoints;
             const segmentForUpdate = {
-                ...segment,
+                ...activeSegment,
                 id: `segment-${clampedIndex}`,
             } as EdgeSegment;
             let updatedControlPoints =

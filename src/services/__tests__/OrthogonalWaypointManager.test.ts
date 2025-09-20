@@ -86,6 +86,83 @@ describe('OrthogonalWaypointManager', () => {
             expect(result.insertedWaypoints).toHaveLength(0);
             expect(result.newControlPoints).toEqual(controlPoints);
         });
+
+        it('should maintain orthogonal preview when terminal vertical segment moves horizontally', () => {
+            const customSource: Point = { x: 0, y: 0 };
+            const customTarget: Point = { x: 200, y: 0 };
+            const controlPoints: Point[] = [
+                { x: 0, y: 100 },
+                { x: 200, y: 100 }
+            ];
+            const newMidpoint = { x: 150, y: 50 }; // Drag terminal vertical segment left
+
+            const result: WaypointInsertionResult = waypointManager.insertPreservationWaypoints(
+                2, // Terminal segment connected to target
+                newMidpoint,
+                controlPoints,
+                customSource,
+                customTarget
+            );
+
+            expect(result.requiresInsertion).toBe(true);
+            expect(result.newControlPoints).toEqual([
+                { x: 0, y: 100 },
+                { x: 150, y: 100 },
+                { x: 150, y: 0 }
+            ]);
+
+            // Ensure the generated segments remain orthogonal
+            const consecutiveSegmentsAreOrthogonal = (points: Point[]): boolean => {
+                for (let i = 0; i < points.length - 1; i++) {
+                    const start = points[i];
+                    const end = points[i + 1];
+                    const isHorizontal = Math.abs(start.y - end.y) < 0.0001;
+                    const isVertical = Math.abs(start.x - end.x) < 0.0001;
+                    if (!isHorizontal && !isVertical) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            expect(
+                consecutiveSegmentsAreOrthogonal([
+                    customSource,
+                    ...result.newControlPoints,
+                    customTarget
+                ])
+            ).toBe(true);
+        });
+
+        it('should continue to require bridge insertion as terminal segment moves further away', () => {
+            const customSource: Point = { x: 0, y: 0 };
+            const customTarget: Point = { x: 200, y: 0 };
+            const controlPoints: Point[] = [
+                { x: 0, y: 100 },
+                { x: 200, y: 100 }
+            ];
+
+            const leftMidpoints = [100, 50, 0, -50, -100, -150, -200].map((x) => ({
+                x,
+                y: 50,
+            }));
+
+            for (const midpoint of leftMidpoints) {
+                const result = waypointManager.insertPreservationWaypoints(
+                    2,
+                    midpoint,
+                    controlPoints,
+                    customSource,
+                    customTarget,
+                    true
+                );
+
+                expect(result.requiresInsertion).toBe(true);
+                expect(result.newControlPoints.length).toBe(3);
+                const lastPoint = result.newControlPoints[2];
+                expect(lastPoint.y).toBe(0);
+            }
+        });
     });
 
     describe('simplifyWaypoints', () => {

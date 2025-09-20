@@ -1,6 +1,13 @@
 "use client";
 
-import React, { memo, useState, useCallback, useRef, useEffect } from "react";
+import React, {
+    memo,
+    useState,
+    useCallback,
+    useRef,
+    useEffect,
+    useMemo,
+} from "react";
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
 import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
@@ -16,6 +23,8 @@ import {
     calculateEdgePositions,
     getPointAndAngleOnPath,
 } from "@/lib/utils/math";
+import { ErrorTooltip } from "@/components/ui/ErrorTooltip";
+import { useStore } from "@/store";
 
 const commandController = CommandController.getInstance();
 
@@ -51,6 +60,11 @@ const InitializationEdge = memo(
         selected,
         onClick,
     }: ExtendedEdgeProps) => {
+        // Get validation errors for this edge
+        const validationErrors = useStore((state) =>
+            state.getValidationErrors(id)
+        );
+
         const [isDelayDragging, setIsDelayDragging] = useState(false);
         const [tempDelayPosition, setTempDelayPosition] = useState<{
             x: number;
@@ -351,21 +365,57 @@ const InitializationEdge = memo(
             }
         }, [isDelayDragging, handleDelayDrag, handleDelayDragEnd]);
 
+        const hasErrors = validationErrors.length > 0;
+
+        const edgeStyle = useMemo(() => {
+            const mergedStyle = { ...style };
+
+            if (hasErrors) {
+                const width = mergedStyle.strokeWidth;
+                const numericWidth =
+                    typeof width === "number"
+                        ? Math.max(width, 3)
+                        : width ?? 3;
+
+                return {
+                    ...mergedStyle,
+                    stroke: "#ef4444",
+                    strokeWidth: numericWidth,
+                };
+            }
+
+            if (selected) {
+                const { stroke: _stroke, strokeWidth: _strokeWidth, ...rest } =
+                    mergedStyle;
+                return rest;
+            }
+
+            return {
+                stroke: mergedStyle.stroke ?? "#6b7280",
+                strokeWidth: mergedStyle.strokeWidth ?? 2,
+                ...mergedStyle,
+            };
+        }, [style, hasErrors, selected]);
+
         return (
-            <BaseEdgeComponent
-                id={id}
-                sourceX={sourceX}
-                sourceY={sourceY}
-                targetX={targetX}
-                targetY={targetY}
-                sourcePosition={sourcePosition}
-                targetPosition={targetPosition}
-                style={style}
-                data={data}
-                markerEnd={markerEnd}
-                selected={selected}
-                onClick={onClick}
+            <ErrorTooltip
+                errors={validationErrors}
+                wrapperElement="g"
             >
+                <BaseEdgeComponent
+                    id={id}
+                    sourceX={sourceX}
+                    sourceY={sourceY}
+                    targetX={targetX}
+                    targetY={targetY}
+                    sourcePosition={sourcePosition}
+                    targetPosition={targetPosition}
+                    style={edgeStyle}
+                    data={data}
+                    markerEnd={markerEnd}
+                    selected={selected}
+                    onClick={onClick}
+                >
                 {({
                     edgePath,
                     isSimpleMode,
@@ -570,6 +620,7 @@ const InitializationEdge = memo(
                     );
                 }}
             </BaseEdgeComponent>
+            </ErrorTooltip>
         );
     }
 ) as InitializationEdgeComponent;

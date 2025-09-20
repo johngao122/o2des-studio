@@ -24,6 +24,7 @@ import {
     getVariantTypographyConfig,
 } from "@/lib/utils/typography";
 import { ResponsiveText } from "@/components/ui/ResponsiveText";
+import { ErrorTooltip } from "@/components/ui/ErrorTooltip";
 
 const commandController = CommandController.getInstance();
 
@@ -127,6 +128,11 @@ const InitializationNode = memo(
             state.nodes.find((n: BaseNode) => n.id === id)
         );
         const storeData = (storeNode?.data || {}) as InitializationNodeData;
+
+        // Get validation errors for this node
+        const validationErrors = useStore((state) =>
+            state.getValidationErrors(id)
+        );
 
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState("");
@@ -418,14 +424,21 @@ const InitializationNode = memo(
 
         const nodeName = storeNode?.name || id;
 
+        const hasErrors = validationErrors.length > 0;
+
         return (
-            <div
-                ref={nodeRef}
-                className={`relative border-2 ${
-                    selected
-                        ? "border-blue-500"
-                        : "border-black dark:border-white"
-                } bg-white dark:bg-zinc-800 ${selected ? "shadow-lg" : ""}`}
+            <ErrorTooltip errors={validationErrors}>
+                <div
+                    ref={nodeRef}
+                    className={`relative border-2 ${
+                        hasErrors
+                            ? "border-red-500 ring-2 ring-red-300 ring-opacity-50"
+                            : selected
+                            ? "border-blue-500"
+                            : "border-black dark:border-white"
+                    } bg-white dark:bg-zinc-800 ${selected ? "shadow-lg" : ""} ${
+                        hasErrors ? "shadow-red-200" : ""
+                    }`}
                 style={{
                     width: nodeWidth,
                     height: nodeHeight,
@@ -646,6 +659,7 @@ const InitializationNode = memo(
                     </>
                 )}
             </div>
+            </ErrorTooltip>
         );
     },
     (prev, next) => {

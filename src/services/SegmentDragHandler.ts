@@ -119,6 +119,15 @@ export class SegmentDragHandler {
 
         if (!isConnected) return false;
 
+        const haveConsistentDirection = this.haveSameDirectionalSign(
+            segment1,
+            segment2
+        );
+
+        if (!haveConsistentDirection) {
+            return false;
+        }
+
         if (segment1.direction === "horizontal") {
             return Math.abs(segment1.start.y - segment2.end.y) <= tolerance;
         }
@@ -128,6 +137,41 @@ export class SegmentDragHandler {
         }
 
         return false;
+    }
+
+    private haveSameDirectionalSign(
+        segment1: EdgeSegment,
+        segment2: EdgeSegment
+    ): boolean {
+        if (segment1.direction === "horizontal") {
+            const delta1 = segment1.end.x - segment1.start.x;
+            const delta2 = segment2.end.x - segment2.start.x;
+
+            const sign1 = Math.sign(delta1);
+            const sign2 = Math.sign(delta2);
+
+            if (sign1 === 0 || sign2 === 0) {
+                return true;
+            }
+
+            return sign1 === sign2;
+        }
+
+        if (segment1.direction === "vertical") {
+            const delta1 = segment1.end.y - segment1.start.y;
+            const delta2 = segment2.end.y - segment2.start.y;
+
+            const sign1 = Math.sign(delta1);
+            const sign2 = Math.sign(delta2);
+
+            if (sign1 === 0 || sign2 === 0) {
+                return true;
+            }
+
+            return sign1 === sign2;
+        }
+
+        return true;
     }
 
     /**

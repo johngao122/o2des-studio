@@ -4,6 +4,7 @@ import {
     calculateDynamicOffset,
     arePointsCollinear,
 } from "./math";
+import { ORTHOGONAL_ALIGNMENT_TOLERANCE } from "../routing/constants";
 
 /**
  * Calculate default control points for a multi-segment edge path
@@ -46,6 +47,8 @@ export function simplifyControlPoints(
 ): { x: number; y: number }[] {
     if (controlPoints.length === 0) return controlPoints;
 
+    const alignmentTolerance = ORTHOGONAL_ALIGNMENT_TOLERANCE;
+
     // Consider the full path including endpoints so we can prune
     // the first/last control points if they are redundant with
     // the source/target (previous implementation always preserved them).
@@ -62,7 +65,14 @@ export function simplifyControlPoints(
         const currentPoint = allPoints[i];
         const nextPoint = allPoints[i + 1];
 
-        if (!arePointsCollinear(prevPoint, currentPoint, nextPoint, 1)) {
+        if (
+            !arePointsCollinear(
+                prevPoint,
+                currentPoint,
+                nextPoint,
+                alignmentTolerance
+            )
+        ) {
             cleaned.push(currentPoint);
             continue;
         }
@@ -78,7 +88,7 @@ export function simplifyControlPoints(
             Math.pow(currentPoint.x - midpoint.x, 2) +
                 Math.pow(currentPoint.y - midpoint.y, 2)
         );
-        if (distanceFromMidpoint > 10) {
+        if (distanceFromMidpoint > alignmentTolerance) {
             cleaned.push(currentPoint);
         }
     }
