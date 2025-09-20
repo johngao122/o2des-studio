@@ -166,9 +166,10 @@ const ActivityNode = memo(
 
         const storeData = storeNode?.data || {};
         const dimensions = {
-            width: storeData?.width || 240,
-            height: storeData?.height || 70,
+            width: storeData?.width || 120,
+            height: storeData?.height || 50,
         };
+        const textMaxWidth = Math.max(0, dimensions.width - 12);
 
         const paddingConfig = getNodeTypePaddingConfig("activity");
         const paddingStyles = getDynamicPaddingStyles(
@@ -271,7 +272,7 @@ const ActivityNode = memo(
             >
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={150}
+                    minWidth={90}
                     minHeight={50}
                     onResize={handleResize}
                 />
@@ -295,21 +296,22 @@ const ActivityNode = memo(
                         margin: 0,
                     }}
                 >
-                    <ResponsiveText
-                        nodeWidth={dimensions.width}
-                        nodeHeight={dimensions.height}
-                        maxWidth={dimensions.width * 0.85}
-                        fontWeight="medium"
-                        centerAlign
-                        className="dark:text-white text-black"
+                    <div
+                        className="dark:text-white text-black font-medium text-center"
                         style={{
-                            lineHeight: 0.9,
-                            padding: 0,
+                            fontSize: `${typography.fontSize}px`,
+                            lineHeight: `${typography.lineHeight}px`,
+                            letterSpacing: `${typography.letterSpacing}px`,
+                            maxWidth: `${textMaxWidth}px`,
+                            width: "100%",
+                            padding: "0 4px",
                             margin: 0,
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
                         }}
                     >
                         {nodeName}
-                    </ResponsiveText>
+                    </div>
                 </div>
 
                 {/* Duration */}
@@ -499,8 +501,8 @@ const ActivityNode = memo(
 ActivityNode.getDefaultData = (): ActivityNodeData => ({
     resources: [],
     duration: "op time",
-    width: 150,
-    height: 50,
+    width: 120,
+    height: 40,
 });
 
 ActivityNode.getGraphType = (): string => "rcq";
