@@ -368,29 +368,34 @@ const InitializationEdge = memo(
         const hasErrors = validationErrors.length > 0;
 
         const edgeStyle = useMemo(() => {
-            // Ensure we always have a visible stroke and strokeWidth
-            const baseStyle = {
-                stroke: "#6b7280", // Default gray color (matches EventGraphEdge)
-                strokeWidth: 2,
-                ...style,
-            };
+            const mergedStyle = { ...style };
 
-            if (!hasErrors) {
-                return baseStyle;
+            if (hasErrors) {
+                const width = mergedStyle.strokeWidth;
+                const numericWidth =
+                    typeof width === "number"
+                        ? Math.max(width, 3)
+                        : width ?? 3;
+
+                return {
+                    ...mergedStyle,
+                    stroke: "#ef4444",
+                    strokeWidth: numericWidth,
+                };
             }
 
-            const width = baseStyle.strokeWidth;
-            const numericWidth =
-                typeof width === "number"
-                    ? Math.max(width, 3)
-                    : width ?? 3;
+            if (selected) {
+                const { stroke: _stroke, strokeWidth: _strokeWidth, ...rest } =
+                    mergedStyle;
+                return rest;
+            }
 
             return {
-                ...baseStyle,
-                stroke: "#ef4444",
-                strokeWidth: numericWidth,
+                stroke: mergedStyle.stroke ?? "#6b7280",
+                strokeWidth: mergedStyle.strokeWidth ?? 2,
+                ...mergedStyle,
             };
-        }, [style, hasErrors]);
+        }, [style, hasErrors, selected]);
 
         return (
             <ErrorTooltip

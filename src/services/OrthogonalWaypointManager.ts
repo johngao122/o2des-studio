@@ -45,8 +45,8 @@ export class OrthogonalWaypointManager {
             Math.max(0, allPoints.length - 2)
         );
         const originalSegment = {
-            start: allPoints[safeIndex],
-            end: allPoints[safeIndex + 1],
+            start: { ...allPoints[safeIndex] },
+            end: { ...allPoints[safeIndex + 1] },
         };
 
         const newSegmentPosition = this.calculateNewSegmentPosition(
@@ -120,14 +120,41 @@ export class OrthogonalWaypointManager {
         const allPoints = [sourcePoint, ...controlPoints, targetPoint];
         const updatedPoints = [...allPoints];
         const insertedWaypoints: Point[] = [];
-        const modifiedSegments: string[] = [];
+        const affectedSegmentSet = new Set<string>();
+
+        const safeIndex = Math.min(
+            Math.max(0, segmentIndex),
+            Math.max(0, allPoints.length - 2)
+        );
+        const originalSegment = {
+            start: allPoints[safeIndex],
+            end: allPoints[safeIndex + 1],
+        };
+
+        const newSegmentPosition = this.calculateNewSegmentPosition(
+            originalSegment,
+            newMidpoint
+        );
+
+        if (safeIndex > 0) {
+            updatedPoints[safeIndex] = newSegmentPosition.start;
+            affectedSegmentSet.add(`segment-${safeIndex - 1}`);
+            affectedSegmentSet.add(`segment-${safeIndex}`);
+        }
+
+        if (safeIndex < allPoints.length - 2) {
+            updatedPoints[safeIndex + 1] = newSegmentPosition.end;
+            affectedSegmentSet.add(`segment-${safeIndex}`);
+            affectedSegmentSet.add(`segment-${safeIndex + 1}`);
+        }
 
         for (const handleType of connectionAnalysis.affectedHandles) {
             const insertionResult = this.insertBridgeWaypoints(
-                segmentIndex,
+                safeIndex,
                 newMidpoint,
                 updatedPoints,
-                handleType
+                handleType,
+                originalSegment
             );
 
             updatedPoints.splice(
@@ -136,13 +163,15 @@ export class OrthogonalWaypointManager {
                 ...insertionResult.updatedPoints
             );
             insertedWaypoints.push(...insertionResult.newWaypoints);
-            modifiedSegments.push(...insertionResult.affectedSegments);
+            insertionResult.affectedSegments.forEach((segmentId) =>
+                affectedSegmentSet.add(segmentId)
+            );
         }
 
         return {
             newControlPoints: updatedPoints.slice(1, -1),
             insertedWaypoints,
-            modifiedSegments,
+            modifiedSegments: Array.from(affectedSegmentSet),
             requiresInsertion: true,
         };
     }
@@ -348,7 +377,8 @@ export class OrthogonalWaypointManager {
         segmentIndex: number,
         newMidpoint: Point,
         allPoints: Point[],
-        handleType: "source" | "target"
+        handleType: "source" | "target",
+        originalSegment: { start: Point; end: Point }
     ): {
         updatedPoints: Point[];
         newWaypoints: Point[];
@@ -365,7 +395,7 @@ export class OrthogonalWaypointManager {
             const bridgeWaypoint = this.calculateOrthogonalBridgePoint(
                 sourcePoint,
                 newMidpoint,
-                originalSegmentEnd
+                originalSegment.end
             );
 
             newWaypoints.push(bridgeWaypoint);
@@ -376,12 +406,11 @@ export class OrthogonalWaypointManager {
             segmentIndex === allPoints.length - 2
         ) {
             const targetPoint = allPoints[allPoints.length - 1];
-            const originalSegmentStart = allPoints[allPoints.length - 2];
 
             const bridgeWaypoint = this.calculateOrthogonalBridgePoint(
-                originalSegmentStart,
+                targetPoint,
                 newMidpoint,
-                targetPoint
+                originalSegment.start
             );
 
             newWaypoints.push(bridgeWaypoint);
@@ -404,20 +433,22 @@ export class OrthogonalWaypointManager {
         segmentMidpoint: Point,
         originalEndPoint: Point
     ): Point {
-        const deltaX = Math.abs(segmentMidpoint.x - handlePoint.x);
-        const deltaY = Math.abs(segmentMidpoint.y - handlePoint.y);
+        const originalDeltaX = Math.abs(originalEndPoint.x - handlePoint.x);
+        const originalDeltaY = Math.abs(originalEndPoint.y - handlePoint.y);
 
-        if (deltaX > deltaY) {
+        if (originalDeltaY > originalDeltaX) {
+            // Original segment was vertical, so create a horizontal bridge first
             return {
                 x: segmentMidpoint.x,
                 y: handlePoint.y,
             };
-        } else {
-            return {
-                x: handlePoint.x,
-                y: segmentMidpoint.y,
-            };
         }
+
+        // Original segment was horizontal (or ambiguous), so create a vertical bridge first
+        return {
+            x: handlePoint.x,
+            y: segmentMidpoint.y,
+        };
     }
 
     private isRedundantWaypoint(

@@ -602,35 +602,38 @@ const EventGraphEdge = memo(
         const hasErrors = validationErrors.length > 0;
 
         const edgeStyle = useMemo(() => {
-            // Ensure we always have a visible stroke and strokeWidth
-            const baseStyle = {
-                stroke: "#6b7280", // Default gray color
-                strokeWidth: 2,     // Default width
-                ...style,           // Override with provided style
-            };
+            const mergedStyle = { ...style };
 
-            if (!hasErrors) {
-                return baseStyle;
+            if (hasErrors) {
+                const width = mergedStyle.strokeWidth;
+                const numericWidth =
+                    typeof width === "number" ? Math.max(width, 3) : width ?? 3;
+
+                return {
+                    ...mergedStyle,
+                    stroke: "#ef4444",
+                    strokeWidth: numericWidth,
+                };
             }
 
-            const width = baseStyle.strokeWidth;
-            const numericWidth =
-                typeof width === "number"
-                    ? Math.max(width, 3)
-                    : width ?? 3;
+            if (selected) {
+                const {
+                    stroke: _stroke,
+                    strokeWidth: _strokeWidth,
+                    ...rest
+                } = mergedStyle;
+                return rest;
+            }
 
             return {
-                ...baseStyle,
-                stroke: "#ef4444",
-                strokeWidth: numericWidth,
+                stroke: mergedStyle.stroke ?? "#6b7280",
+                strokeWidth: mergedStyle.strokeWidth ?? 2,
+                ...mergedStyle,
             };
-        }, [style, hasErrors]);
+        }, [style, hasErrors, selected]);
 
         return (
-            <ErrorTooltip
-                errors={validationErrors}
-                wrapperElement="g"
-            >
+            <ErrorTooltip errors={validationErrors} wrapperElement="g">
                 <BaseEdgeComponent
                     id={id}
                     sourceX={sourceX}
@@ -645,466 +648,488 @@ const EventGraphEdge = memo(
                     selected={selected}
                     onClick={onClick}
                 >
-                {({
-                    edgePath,
-                    labelX,
-                    labelY,
-                    isSimpleMode,
-                    centerX,
-                    centerY,
-                    currentControlPoints,
-                }: {
-                    edgePath: string;
-                    labelX: number;
-                    labelY: number;
-                    isSimpleMode: boolean;
-                    centerX: number;
-                    centerY: number;
-                    currentControlPoints: { x: number; y: number }[];
-                }) => {
-                    pathStringRef.current = edgePath;
-                    const {
-                        conditionPoint,
-                        delayPoint,
-                        paramPoint,
-                        conditionEdgePoint,
-                        delayEdgePoint,
-                        paramEdgePoint,
-                        conditionAngle,
-                        delayAngle,
-                        paramAngle,
-                    } = calculatePositions(
+                    {({
                         edgePath,
-                        currentControlPoints,
+                        labelX,
+                        labelY,
                         isSimpleMode,
                         centerX,
-                        centerY
-                    );
+                        centerY,
+                        currentControlPoints,
+                    }: {
+                        edgePath: string;
+                        labelX: number;
+                        labelY: number;
+                        isSimpleMode: boolean;
+                        centerX: number;
+                        centerY: number;
+                        currentControlPoints: { x: number; y: number }[];
+                    }) => {
+                        pathStringRef.current = edgePath;
+                        const {
+                            conditionPoint,
+                            delayPoint,
+                            paramPoint,
+                            conditionEdgePoint,
+                            delayEdgePoint,
+                            paramEdgePoint,
+                            conditionAngle,
+                            delayAngle,
+                            paramAngle,
+                        } = calculatePositions(
+                            edgePath,
+                            currentControlPoints,
+                            isSimpleMode,
+                            centerX,
+                            centerY
+                        );
 
-                    const liveCondition =
-                        isConditionDragging && tempConditionTRef.current != null
-                            ? getPointAndAngleOnPath(
-                                  edgePath,
-                                  tempConditionTRef.current,
-                                  sourceX,
-                                  sourceY,
-                                  targetX,
-                                  targetY
-                              )
-                            : {
-                                  x: conditionPoint.x,
-                                  y: conditionPoint.y,
-                                  angle: conditionAngle,
-                              };
-                    const liveDelay =
-                        isDelayDragging && tempDelayTRef.current != null
-                            ? getPointAndAngleOnPath(
-                                  edgePath,
-                                  tempDelayTRef.current,
-                                  sourceX,
-                                  sourceY,
-                                  targetX,
-                                  targetY
-                              )
-                            : {
-                                  x: delayPoint.x,
-                                  y: delayPoint.y,
-                                  angle: delayAngle,
-                              };
-                    const liveParam =
-                        isParamDragging && tempParamTRef.current != null
-                            ? getPointAndAngleOnPath(
-                                  edgePath,
-                                  tempParamTRef.current,
-                                  sourceX,
-                                  sourceY,
-                                  targetX,
-                                  targetY
-                              )
-                            : {
-                                  x: paramPoint.x,
-                                  y: paramPoint.y,
-                                  angle: paramAngle,
-                              };
+                        const liveCondition =
+                            isConditionDragging &&
+                            tempConditionTRef.current != null
+                                ? getPointAndAngleOnPath(
+                                      edgePath,
+                                      tempConditionTRef.current,
+                                      sourceX,
+                                      sourceY,
+                                      targetX,
+                                      targetY
+                                  )
+                                : {
+                                      x: conditionPoint.x,
+                                      y: conditionPoint.y,
+                                      angle: conditionAngle,
+                                  };
+                        const liveDelay =
+                            isDelayDragging && tempDelayTRef.current != null
+                                ? getPointAndAngleOnPath(
+                                      edgePath,
+                                      tempDelayTRef.current,
+                                      sourceX,
+                                      sourceY,
+                                      targetX,
+                                      targetY
+                                  )
+                                : {
+                                      x: delayPoint.x,
+                                      y: delayPoint.y,
+                                      angle: delayAngle,
+                                  };
+                        const liveParam =
+                            isParamDragging && tempParamTRef.current != null
+                                ? getPointAndAngleOnPath(
+                                      edgePath,
+                                      tempParamTRef.current,
+                                      sourceX,
+                                      sourceY,
+                                      targetX,
+                                      targetY
+                                  )
+                                : {
+                                      x: paramPoint.x,
+                                      y: paramPoint.y,
+                                      angle: paramAngle,
+                                  };
 
-                    anchorRef.current.condition = {
-                        x: liveCondition.x,
-                        y: liveCondition.y,
-                    };
-                    anchorRef.current.delay = {
-                        x: liveDelay.x,
-                        y: liveDelay.y,
-                    };
-                    anchorRef.current.parameter = {
-                        x: liveParam.x,
-                        y: liveParam.y,
-                    };
+                        anchorRef.current.condition = {
+                            x: liveCondition.x,
+                            y: liveCondition.y,
+                        };
+                        anchorRef.current.delay = {
+                            x: liveDelay.x,
+                            y: liveDelay.y,
+                        };
+                        anchorRef.current.parameter = {
+                            x: liveParam.x,
+                            y: liveParam.y,
+                        };
 
-                    const defaultConditionOffset = { x: 0, y: -40 };
-                    const defaultDelayOffset = { x: 0, y: -30 };
-                    const defaultParamOffset = { x: 0, y: -50 };
+                        const defaultConditionOffset = { x: 0, y: -40 };
+                        const defaultDelayOffset = { x: 0, y: -30 };
+                        const defaultParamOffset = { x: 0, y: -50 };
 
-                    const conditionLabelOffset =
-                        isConditionDragging && tempConditionPosition
-                            ? {
-                                  x: tempConditionPosition.x - liveCondition.x,
-                                  y: tempConditionPosition.y - liveCondition.y,
-                              }
-                            : data?.conditionLabelOffset ||
-                              defaultConditionOffset;
+                        const conditionLabelOffset =
+                            isConditionDragging && tempConditionPosition
+                                ? {
+                                      x:
+                                          tempConditionPosition.x -
+                                          liveCondition.x,
+                                      y:
+                                          tempConditionPosition.y -
+                                          liveCondition.y,
+                                  }
+                                : data?.conditionLabelOffset ||
+                                  defaultConditionOffset;
 
-                    const delayLabelOffset =
-                        isDelayDragging && tempDelayPosition
-                            ? {
-                                  x: tempDelayPosition.x - liveDelay.x,
-                                  y: tempDelayPosition.y - liveDelay.y,
-                              }
-                            : data?.delayLabelOffset || defaultDelayOffset;
+                        const delayLabelOffset =
+                            isDelayDragging && tempDelayPosition
+                                ? {
+                                      x: tempDelayPosition.x - liveDelay.x,
+                                      y: tempDelayPosition.y - liveDelay.y,
+                                  }
+                                : data?.delayLabelOffset || defaultDelayOffset;
 
-                    const paramLabelOffset =
-                        isParamDragging && tempParamPosition
-                            ? {
-                                  x: tempParamPosition.x - liveParam.x,
-                                  y: tempParamPosition.y - liveParam.y,
-                              }
-                            : data?.parameterLabelOffset || defaultParamOffset;
+                        const paramLabelOffset =
+                            isParamDragging && tempParamPosition
+                                ? {
+                                      x: tempParamPosition.x - liveParam.x,
+                                      y: tempParamPosition.y - liveParam.y,
+                                  }
+                                : data?.parameterLabelOffset ||
+                                  defaultParamOffset;
 
-                    const conditionLabelX =
-                        liveCondition.x + conditionLabelOffset.x;
-                    const conditionLabelY =
-                        liveCondition.y + conditionLabelOffset.y;
-                    const delayLabelX = liveDelay.x + delayLabelOffset.x;
-                    const delayLabelY = liveDelay.y + delayLabelOffset.y;
-                    const paramLabelX = liveParam.x + paramLabelOffset.x;
-                    const paramLabelY = liveParam.y + paramLabelOffset.y;
+                        const conditionLabelX =
+                            liveCondition.x + conditionLabelOffset.x;
+                        const conditionLabelY =
+                            liveCondition.y + conditionLabelOffset.y;
+                        const delayLabelX = liveDelay.x + delayLabelOffset.x;
+                        const delayLabelY = liveDelay.y + delayLabelOffset.y;
+                        const paramLabelX = liveParam.x + paramLabelOffset.x;
+                        const paramLabelY = liveParam.y + paramLabelOffset.y;
 
-                    const allX = [];
-                    const allY = [];
+                        const allX = [];
+                        const allY = [];
 
-                    if (hasCondition) {
-                        allX.push(liveCondition.x, conditionLabelX);
-                        allY.push(liveCondition.y, conditionLabelY);
-                    }
-                    if (hasDelay) {
-                        allX.push(liveDelay.x, delayLabelX);
-                        allY.push(liveDelay.y, delayLabelY);
-                    }
-                    if (hasParameter) {
-                        allX.push(liveParam.x, paramLabelX);
-                        allY.push(liveParam.y, paramLabelY);
-                    }
+                        if (hasCondition) {
+                            allX.push(liveCondition.x, conditionLabelX);
+                            allY.push(liveCondition.y, conditionLabelY);
+                        }
+                        if (hasDelay) {
+                            allX.push(liveDelay.x, delayLabelX);
+                            allY.push(liveDelay.y, delayLabelY);
+                        }
+                        if (hasParameter) {
+                            allX.push(liveParam.x, paramLabelX);
+                            allY.push(liveParam.y, paramLabelY);
+                        }
 
-                    if (allX.length === 0) {
-                        allX.push(sourceX, targetX);
-                        allY.push(sourceY, targetY);
-                    }
+                        if (allX.length === 0) {
+                            allX.push(sourceX, targetX);
+                            allY.push(sourceY, targetY);
+                        }
 
-                    const minX = Math.min(...allX) - 50;
-                    const maxX = Math.max(...allX) + 50;
-                    const minY = Math.min(...allY) - 50;
-                    const maxY = Math.max(...allY) + 50;
+                        const minX = Math.min(...allX) - 50;
+                        const maxX = Math.max(...allX) + 50;
+                        const minY = Math.min(...allY) - 50;
+                        const maxY = Math.max(...allY) + 50;
 
-                    const svgWidth = maxX - minX;
-                    const svgHeight = maxY - minY;
+                        const svgWidth = maxX - minX;
+                        const svgHeight = maxY - minY;
 
-                    return (
-                        <EdgeLabelRenderer>
-                            <svg
-                                style={{
-                                    position: "absolute",
-                                    left: minX,
-                                    top: minY,
-                                    pointerEvents: "none",
-                                    zIndex: 5,
-                                }}
-                                width={svgWidth}
-                                height={svgHeight}
-                                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                            >
-                                {hasCondition && (
-                                    <g>
-                                        <path
-                                            d="M -8 0 Q -4 -6 0 0 Q 4 6 8 0"
-                                            stroke={
-                                                selected ? "#3b82f6" : "#6b7280"
-                                            }
-                                            strokeWidth="2"
-                                            fill="none"
-                                            transform={`translate(${
-                                                liveCondition.x - minX
-                                            }, ${
-                                                liveCondition.y - minY
-                                            }) rotate(${liveCondition.angle})`}
-                                        />
+                        return (
+                            <EdgeLabelRenderer>
+                                <svg
+                                    style={{
+                                        position: "absolute",
+                                        left: minX,
+                                        top: minY,
+                                        pointerEvents: "none",
+                                        zIndex: 5,
+                                    }}
+                                    width={svgWidth}
+                                    height={svgHeight}
+                                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                                >
+                                    {hasCondition && (
+                                        <g>
+                                            <path
+                                                d="M -8 0 Q -4 -6 0 0 Q 4 6 8 0"
+                                                stroke={
+                                                    selected
+                                                        ? "#3b82f6"
+                                                        : "#6b7280"
+                                                }
+                                                strokeWidth="2"
+                                                fill="none"
+                                                transform={`translate(${
+                                                    liveCondition.x - minX
+                                                }, ${
+                                                    liveCondition.y - minY
+                                                }) rotate(${
+                                                    liveCondition.angle
+                                                })`}
+                                            />
+                                            <line
+                                                x1={liveCondition.x - minX}
+                                                y1={liveCondition.y - minY}
+                                                x2={conditionLabelX - minX}
+                                                y2={conditionLabelY - minY}
+                                                stroke={
+                                                    selected
+                                                        ? "#3b82f6"
+                                                        : "#6b7280"
+                                                }
+                                                strokeWidth="1"
+                                                strokeDasharray="3,3"
+                                                opacity={0.7}
+                                            />
+                                        </g>
+                                    )}
+
+                                    {hasDelay && (
+                                        <g>
+                                            <g
+                                                transform={`translate(${
+                                                    liveDelay.x - minX
+                                                }, ${
+                                                    liveDelay.y - minY
+                                                }) rotate(${liveDelay.angle})`}
+                                            >
+                                                <line
+                                                    x1={-8}
+                                                    y1={-2}
+                                                    x2={8}
+                                                    y2={-2}
+                                                    stroke={
+                                                        selected
+                                                            ? "#f59e0b"
+                                                            : "#6b7280"
+                                                    }
+                                                    strokeWidth="2"
+                                                />
+                                                <line
+                                                    x1={-8}
+                                                    y1={2}
+                                                    x2={8}
+                                                    y2={2}
+                                                    stroke={
+                                                        selected
+                                                            ? "#f59e0b"
+                                                            : "#6b7280"
+                                                    }
+                                                    strokeWidth="2"
+                                                />
+                                            </g>
+                                            <line
+                                                x1={liveDelay.x - minX}
+                                                y1={liveDelay.y - minY}
+                                                x2={delayLabelX - minX}
+                                                y2={delayLabelY - minY}
+                                                stroke={
+                                                    selected
+                                                        ? "#f59e0b"
+                                                        : "#6b7280"
+                                                }
+                                                strokeWidth="1"
+                                                strokeDasharray="3,3"
+                                                opacity={0.7}
+                                            />
+                                        </g>
+                                    )}
+
+                                    {hasParameter && (
                                         <line
-                                            x1={liveCondition.x - minX}
-                                            y1={liveCondition.y - minY}
-                                            x2={conditionLabelX - minX}
-                                            y2={conditionLabelY - minY}
+                                            x1={liveParam.x - minX}
+                                            y1={liveParam.y - minY}
+                                            x2={paramLabelX - minX}
+                                            y2={paramLabelY - minY}
                                             stroke={
-                                                selected ? "#3b82f6" : "#6b7280"
+                                                selected ? "#10b981" : "#6b7280"
                                             }
                                             strokeWidth="1"
                                             strokeDasharray="3,3"
                                             opacity={0.7}
                                         />
-                                    </g>
+                                    )}
+                                </svg>
+
+                                {hasCondition && (
+                                    <div
+                                        ref={conditionLabelRef}
+                                        style={{
+                                            position: "absolute",
+                                            transform: `translate(-50%, -50%) translate(${
+                                                isConditionDragging &&
+                                                tempConditionPosition
+                                                    ? tempConditionPosition.x
+                                                    : conditionLabelX
+                                            }px,${
+                                                isConditionDragging &&
+                                                tempConditionPosition
+                                                    ? tempConditionPosition.y
+                                                    : conditionLabelY
+                                            }px)`,
+                                            pointerEvents: "all",
+                                            zIndex: 10,
+                                        }}
+                                        className="nodrag nopan"
+                                    >
+                                        <div
+                                            onMouseDown={
+                                                handleConditionDragStart
+                                            }
+                                            className={`edge-label-condition flex justify-center items-center ${
+                                                selected
+                                                    ? "bg-blue-50 dark:bg-blue-900/50"
+                                                    : "bg-white/90 dark:bg-zinc-800/90"
+                                            } px-2 py-1 rounded text-xs ${
+                                                selected
+                                                    ? "shadow-md border border-blue-300 dark:border-blue-600"
+                                                    : "shadow border border-gray-200 dark:border-gray-700"
+                                            } cursor-grab ${
+                                                isConditionDragging
+                                                    ? "cursor-grabbing opacity-70"
+                                                    : ""
+                                            }`}
+                                            style={{
+                                                boxShadow: selected
+                                                    ? "0 2px 4px rgba(59, 130, 246, 0.3)"
+                                                    : "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                                minWidth: "30px",
+                                                backdropFilter: "blur(4px)",
+                                            }}
+                                        >
+                                            {isConditionDragging ? (
+                                                <span>
+                                                    ({data?.condition || "True"}
+                                                    )
+                                                </span>
+                                            ) : (
+                                                <ReactKatex>
+                                                    {`[${
+                                                        data?.condition ||
+                                                        "True"
+                                                    }]`}
+                                                </ReactKatex>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
 
                                 {hasDelay && (
-                                    <g>
-                                        <g
-                                            transform={`translate(${
-                                                liveDelay.x - minX
-                                            }, ${liveDelay.y - minY}) rotate(${
-                                                liveDelay.angle
-                                            })`}
+                                    <div
+                                        ref={delayLabelRef}
+                                        style={{
+                                            position: "absolute",
+                                            transform: `translate(-50%, -50%) translate(${
+                                                isDelayDragging &&
+                                                tempDelayPosition
+                                                    ? tempDelayPosition.x
+                                                    : delayLabelX
+                                            }px,${
+                                                isDelayDragging &&
+                                                tempDelayPosition
+                                                    ? tempDelayPosition.y
+                                                    : delayLabelY
+                                            }px)`,
+                                            pointerEvents: "all",
+                                            zIndex: 10,
+                                        }}
+                                        className="nodrag nopan"
+                                    >
+                                        <div
+                                            onMouseDown={handleDelayDragStart}
+                                            className={`edge-label-delay flex justify-center items-center ${
+                                                selected
+                                                    ? "bg-orange-50 dark:bg-orange-900/50"
+                                                    : "bg-white/90 dark:bg-zinc-800/90"
+                                            } px-2 py-1 rounded text-xs ${
+                                                selected
+                                                    ? "shadow-md border border-orange-300 dark:border-orange-600"
+                                                    : "shadow border border-gray-200 dark:border-gray-700"
+                                            } cursor-grab ${
+                                                isDelayDragging
+                                                    ? "cursor-grabbing opacity-70"
+                                                    : ""
+                                            }`}
+                                            style={{
+                                                boxShadow: selected
+                                                    ? "0 2px 4px rgba(251, 146, 60, 0.3)"
+                                                    : "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                                minWidth: "30px",
+                                                backdropFilter: "blur(4px)",
+                                            }}
                                         >
-                                            <line
-                                                x1={-8}
-                                                y1={-2}
-                                                x2={8}
-                                                y2={-2}
-                                                stroke={
-                                                    selected
-                                                        ? "#f59e0b"
-                                                        : "#6b7280"
-                                                }
-                                                strokeWidth="2"
-                                            />
-                                            <line
-                                                x1={-8}
-                                                y1={2}
-                                                x2={8}
-                                                y2={2}
-                                                stroke={
-                                                    selected
-                                                        ? "#f59e0b"
-                                                        : "#6b7280"
-                                                }
-                                                strokeWidth="2"
-                                            />
-                                        </g>
-                                        <line
-                                            x1={liveDelay.x - minX}
-                                            y1={liveDelay.y - minY}
-                                            x2={delayLabelX - minX}
-                                            y2={delayLabelY - minY}
-                                            stroke={
-                                                selected ? "#f59e0b" : "#6b7280"
-                                            }
-                                            strokeWidth="1"
-                                            strokeDasharray="3,3"
-                                            opacity={0.7}
-                                        />
-                                    </g>
+                                            {isDelayDragging ? (
+                                                <span>
+                                                    {typeof data.delay ===
+                                                        "string" &&
+                                                    data.delay.trim() !== ""
+                                                        ? `{${data.delay}}`
+                                                        : "{}"}
+                                                </span>
+                                            ) : (
+                                                <ReactKatex>
+                                                    {typeof data?.delay ===
+                                                        "string" &&
+                                                    data.delay.trim() !== ""
+                                                        ? `{${data.delay}}`
+                                                        : "{}"}
+                                                </ReactKatex>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
 
+                                {/* Parameter Label */}
                                 {hasParameter && (
-                                    <line
-                                        x1={liveParam.x - minX}
-                                        y1={liveParam.y - minY}
-                                        x2={paramLabelX - minX}
-                                        y2={paramLabelY - minY}
-                                        stroke={
-                                            selected ? "#10b981" : "#6b7280"
-                                        }
-                                        strokeWidth="1"
-                                        strokeDasharray="3,3"
-                                        opacity={0.7}
-                                    />
+                                    <div
+                                        ref={paramLabelRef}
+                                        style={{
+                                            position: "absolute",
+                                            transform: `translate(-50%, -50%) translate(${
+                                                isParamDragging &&
+                                                tempParamPosition
+                                                    ? tempParamPosition.x
+                                                    : paramLabelX
+                                            }px,${
+                                                isParamDragging &&
+                                                tempParamPosition
+                                                    ? tempParamPosition.y
+                                                    : paramLabelY
+                                            }px)`,
+                                            pointerEvents: "all",
+                                            zIndex: 10,
+                                        }}
+                                        className="nodrag nopan"
+                                    >
+                                        <div
+                                            onMouseDown={handleParamDragStart}
+                                            className={`edge-label-param flex justify-center items-center ${
+                                                selected
+                                                    ? "bg-green-50 dark:bg-green-900/50"
+                                                    : "bg-white/90 dark:bg-zinc-800/90"
+                                            } px-2 py-1 rounded text-xs ${
+                                                selected
+                                                    ? "shadow-md border border-green-300 dark:border-green-600"
+                                                    : "shadow border border-gray-200 dark:border-gray-700"
+                                            } cursor-grab ${
+                                                isParamDragging
+                                                    ? "cursor-grabbing opacity-70"
+                                                    : ""
+                                            }`}
+                                            style={{
+                                                boxShadow: selected
+                                                    ? "0 2px 4px rgba(16, 185, 129, 0.3)"
+                                                    : "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                                minWidth: "20px",
+                                                backdropFilter: "blur(4px)",
+                                            }}
+                                        >
+                                            {isParamDragging ? (
+                                                <span>
+                                                    {typeof data.parameter ===
+                                                        "string" &&
+                                                    data.parameter.trim() !== ""
+                                                        ? data.parameter
+                                                        : ""}
+                                                </span>
+                                            ) : (
+                                                <ReactKatex>
+                                                    {typeof data.parameter ===
+                                                        "string" &&
+                                                    data.parameter.trim() !== ""
+                                                        ? data.parameter
+                                                        : ""}
+                                                </ReactKatex>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
-                            </svg>
-
-                            {hasCondition && (
-                                <div
-                                    ref={conditionLabelRef}
-                                    style={{
-                                        position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${
-                                            isConditionDragging &&
-                                            tempConditionPosition
-                                                ? tempConditionPosition.x
-                                                : conditionLabelX
-                                        }px,${
-                                            isConditionDragging &&
-                                            tempConditionPosition
-                                                ? tempConditionPosition.y
-                                                : conditionLabelY
-                                        }px)`,
-                                        pointerEvents: "all",
-                                        zIndex: 10,
-                                    }}
-                                    className="nodrag nopan"
-                                >
-                                    <div
-                                        onMouseDown={handleConditionDragStart}
-                                        className={`edge-label-condition flex justify-center items-center ${
-                                            selected
-                                                ? "bg-blue-50 dark:bg-blue-900/50"
-                                                : "bg-white/90 dark:bg-zinc-800/90"
-                                        } px-2 py-1 rounded text-xs ${
-                                            selected
-                                                ? "shadow-md border border-blue-300 dark:border-blue-600"
-                                                : "shadow border border-gray-200 dark:border-gray-700"
-                                        } cursor-grab ${
-                                            isConditionDragging
-                                                ? "cursor-grabbing opacity-70"
-                                                : ""
-                                        }`}
-                                        style={{
-                                            boxShadow: selected
-                                                ? "0 2px 4px rgba(59, 130, 246, 0.3)"
-                                                : "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                            minWidth: "30px",
-                                            backdropFilter: "blur(4px)",
-                                        }}
-                                    >
-                                        {isConditionDragging ? (
-                                            <span>
-                                                ({data?.condition || "True"})
-                                            </span>
-                                        ) : (
-                                            <ReactKatex>
-                                                {`[${
-                                                    data?.condition || "True"
-                                                }]`}
-                                            </ReactKatex>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {hasDelay && (
-                                <div
-                                    ref={delayLabelRef}
-                                    style={{
-                                        position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${
-                                            isDelayDragging && tempDelayPosition
-                                                ? tempDelayPosition.x
-                                                : delayLabelX
-                                        }px,${
-                                            isDelayDragging && tempDelayPosition
-                                                ? tempDelayPosition.y
-                                                : delayLabelY
-                                        }px)`,
-                                        pointerEvents: "all",
-                                        zIndex: 10,
-                                    }}
-                                    className="nodrag nopan"
-                                >
-                                    <div
-                                        onMouseDown={handleDelayDragStart}
-                                        className={`edge-label-delay flex justify-center items-center ${
-                                            selected
-                                                ? "bg-orange-50 dark:bg-orange-900/50"
-                                                : "bg-white/90 dark:bg-zinc-800/90"
-                                        } px-2 py-1 rounded text-xs ${
-                                            selected
-                                                ? "shadow-md border border-orange-300 dark:border-orange-600"
-                                                : "shadow border border-gray-200 dark:border-gray-700"
-                                        } cursor-grab ${
-                                            isDelayDragging
-                                                ? "cursor-grabbing opacity-70"
-                                                : ""
-                                        }`}
-                                        style={{
-                                            boxShadow: selected
-                                                ? "0 2px 4px rgba(251, 146, 60, 0.3)"
-                                                : "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                            minWidth: "30px",
-                                            backdropFilter: "blur(4px)",
-                                        }}
-                                    >
-                                        {isDelayDragging ? (
-                                            <span>
-                                                {typeof data.delay ===
-                                                    "string" &&
-                                                data.delay.trim() !== ""
-                                                    ? `{${data.delay}}`
-                                                    : "{}"}
-                                            </span>
-                                        ) : (
-                                            <ReactKatex>
-                                                {typeof data?.delay ===
-                                                    "string" &&
-                                                data.delay.trim() !== ""
-                                                    ? `{${data.delay}}`
-                                                    : "{}"}
-                                            </ReactKatex>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Parameter Label */}
-                            {hasParameter && (
-                                <div
-                                    ref={paramLabelRef}
-                                    style={{
-                                        position: "absolute",
-                                        transform: `translate(-50%, -50%) translate(${
-                                            isParamDragging && tempParamPosition
-                                                ? tempParamPosition.x
-                                                : paramLabelX
-                                        }px,${
-                                            isParamDragging && tempParamPosition
-                                                ? tempParamPosition.y
-                                                : paramLabelY
-                                        }px)`,
-                                        pointerEvents: "all",
-                                        zIndex: 10,
-                                    }}
-                                    className="nodrag nopan"
-                                >
-                                    <div
-                                        onMouseDown={handleParamDragStart}
-                                        className={`edge-label-param flex justify-center items-center ${
-                                            selected
-                                                ? "bg-green-50 dark:bg-green-900/50"
-                                                : "bg-white/90 dark:bg-zinc-800/90"
-                                        } px-2 py-1 rounded text-xs ${
-                                            selected
-                                                ? "shadow-md border border-green-300 dark:border-green-600"
-                                                : "shadow border border-gray-200 dark:border-gray-700"
-                                        } cursor-grab ${
-                                            isParamDragging
-                                                ? "cursor-grabbing opacity-70"
-                                                : ""
-                                        }`}
-                                        style={{
-                                            boxShadow: selected
-                                                ? "0 2px 4px rgba(16, 185, 129, 0.3)"
-                                                : "0 1px 3px rgba(0, 0, 0, 0.1)",
-                                            minWidth: "20px",
-                                            backdropFilter: "blur(4px)",
-                                        }}
-                                    >
-                                        {isParamDragging ? (
-                                            <span>
-                                                {typeof data.parameter ===
-                                                    "string" &&
-                                                data.parameter.trim() !== ""
-                                                    ? data.parameter
-                                                    : ""}
-                                            </span>
-                                        ) : (
-                                            <ReactKatex>
-                                                {typeof data.parameter ===
-                                                    "string" &&
-                                                data.parameter.trim() !== ""
-                                                    ? data.parameter
-                                                    : ""}
-                                            </ReactKatex>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </EdgeLabelRenderer>
-                    );
-                }}
-            </BaseEdgeComponent>
+                            </EdgeLabelRenderer>
+                        );
+                    }}
+                </BaseEdgeComponent>
             </ErrorTooltip>
         );
     }

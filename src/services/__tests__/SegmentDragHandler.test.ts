@@ -80,6 +80,32 @@ describe("SegmentDragHandler", () => {
             expect(segments[0].start).toEqual(sourcePoint);
             expect(segments[0].end).toEqual(targetPoint);
         });
+
+        it("should not merge opposing horizontal segments during consolidation", () => {
+            const customSource: Point = { x: 0, y: 0 };
+            const customTarget: Point = { x: -100, y: -100 };
+            const controlPoints: Point[] = [
+                { x: 100, y: 0 },
+                { x: -150, y: 0 },
+                { x: -150, y: -100 }
+            ];
+
+            const segments = segmentDragHandler.calculateSegments(
+                controlPoints,
+                customSource,
+                customTarget
+            );
+
+            expect(segments).toHaveLength(4);
+            expect(segments[0].direction).toBe("horizontal");
+            expect(segments[1].direction).toBe("horizontal");
+            expect(segments[2].direction).toBe("vertical");
+            expect(segments[3].direction).toBe("horizontal");
+
+            // Ensure opposing horizontal segments remain distinct
+            expect(segments[0].end.x).toBeGreaterThan(segments[0].start.x);
+            expect(segments[1].end.x).toBeLessThan(segments[1].start.x);
+        });
     });
 
     describe("isNearSegmentMidpoint", () => {
