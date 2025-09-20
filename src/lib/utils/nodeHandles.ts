@@ -55,7 +55,7 @@ export interface ParsedHandleId {
  * Parse a handle ID to extract nodeId, side, and index
  * Handles node IDs that contain hyphens and special corner handle naming
  */
-function parseHandleId(handleId: string): ParsedHandleId | null {
+export function parseHandleId(handleId: string): ParsedHandleId | null {
     if (typeof handleId !== "string" || !handleId) {
         return null;
     }
@@ -104,6 +104,22 @@ function parseHandleId(handleId: string): ParsedHandleId | null {
     }
 
     return null;
+}
+
+/**
+ * Get the side of a handle from its handle ID
+ * @param handleId - The handle ID to parse
+ * @returns The side of the handle ("top", "right", "bottom", "left") or null if parsing fails
+ */
+export function getHandleSide(
+    handleId: string | null | undefined
+): "top" | "right" | "bottom" | "left" | null {
+    if (!handleId) {
+        return null;
+    }
+
+    const parsed = parseHandleId(handleId);
+    return parsed ? parsed.side : null;
 }
 
 /**
@@ -169,7 +185,11 @@ export function getActivityNodeHandles(
             id: handleId,
             coordinates: {
                 x: nodePosition.x + leftPos,
-                y: nodePosition.y + headerHeight + dimensions.height - HANDLE_RADIUS,
+                y:
+                    nodePosition.y +
+                    headerHeight +
+                    dimensions.height -
+                    HANDLE_RADIUS,
             },
             side: "bottom",
             type: "source",
@@ -469,7 +489,11 @@ export function getInitializationNodeHandles(
             id: handleId,
             coordinates: {
                 x: nodePosition.x + leftPos,
-                y: nodePosition.y + headerHeight + dimensions.height - HANDLE_RADIUS,
+                y:
+                    nodePosition.y +
+                    headerHeight +
+                    dimensions.height -
+                    HANDLE_RADIUS,
             },
             side: "bottom",
             type: "source",
