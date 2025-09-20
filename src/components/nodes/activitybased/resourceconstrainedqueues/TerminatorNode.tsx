@@ -161,6 +161,7 @@ const TerminatorNode = memo(
             typographyConfig
         );
         const contentWidth = dimensions.width * 0.7;
+        const textMaxWidth = Math.max(0, contentWidth - 8);
 
         const pillHandles = getPillHandlePositions(
             dimensions.width,
@@ -251,17 +252,22 @@ const TerminatorNode = memo(
                         height: `${dimensions.height}px`,
                     }}
                 >
-                    <ResponsiveText
-                        nodeWidth={dimensions.width}
-                        nodeHeight={dimensions.height}
-                        maxWidth={contentWidth}
-                        fontWeight="medium"
-                        centerAlign
-                        showTooltip={false}
-                        className="dark:text-white text-black"
+                    <div
+                        className="dark:text-white text-black font-medium text-center"
+                        style={{
+                            fontSize: `${typography.fontSize}px`,
+                            lineHeight: `${typography.lineHeight}px`,
+                            letterSpacing: `${typography.letterSpacing}px`,
+                            maxWidth: `${textMaxWidth}px`,
+                            width: "100%",
+                            padding: "0 4px",
+                            margin: 0,
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                        }}
                     >
                         {nodeName}
-                    </ResponsiveText>
+                    </div>
                 </div>
 
                 {id !== "preview" && (

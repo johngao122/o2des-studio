@@ -11,7 +11,12 @@ import {
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { snapToGrid, getGridAlignedHandlePositions } from "@/lib/utils/math";
+import { getGridAlignedHandlePositions } from "@/lib/utils/math";
+import {
+    getTypographyScale,
+    getTypographyVariant,
+    getVariantTypographyConfig,
+} from "@/lib/utils/typography";
 
 interface GlobalNodeData {
     resources?: string[];
@@ -125,8 +130,8 @@ export const GlobalNodePreview = () => {
 export const getDefaultData = (): GlobalNodeData => ({
     resources: [],
     duration: "op time",
-    width: 240,
-    height: 70,
+    width: 120,
+    height: 50,
 });
 
 const GlobalNode = memo(
@@ -155,9 +160,18 @@ const GlobalNode = memo(
 
         const storeData = storeNode?.data || {};
         const dimensions = {
-            width: storeData?.width || 240,
-            height: storeData?.height || 70,
+            width: storeData?.width || 120,
+            height: storeData?.height || 50,
         };
+
+        const variant = getTypographyVariant(dimensions.width);
+        const typographyConfig = getVariantTypographyConfig(variant);
+        const typography = getTypographyScale(
+            dimensions.width,
+            dimensions.height,
+            typographyConfig
+        );
+        const textMaxWidth = Math.max(0, dimensions.width - 12);
 
         const handleResize = useCallback(
             (event: any, params: { width: number; height: number }) => {
@@ -230,7 +244,7 @@ const GlobalNode = memo(
             >
                 <NodeResizer
                     isVisible={selected || isHovered}
-                    minWidth={180}
+                    minWidth={90}
                     minHeight={50}
                     onResize={handleResize}
                 />
@@ -250,9 +264,23 @@ const GlobalNode = memo(
                         left: "0px",
                         width: `${dimensions.width}px`,
                         height: `${dimensions.height}px`,
+                        padding: 0,
                     }}
                 >
-                    <div className="text-sm font-medium text-center dark:text-white text-black px-4">
+                    <div
+                        className="dark:text-white text-black font-medium text-center"
+                        style={{
+                            fontSize: `${typography.fontSize}px`,
+                            lineHeight: `${typography.lineHeight}px`,
+                            letterSpacing: `${typography.letterSpacing}px`,
+                            maxWidth: `${textMaxWidth}px`,
+                            width: "100%",
+                            padding: "0 4px",
+                            margin: 0,
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                        }}
+                    >
                         {nodeName}
                     </div>
                 </div>
@@ -432,8 +460,8 @@ const GlobalNode = memo(
 GlobalNode.getDefaultData = (): GlobalNodeData => ({
     resources: [],
     duration: "op time",
-    width: 240,
-    height: 70,
+    width: 120,
+    height: 50,
 });
 
 GlobalNode.getGraphType = (): string => "rcq";
