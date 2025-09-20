@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
     Handle,
     Position,
@@ -29,7 +29,7 @@ const commandController = CommandController.getInstance();
 
 interface EventNodeData {
     stateUpdate: string;
-    
+
     stateUpdatePosition?: string;
     width?: number;
     height?: number;
@@ -132,7 +132,46 @@ const EventNode = memo(
             typographyConfig
         );
 
-        
+        const stateUpdateLines = useMemo(() => {
+            return String(data?.stateUpdate || "")
+                .trim()
+                .split("\n");
+        }, [data?.stateUpdate]);
+        const textBlockRef = useRef<HTMLDivElement | null>(null);
+        const [textBlockHeight, setTextBlockHeight] = useState<number>(0);
+
+        useEffect(() => {
+            const element = textBlockRef.current;
+            if (!element) {
+                return;
+            }
+
+            const updateHeight = () => {
+                const nextHeight = element.offsetHeight;
+                setTextBlockHeight((prev) =>
+                    Math.abs(prev - nextHeight) > 0.5 ? nextHeight : prev
+                );
+            };
+
+            updateHeight();
+
+            if (typeof ResizeObserver !== "undefined") {
+                const observer = new ResizeObserver(updateHeight);
+                observer.observe(element);
+                return () => observer.disconnect();
+            }
+
+            window.addEventListener("resize", updateHeight);
+            return () => window.removeEventListener("resize", updateHeight);
+        }, [stateUpdateLines]);
+
+        const bracketHeightStyle = textBlockHeight
+            ? { height: textBlockHeight }
+            : undefined;
+        const mirroredBracketStyle = textBlockHeight
+            ? { height: textBlockHeight, transform: "scaleX(-1)" }
+            : { transform: "scaleX(-1)" };
+
         const [isDraggingBadge, setIsDraggingBadge] = useState(false);
         const [dragBadgePos, setDragBadgePos] = useState<{
             left: number;
@@ -237,7 +276,6 @@ const EventNode = memo(
                     top: e.clientY - rect.top,
                 };
 
-                
                 const anchors = getAllAnchors();
                 let bestAnchor = anchors[0];
                 let bestDist = Number.POSITIVE_INFINITY;
@@ -253,7 +291,6 @@ const EventNode = memo(
                     }
                 });
 
-                
                 const snappedPos = getAnchorCoordinates(
                     bestAnchor,
                     nodeWidth,
@@ -264,7 +301,6 @@ const EventNode = memo(
                     top: snappedPos.top,
                 });
 
-                
                 setDraggedAnchor(bestAnchor);
             },
             [
@@ -279,9 +315,8 @@ const EventNode = memo(
         const stopBadgeDrag = useCallback(() => {
             if (!isDraggingBadge || !dragBadgePos) return;
             setIsDraggingBadge(false);
-            setDraggedAnchor("right"); 
+            setDraggedAnchor("right");
 
-            
             const anchors = getAllAnchors();
             let bestAnchor = anchors[0];
             let bestDist = Number.POSITIVE_INFINITY;
@@ -327,7 +362,6 @@ const EventNode = memo(
                 };
             }
         }, [isDraggingBadge, onBadgeDrag, stopBadgeDrag]);
-        
 
         const handleBlur = useCallback(() => {
             setIsEditing(false);
@@ -512,26 +546,52 @@ const EventNode = memo(
                                 autoFocus
                             />
                         ) : (
-                            <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-stretch">
-                                <span className="text-blue-400 dark:text-blue-300 text-lg mr-1 flex items-center">
-                                    {"{"}
-                                </span>
-                                <div className="flex flex-col justify-center">
-                                    {String(data?.stateUpdate || "")
-                                        .trim()
-                                        .split("\n")
-                                        .map((line, index) => (
-                                            <div
-                                                key={index}
-                                                className="text-center"
-                                            >
-                                                <ReactKatex>{line}</ReactKatex>
-                                            </div>
-                                        ))}
+                            <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-center">
+                                <svg
+                                    className="w-3 text-blue-400 dark:text-blue-300 mr-1 flex-shrink-0"
+                                    viewBox="0 0 10 100"
+                                    preserveAspectRatio="none"
+                                    aria-hidden="true"
+                                    style={bracketHeightStyle}
+                                >
+                                    <path
+                                        d="M8 0 C2 0 2 20 2 30 L2 45 C2 50 0 52 0 52 C0 52 2 54 2 59 L2 70 C2 80 2 100 8 100"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                                <div
+                                    ref={textBlockRef}
+                                    className="flex flex-col justify-center px-1"
+                                >
+                                    {stateUpdateLines.map((line, index) => (
+                                        <div
+                                            key={index}
+                                            className="text-center"
+                                        >
+                                            <ReactKatex>{line}</ReactKatex>
+                                        </div>
+                                    ))}
                                 </div>
-                                <span className="text-blue-400 dark:text-blue-300 text-lg ml-1 flex items-center">
-                                    {"}"}
-                                </span>
+                                <svg
+                                    className="w-3 text-blue-400 dark:text-blue-300 ml-1 flex-shrink-0"
+                                    viewBox="0 0 10 100"
+                                    preserveAspectRatio="none"
+                                    aria-hidden="true"
+                                    style={mirroredBracketStyle}
+                                >
+                                    <path
+                                        d="M8 0 C2 0 2 20 2 30 L2 45 C2 50 0 52 0 52 C0 52 2 54 2 59 L2 70 C2 80 2 100 8 100"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
                             </div>
                         )}
                     </div>
