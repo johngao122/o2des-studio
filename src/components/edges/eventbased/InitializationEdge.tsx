@@ -393,9 +393,12 @@ const InitializationEdge = memo(
                     );
 
                     const [delayData] = pathPoints;
-                    const [delayEdgePoint] = edgePoints;
 
-                    const delayPoint = { x: delayData.x, y: delayData.y };
+                    const delayPoint = {
+                        x: delayData.x,
+                        y: delayData.y,
+                        angle: delayData.angle ?? 0,
+                    };
 
                     const liveDelay =
                         isDelayDragging && tempDelayTRef.current != null
@@ -407,7 +410,11 @@ const InitializationEdge = memo(
                                   targetX,
                                   targetY
                               )
-                            : { x: delayPoint.x, y: delayPoint.y, angle: 0 };
+                            : {
+                                  x: delayPoint.x,
+                                  y: delayPoint.y,
+                                  angle: delayPoint.angle,
+                              };
 
                     anchorRef.current.delay = {
                         x: liveDelay.x,
@@ -418,8 +425,8 @@ const InitializationEdge = memo(
                     const interactiveOffset =
                         isDelayDragging && tempDelayPosition
                             ? {
-                                  x: tempDelayPosition.x - delayPoint.x,
-                                  y: tempDelayPosition.y - delayPoint.y,
+                                  x: tempDelayPosition.x - liveDelay.x,
+                                  y: tempDelayPosition.y - liveDelay.y,
                               }
                             : undefined;
 
@@ -439,26 +446,63 @@ const InitializationEdge = memo(
                     const delayLabelX = liveDelay.x + delayLabelOffset.x;
                     const delayLabelY = liveDelay.y + delayLabelOffset.y;
 
+                    const markerColor = selected ? "#f59e0b" : "#6b7280";
+
+                    const allX = [liveDelay.x, delayLabelX];
+                    const allY = [liveDelay.y, delayLabelY];
+                    const padding = 40;
+                    const minX = Math.min(...allX) - padding;
+                    const maxX = Math.max(...allX) + padding;
+                    const minY = Math.min(...allY) - padding;
+                    const maxY = Math.max(...allY) + padding;
+                    const svgWidth = Math.max(1, maxX - minX);
+                    const svgHeight = Math.max(1, maxY - minY);
+
                     return (
                         <EdgeLabelRenderer>
                             {/* Connection line from edge to label */}
                             <svg
                                 style={{
                                     position: "absolute",
-                                    left: 0,
-                                    top: 0,
+                                    left: minX,
+                                    top: minY,
                                     pointerEvents: "none",
                                     zIndex: 5,
                                 }}
-                                width="100%"
-                                height="100%"
+                                width={svgWidth}
+                                height={svgHeight}
+                                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                             >
+                                <g
+                                    transform={`translate(${
+                                        liveDelay.x - minX
+                                    }, ${liveDelay.y - minY}) rotate(${
+                                        liveDelay.angle
+                                    })`}
+                                >
+                                    <line
+                                        x1={-8}
+                                        y1={-2}
+                                        x2={8}
+                                        y2={-2}
+                                        stroke={markerColor}
+                                        strokeWidth="2"
+                                    />
+                                    <line
+                                        x1={-8}
+                                        y1={2}
+                                        x2={8}
+                                        y2={2}
+                                        stroke={markerColor}
+                                        strokeWidth="2"
+                                    />
+                                </g>
                                 <line
-                                    x1={liveDelay.x}
-                                    y1={liveDelay.y}
-                                    x2={delayLabelX}
-                                    y2={delayLabelY}
-                                    stroke={selected ? "#3b82f6" : "#6b7280"}
+                                    x1={liveDelay.x - minX}
+                                    y1={liveDelay.y - minY}
+                                    x2={delayLabelX - minX}
+                                    y2={delayLabelY - minY}
+                                    stroke={markerColor}
                                     strokeWidth="1"
                                     strokeDasharray="3,3"
                                     opacity={0.7}

@@ -12,6 +12,7 @@ import {
     getArrowHandlePositions,
     getPillHandlePositions,
     getStandardHandlePositions,
+    HANDLE_RADIUS,
 } from "./math";
 
 /**
@@ -135,7 +136,7 @@ export function getActivityNodeHandles(
             id: handleId,
             coordinates: {
                 x: nodePosition.x + leftPos,
-                y: nodePosition.y + headerHeight,
+                y: nodePosition.y + headerHeight + HANDLE_RADIUS,
             },
             side: "top",
             type: "source",
@@ -147,7 +148,7 @@ export function getActivityNodeHandles(
         handles.push({
             id: `${nodeId}-right-${index}`,
             coordinates: {
-                x: nodePosition.x + dimensions.width,
+                x: nodePosition.x + dimensions.width - HANDLE_RADIUS,
                 y: nodePosition.y + topPos,
             },
             side: "right",
@@ -168,7 +169,7 @@ export function getActivityNodeHandles(
             id: handleId,
             coordinates: {
                 x: nodePosition.x + leftPos,
-                y: nodePosition.y + headerHeight + dimensions.height,
+                y: nodePosition.y + headerHeight + dimensions.height - HANDLE_RADIUS,
             },
             side: "bottom",
             type: "source",
@@ -180,11 +181,11 @@ export function getActivityNodeHandles(
         handles.push({
             id: `${nodeId}-left-${index}`,
             coordinates: {
-                x: nodePosition.x,
+                x: nodePosition.x + HANDLE_RADIUS,
                 y: nodePosition.y + topPos,
             },
             side: "left",
-            type: "source",
+            type: "target",
             nodeId,
         });
     });
@@ -407,14 +408,89 @@ export function getEventNodeHandles(
 
 /**
  * Extract handle information for Initialization nodes
- * Uses the same logic as EventNode (getStandardHandlePositions)
+ * Mirrors ActivityNode grid-aligned handle distribution with zero header offset
  */
 export function getInitializationNodeHandles(
     nodeId: string,
     nodePosition: NodePosition,
     dimensions: NodeDimensions
 ): NodeHandleInfo[] {
-    return getEventNodeHandles(nodeId, nodePosition, dimensions);
+    const headerHeight = 0;
+    const handlePositions = getGridAlignedHandlePositions(
+        dimensions.width,
+        dimensions.height,
+        headerHeight
+    );
+
+    const handles: NodeHandleInfo[] = [];
+
+    handlePositions.top.forEach((leftPos, index) => {
+        let handleId = `${nodeId}-top-${index}`;
+        if (index === 0) {
+            handleId = `${nodeId}-top-left-${index}`;
+        } else if (index === handlePositions.top.length - 1) {
+            handleId = `${nodeId}-top-right-${index}`;
+        }
+
+        handles.push({
+            id: handleId,
+            coordinates: {
+                x: nodePosition.x + leftPos,
+                y: nodePosition.y + headerHeight + HANDLE_RADIUS,
+            },
+            side: "top",
+            type: "source",
+            nodeId,
+        });
+    });
+
+    handlePositions.right.forEach((topPos, index) => {
+        handles.push({
+            id: `${nodeId}-right-${index}`,
+            coordinates: {
+                x: nodePosition.x + dimensions.width - HANDLE_RADIUS,
+                y: nodePosition.y + topPos,
+            },
+            side: "right",
+            type: "source",
+            nodeId,
+        });
+    });
+
+    handlePositions.bottom.forEach((leftPos, index) => {
+        let handleId = `${nodeId}-bottom-${index}`;
+        if (index === 0) {
+            handleId = `${nodeId}-bottom-right-${index}`;
+        } else if (index === handlePositions.bottom.length - 1) {
+            handleId = `${nodeId}-bottom-left-${index}`;
+        }
+
+        handles.push({
+            id: handleId,
+            coordinates: {
+                x: nodePosition.x + leftPos,
+                y: nodePosition.y + headerHeight + dimensions.height - HANDLE_RADIUS,
+            },
+            side: "bottom",
+            type: "source",
+            nodeId,
+        });
+    });
+
+    handlePositions.left.forEach((topPos, index) => {
+        handles.push({
+            id: `${nodeId}-left-${index}`,
+            coordinates: {
+                x: nodePosition.x + HANDLE_RADIUS,
+                y: nodePosition.y + topPos,
+            },
+            side: "left",
+            type: "target",
+            nodeId,
+        });
+    });
+
+    return handles;
 }
 
 /**

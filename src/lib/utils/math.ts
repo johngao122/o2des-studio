@@ -423,6 +423,12 @@ export function debounce<T extends (...args: any[]) => any>(
 export const GRID_SIZE = 10;
 
 /**
+ * Visual handle size (matches Tailwind !w-3/!h-3, i.e. 12px) / 2
+ * Used to offset handles so their centers sit slightly inside the node
+ */
+export const HANDLE_RADIUS = 6;
+
+/**
  * Snap a value to the nearest grid position
  */
 export function snapToGrid(
@@ -468,8 +474,12 @@ export function getGridAlignedHandlePositions(
         verticalPositions.push(snapToGrid(position));
     }
 
-    const centerY = snapToGrid(topY + alignedHeight * 0.5);
-    if (!verticalPositions.includes(centerY)) {
+    const centerY = topY + alignedHeight * 0.5;
+    const hasApproxCenter = verticalPositions.some(
+        (pos) => Math.abs(pos - centerY) < GRID_SIZE * 0.1
+    );
+
+    if (!hasApproxCenter) {
         verticalPositions.push(centerY);
         verticalPositions.sort((a, b) => a - b);
     }
@@ -647,14 +657,20 @@ export function getAllHandleCoordinates(
     const { x: nodeX, y: nodeY } = nodePosition;
 
     return {
-        top: top.map((x) => ({ x: nodeX + x, y: nodeY + headerHeight })),
+        top: top.map((x) => ({
+            x: nodeX + x,
+            y: nodeY + headerHeight + HANDLE_RADIUS,
+        })),
         bottom: bottom.map((x) => ({
             x: nodeX + x,
-            y: nodeY + headerHeight + nodeSize.height,
+            y: nodeY + headerHeight + nodeSize.height - HANDLE_RADIUS,
         })),
-        left: left.map((y) => ({ x: nodeX, y: nodeY + y })),
+        left: left.map((y) => ({
+            x: nodeX + HANDLE_RADIUS,
+            y: nodeY + y,
+        })),
         right: right.map((y) => ({
-            x: nodeX + nodeSize.width,
+            x: nodeX + nodeSize.width - HANDLE_RADIUS,
             y: nodeY + y,
         })),
     };

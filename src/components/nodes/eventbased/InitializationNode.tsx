@@ -12,7 +12,7 @@ import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
 import { useStore } from "@/store";
 import { BaseNode } from "@/types/base";
-import { getStandardHandlePositions } from "@/lib/utils/math";
+import { getGridAlignedHandlePositions, HANDLE_RADIUS } from "@/lib/utils/math";
 import {
     getDynamicPaddingStyles,
     getNodeTypePaddingConfig,
@@ -164,9 +164,10 @@ const InitializationNode = memo(
 
         const nodeWidth = storeData?.width || 120;
         const nodeHeight = storeData?.height || 50;
-        const handlePositions = getStandardHandlePositions(
+        const handlePositions = getGridAlignedHandlePositions(
             nodeWidth,
-            nodeHeight
+            nodeHeight,
+            0
         );
 
         const paddingConfig = getNodeTypePaddingConfig("initialization");
@@ -542,12 +543,18 @@ const InitializationNode = memo(
                 {id !== "preview" && (
                     <>
                         {/* Top handles */}
-                        {handlePositions.horizontal
-                            .slice(1, -1)
-                            .map((leftPos, index) => (
+                        {handlePositions.top.map((leftPos, index) => {
+                            let handleId = `${id}-top-${index}`;
+                            if (index === 0) {
+                                handleId = `${id}-top-left-${index}`;
+                            } else if (index === handlePositions.top.length - 1) {
+                                handleId = `${id}-top-right-${index}`;
+                            }
+
+                            return (
                                 <Handle
                                     key={`top-${index}`}
-                                    id={`${id}-top-${index}`}
+                                    id={handleId}
                                     type="source"
                                     position={Position.Top}
                                     className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
@@ -558,14 +565,15 @@ const InitializationNode = memo(
                                     isConnectable={isConnectable}
                                     style={{
                                         left: `${leftPos}px`,
-                                        top: "5px",
+                                        top: `${handlePositions.headerHeight + HANDLE_RADIUS}px`,
                                         transform: "translate(-50%, -50%)",
                                     }}
                                 />
-                            ))}
+                            );
+                        })}
 
                         {/* Right handles */}
-                        {handlePositions.vertical.map((topPos, index) => (
+                        {handlePositions.right.map((topPos, index) => (
                             <Handle
                                 key={`right-${index}`}
                                 id={`${id}-right-${index}`}
@@ -578,23 +586,26 @@ const InitializationNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: `${nodeWidth - 10}px`,
-                                    top: `${Math.max(
-                                        6,
-                                        Math.min(nodeHeight - 6, topPos - 10)
-                                    )}px`,
+                                    left: `${nodeWidth - HANDLE_RADIUS}px`,
+                                    top: `${topPos}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}
 
                         {/* Bottom handles */}
-                        {handlePositions.horizontal
-                            .slice(1, -1)
-                            .map((leftPos, index) => (
+                        {handlePositions.bottom.map((leftPos, index) => {
+                            let handleId = `${id}-bottom-${index}`;
+                            if (index === 0) {
+                                handleId = `${id}-bottom-right-${index}`;
+                            } else if (index === handlePositions.bottom.length - 1) {
+                                handleId = `${id}-bottom-left-${index}`;
+                            }
+
+                            return (
                                 <Handle
                                     key={`bottom-${index}`}
-                                    id={`${id}-bottom-${index}`}
+                                    id={handleId}
                                     type="source"
                                     position={Position.Bottom}
                                     className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
@@ -605,14 +616,15 @@ const InitializationNode = memo(
                                     isConnectable={isConnectable}
                                     style={{
                                         left: `${leftPos}px`,
-                                        top: `${nodeHeight - 10}px`,
+                                        top: `${handlePositions.headerHeight + nodeHeight - HANDLE_RADIUS}px`,
                                         transform: "translate(-50%, -50%)",
                                     }}
                                 />
-                            ))}
+                            );
+                        })}
 
                         {/* Left handles */}
-                        {handlePositions.vertical.map((topPos, index) => (
+                        {handlePositions.left.map((topPos, index) => (
                             <Handle
                                 key={`left-${index}`}
                                 id={`${id}-left-${index}`}
@@ -625,11 +637,8 @@ const InitializationNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: "5px",
-                                    top: `${Math.max(
-                                        6,
-                                        Math.min(nodeHeight - 6, topPos - 10)
-                                    )}px`,
+                                    left: `${HANDLE_RADIUS}px`,
+                                    top: `${topPos}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />

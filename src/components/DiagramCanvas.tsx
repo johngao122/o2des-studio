@@ -39,6 +39,9 @@ import {
     screenToFlowPosition,
 } from "@/lib/utils/coordinates";
 import { GRID_SIZE } from "@/lib/utils/math";
+import { HandleSelectionService } from "@/lib/routing/HandleSelectionService";
+import { getAllNodeHandles } from "@/lib/utils/nodeHandles";
+import { NodeInfo } from "@/lib/routing/types";
 import "./diagram-canvas.css";
 
 const viewController = ViewController.getInstance();
@@ -46,6 +49,59 @@ const nodeFactory = new NodeFactory();
 const nodeController = new NodeController();
 const commandController = CommandController.getInstance();
 const autosaveService = AutosaveService.getInstance();
+const handleSelectionService = new HandleSelectionService();
+
+function createNodeInfo(
+    node: BaseNode,
+    role: "source" | "target",
+    preferredHandleId?: string
+): NodeInfo | null {
+    if (!node) {
+        return null;
+    }
+
+    const bounds = {
+        x: node.position?.x ?? 0,
+        y: node.position?.y ?? 0,
+        width: node.data?.width ?? node.width ?? 200,
+        height: node.data?.height ?? node.height ?? 120,
+    };
+
+    const allHandles = getAllNodeHandles(node);
+    const matchingHandles = allHandles.filter((handle) =>
+        role === "source" ? handle.type === "source" : handle.type === "target"
+    );
+
+    const candidateHandles =
+        matchingHandles.length > 0 ? matchingHandles : allHandles;
+
+    const constrainedHandles = preferredHandleId
+        ? candidateHandles.filter((handle) => handle.id === preferredHandleId)
+        : candidateHandles;
+
+    const handlesToUse = (constrainedHandles.length > 0
+        ? constrainedHandles
+        : candidateHandles
+    ).map(
+        (handle) => ({
+            id: handle.id,
+            nodeId: handle.nodeId,
+            position: handle.coordinates,
+            side: handle.side,
+            type: role,
+        })
+    );
+
+    if (handlesToUse.length === 0) {
+        return null;
+    }
+
+    return {
+        id: node.id,
+        bounds,
+        handles: handlesToUse,
+    };
+}
 
 const flowOptions = {
     nodeTypes,
@@ -165,21 +221,64 @@ function FlowCanvas({
                 targetHandle: params.targetHandle,
             };
 
-            if (!connection.sourceHandle || !connection.targetHandle) {
+            if (!connection.source || !connection.target) {
                 return;
             }
+
+            let resolvedSourceHandle = connection.sourceHandle;
+
+            try {
+                const sourceNode = nodes.find((n) => n.id === connection.source);
+                const targetNode = nodes.find((n) => n.id === connection.target);
+
+                const sourceInfo = sourceNode
+                    ? createNodeInfo(sourceNode as BaseNode, "source")
+                    : null;
+                const targetInfo = targetNode
+                    ? createNodeInfo(
+                          targetNode as BaseNode,
+                          "target",
+                          connection.targetHandle
+                      )
+                    : null;
+
+                if (sourceInfo && targetInfo) {
+                    const optimal = handleSelectionService.findOptimalHandles(
+                        sourceInfo,
+                        targetInfo
+                    );
+
+                    if (optimal?.sourceHandle?.id) {
+                        resolvedSourceHandle = optimal.sourceHandle.id;
+                    }
+                }
+            } catch (error) {
+                console.warn(
+                    "[Flow] handleConnect → auto handle selection fallback",
+                    error
+                );
+            }
+
+            if (!resolvedSourceHandle || !connection.targetHandle) {
+                return;
+            }
+
+            const finalConnection = {
+                ...connection,
+                sourceHandle: resolvedSourceHandle,
+            };
 
             try {
                 console.log(
                     "[Flow] handleConnect → normalized connection",
-                    connection
+                    finalConnection
                 );
 
                 console.groupEnd?.();
             } catch {}
-            onConnect(connection);
+            onConnect(finalConnection);
         },
-        [onConnect]
+        [nodes, onConnect]
     );
 
     const onDrop = useCallback(

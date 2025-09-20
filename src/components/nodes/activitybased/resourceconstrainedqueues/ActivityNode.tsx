@@ -15,6 +15,7 @@ import {
     snapToGrid,
     getGridAlignedHandlePositions,
     getAllHandleCoordinates,
+    HANDLE_RADIUS,
 } from "@/lib/utils/math";
 import {
     getDynamicPaddingStyles,
@@ -384,8 +385,8 @@ const ActivityNode = memo(
                                     isConnectable={isConnectable}
                                     style={{
                                         left: `${leftPos}px`,
-                                        top: "35px",
-                                        transform: "translate(-50%, -0%)",
+                                        top: `${35 + HANDLE_RADIUS}px`,
+                                        transform: "translate(-50%, -50%)",
                                     }}
                                 />
                             );
@@ -405,9 +406,9 @@ const ActivityNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: `${dimensions.width}px`,
+                                    left: `${dimensions.width - HANDLE_RADIUS}px`,
                                     top: `${topPos}px`,
-                                    transform: "translate(-100%, -50%)",
+                                    transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}
@@ -438,8 +439,8 @@ const ActivityNode = memo(
                                     isConnectable={isConnectable}
                                     style={{
                                         left: `${leftPos}px`,
-                                        top: `${35 + dimensions.height}px`,
-                                        transform: "translate(-50%, -100%)",
+                                        top: `${35 + dimensions.height - HANDLE_RADIUS}px`,
+                                        transform: "translate(-50%, -50%)",
                                     }}
                                 />
                             );
@@ -459,9 +460,9 @@ const ActivityNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: "0px",
+                                    left: `${HANDLE_RADIUS}px`,
                                     top: `${topPos}px`,
-                                    transform: "translate(0%, -50%)",
+                                    transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}

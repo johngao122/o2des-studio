@@ -614,6 +614,20 @@ export const useStore = create<StoreState>((set, get) => ({
                                     editable: true,
                                 });
                             }
+                        } else if (selectedEdge.type === "initialization") {
+                            if (
+                                !dataProps.find(
+                                    (p) => p.key === "initialDelay"
+                                )
+                            ) {
+                                dataProps.push({
+                                    key: "initialDelay",
+                                    value:
+                                        selectedEdge.data.initialDelay || "0",
+                                    type: "string" as const,
+                                    editable: true,
+                                });
+                            }
                         }
 
                         updatedProperties = [
@@ -691,6 +705,34 @@ export const useStore = create<StoreState>((set, get) => ({
                                 {
                                     key: "parameter",
                                     value: "",
+                                    type: "string" as const,
+                                    editable: true,
+                                },
+                            ] as SelectedProperty[];
+                        } else if (selectedEdge.type === "initialization") {
+                            updatedProperties = [
+                                ...explicitProps,
+                                {
+                                    key: "edgeType",
+                                    value: "straight",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: ["straight", "rounded"],
+                                },
+                                {
+                                    key: "edgeRoutingType",
+                                    value: "orthogonal",
+                                    type: "string" as const,
+                                    editable: true,
+                                    options: [
+                                        "orthogonal",
+                                        "straight",
+                                        "bezier",
+                                    ],
+                                },
+                                {
+                                    key: "initialDelay",
+                                    value: "0",
                                     type: "string" as const,
                                     editable: true,
                                 },

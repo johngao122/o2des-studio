@@ -9,10 +9,31 @@ import {
     ControlPoint,
     HandleInfo,
 } from "./types";
-import {
-    calculateManhattanDistance,
-    calculateRoutingEfficiency,
-} from "./distance";
+import { calculateRoutingEfficiency } from "./distance";
+
+const ORTHOGONAL_ALIGNMENT_TOLERANCE = 6; // px
+
+function applyAlignmentTolerance(start: Point, end: Point): {
+    start: Point;
+    end: Point;
+} {
+    const adjustedStart = { ...start };
+    const adjustedEnd = { ...end };
+
+    if (Math.abs(adjustedStart.y - adjustedEnd.y) <= ORTHOGONAL_ALIGNMENT_TOLERANCE) {
+        const alignedY = (adjustedStart.y + adjustedEnd.y) / 2;
+        adjustedStart.y = alignedY;
+        adjustedEnd.y = alignedY;
+    }
+
+    if (Math.abs(adjustedStart.x - adjustedEnd.x) <= ORTHOGONAL_ALIGNMENT_TOLERANCE) {
+        const alignedX = (adjustedStart.x + adjustedEnd.x) / 2;
+        adjustedStart.x = alignedX;
+        adjustedEnd.x = alignedX;
+    }
+
+    return { start: adjustedStart, end: adjustedEnd };
+}
 
 /**
  * Generate horizontal-first orthogonal path between two points
@@ -168,8 +189,10 @@ export function createOrthogonalPath(
     targetHandle: HandleInfo,
     routingType: "horizontal-first" | "vertical-first"
 ): OrthogonalPath {
-    const start = sourceHandle.position;
-    const end = targetHandle.position;
+    const { start, end } = applyAlignmentTolerance(
+        sourceHandle.position,
+        targetHandle.position
+    );
 
     const segments =
         routingType === "horizontal-first"
