@@ -24,12 +24,43 @@ import {
 } from "@/lib/utils/coordinates";
 import { GRID_SIZE } from "@/lib/utils/math";
 import { AutosaveService } from "../services/AutosaveService";
+import { GraphValidationService } from "../services/GraphValidationService";
+import { ValidationError, ModelValidationState } from "../types/validation";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
 const autosaveService = AutosaveService.getInstance();
+const graphValidationService = GraphValidationService.getInstance();
 
 const DRAG_PROXY_THRESHOLD = 3;
+const EMPTY_VALIDATION_ERRORS: ValidationError[] = [];
+
+const buildValidationErrorMap = (
+    errors: ValidationError[]
+): Record<string, ValidationError[]> => {
+    return errors.reduce<Record<string, ValidationError[]>>((acc, error) => {
+        if (!acc[error.elementId]) {
+            acc[error.elementId] = [];
+        }
+
+        acc[error.elementId].push(error);
+        return acc;
+    }, {});
+};
+
+const logValidationErrors = (context: string, errors: ValidationError[]) => {
+    if (!errors || errors.length === 0) {
+        console.info(`[Validation] ${context}: no errors`);
+        return;
+    }
+
+    const counts = errors.reduce<Partial<Record<ValidationError['errorType'], number>>>((acc, error) => {
+        acc[error.errorType] = (acc[error.errorType] ?? 0) + 1;
+        return acc;
+    }, {});
+
+    console.info(`[Validation] ${context}: ${errors.length} error(s) detected`, counts);
+};
 
 interface DragProxyState {
     isActive: boolean;
@@ -60,7 +91,7 @@ type SelectedProperty = {
     options?: string[];
 };
 
-interface StoreState {
+export interface StoreState {
     projectName: string;
     nodes: BaseNode[];
     edges: BaseEdge[];
@@ -81,6 +112,7 @@ interface StoreState {
         nodes: BaseNode[];
         edges: BaseEdge[];
     };
+    validation: ModelValidationState;
     onNodesChange: (changes: NodeChange[]) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
@@ -102,6 +134,10 @@ interface StoreState {
     endDragProxy: (applyChanges: boolean) => void;
     copySelectedElements: () => void;
     pasteElements: () => void;
+    validateModel: () => void;
+    validateElement: (elementId: string) => void;
+    clearValidationErrors: () => void;
+    getValidationErrors: (elementId?: string) => ValidationError[];
 }
 
 interface SerializedState {
@@ -145,6 +181,12 @@ export const useStore = create<StoreState>((set, get) => ({
     clipboard: {
         nodes: [],
         edges: [],
+    },
+    validation: {
+        errors: [],
+        errorMap: {},
+        lastValidated: null,
+        isValidating: false,
     },
 
     onNodesChange: (changes: NodeChange[]) => {
@@ -981,6 +1023,25 @@ export const useStore = create<StoreState>((set, get) => ({
                     updateData
                 );
                 commandController.execute(command);
+
+                // Trigger validation for specific properties
+                const changedFields = editableProperties.map(p => p.key);
+                const validationTriggerFields = ['initializations', 'stateUpdate'];
+                const shouldValidate = changedFields.some(field => validationTriggerFields.includes(field));
+
+                if (shouldValidate) {
+                    // Debounced validation
+                    setTimeout(() => {
+                        const { validateElement } = get();
+                        validateElement(nodeId);
+
+                        // If initializations changed, validate entire model
+                        if (changedFields.includes('initializations')) {
+                            const { validateModel } = get();
+                            validateModel();
+                        }
+                    }, 300);
+                }
             }
         } else if (selectedElements.edges.length === 1) {
             const edgeId = selectedElements.edges[0];
@@ -1020,6 +1081,19 @@ export const useStore = create<StoreState>((set, get) => ({
                     updateData
                 );
                 commandController.execute(command);
+
+                // Trigger validation for specific edge properties
+                const changedFields = editableProperties.map(p => p.key);
+                const edgeValidationTriggerFields = ['condition', 'delay', 'parameter', 'initialDelay'];
+                const shouldValidate = changedFields.some(field => edgeValidationTriggerFields.includes(field));
+
+                if (shouldValidate) {
+                    // Debounced validation
+                    setTimeout(() => {
+                        const { validateElement } = get();
+                        validateElement(edgeId);
+                    }, 300);
+                }
             }
         }
     },
@@ -1377,5 +1451,80 @@ export const useStore = create<StoreState>((set, get) => ({
                 }
             });
         }
+    },
+
+    validateModel: () => {
+        const { nodes, edges } = get();
+        set((state) => ({ validation: { ...state.validation, isValidating: true } }));
+
+        try {
+            const result = graphValidationService.validateModel(nodes, edges);
+            const groupedErrors = buildValidationErrorMap(result.errors);
+            logValidationErrors('model validation', result.errors);
+            set((state) => ({
+                validation: {
+                    errors: result.errors,
+                    errorMap: groupedErrors,
+                    lastValidated: new Date().toISOString(),
+                    isValidating: false,
+                }
+            }));
+        } catch (error) {
+            console.error('Validation error:', error);
+            set((state) => ({ validation: { ...state.validation, isValidating: false } }));
+        }
+    },
+
+    validateElement: (elementId: string) => {
+        const { nodes, edges } = get();
+
+        try {
+            const elementErrors = graphValidationService.validateElement(elementId, nodes, edges);
+            logValidationErrors(`element validation (${elementId})`, elementErrors);
+
+            set((state) => {
+                const remainingErrors = state.validation.errors.filter(
+                    (error) => error.elementId !== elementId
+                );
+                const updatedErrors = [...remainingErrors, ...elementErrors];
+                const updatedMap = { ...state.validation.errorMap };
+
+                if (elementErrors.length > 0) {
+                    updatedMap[elementId] = elementErrors;
+                } else {
+                    delete updatedMap[elementId];
+                }
+
+                return {
+                    validation: {
+                        ...state.validation,
+                        errors: updatedErrors,
+                        errorMap: updatedMap,
+                        lastValidated: new Date().toISOString(),
+                    },
+                };
+            });
+        } catch (error) {
+            console.error('Element validation error:', error);
+        }
+    },
+
+    clearValidationErrors: () => {
+        set((state) => ({
+            validation: {
+                ...state.validation,
+                errors: [],
+                errorMap: {},
+            }
+        }));
+    },
+
+    getValidationErrors: (elementId?: string) => {
+        const { validation } = get();
+        if (!elementId) {
+            return validation.errors;
+        }
+
+        return validation.errorMap[elementId] ?? EMPTY_VALIDATION_ERRORS;
     },
 }));

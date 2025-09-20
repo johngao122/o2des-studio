@@ -36,7 +36,19 @@ export function useKeyboardShortcuts({
     const { undo, redo } = useStore();
 
     useEffect(() => {
+        const isEditableElement = (element: EventTarget | null) => {
+            if (!element || !(element instanceof HTMLElement)) return false;
+            if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+                return !element.readOnly && !element.disabled;
+            }
+            return element.isContentEditable;
+        };
+
         const handleKeyDown = (event: KeyboardEvent) => {
+            if (isEditableElement(event.target) || isEditableElement(document.activeElement)) {
+                return;
+            }
+
             const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
             const modifier = isMac ? event.metaKey : event.ctrlKey;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useCallback, useRef, useEffect } from "react";
+import React, { memo, useCallback, useRef, useEffect, useMemo } from "react";
 import { EdgeProps, EdgeLabelRenderer } from "reactflow";
 import ReactKatex from "@pkasila/react-katex";
 import { CommandController } from "@/controllers/CommandController";
@@ -16,6 +16,8 @@ import BaseEdgeComponent, {
     BaseEdgeProps,
     getDefaultBaseEdgeData,
 } from "@/components/edges/BaseEdgeComponent";
+import { ErrorTooltip } from "@/components/ui/ErrorTooltip";
+import { useStore } from "@/store";
 
 const commandController = CommandController.getInstance();
 
@@ -57,6 +59,11 @@ const EventGraphEdge = memo(
         selected,
         onClick,
     }: ExtendedEdgeProps) => {
+        // Get validation errors for this edge
+        const validationErrors = useStore((state) =>
+            state.getValidationErrors(id)
+        );
+
         const [isConditionDragging, setIsConditionDragging] =
             React.useState(false);
         const [isDelayDragging, setIsDelayDragging] = React.useState(false);
@@ -592,21 +599,52 @@ const EventGraphEdge = memo(
             };
         };
 
+        const hasErrors = validationErrors.length > 0;
+
+        const edgeStyle = useMemo(() => {
+            // Ensure we always have a visible stroke and strokeWidth
+            const baseStyle = {
+                stroke: "#6b7280", // Default gray color
+                strokeWidth: 2,     // Default width
+                ...style,           // Override with provided style
+            };
+
+            if (!hasErrors) {
+                return baseStyle;
+            }
+
+            const width = baseStyle.strokeWidth;
+            const numericWidth =
+                typeof width === "number"
+                    ? Math.max(width, 3)
+                    : width ?? 3;
+
+            return {
+                ...baseStyle,
+                stroke: "#ef4444",
+                strokeWidth: numericWidth,
+            };
+        }, [style, hasErrors]);
+
         return (
-            <BaseEdgeComponent
-                id={id}
-                sourceX={sourceX}
-                sourceY={sourceY}
-                targetX={targetX}
-                targetY={targetY}
-                sourcePosition={sourcePosition}
-                targetPosition={targetPosition}
-                style={style}
-                data={data}
-                markerEnd={markerEnd}
-                selected={selected}
-                onClick={onClick}
+            <ErrorTooltip
+                errors={validationErrors}
+                wrapperElement="g"
             >
+                <BaseEdgeComponent
+                    id={id}
+                    sourceX={sourceX}
+                    sourceY={sourceY}
+                    targetX={targetX}
+                    targetY={targetY}
+                    sourcePosition={sourcePosition}
+                    targetPosition={targetPosition}
+                    style={edgeStyle}
+                    data={data}
+                    markerEnd={markerEnd}
+                    selected={selected}
+                    onClick={onClick}
+                >
                 {({
                     edgePath,
                     labelX,
@@ -1067,6 +1105,7 @@ const EventGraphEdge = memo(
                     );
                 }}
             </BaseEdgeComponent>
+            </ErrorTooltip>
         );
     }
 ) as any;

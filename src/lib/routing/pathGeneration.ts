@@ -10,8 +10,7 @@ import {
     HandleInfo,
 } from "./types";
 import { calculateRoutingEfficiency } from "./distance";
-
-const ORTHOGONAL_ALIGNMENT_TOLERANCE = 6; // px
+import { ORTHOGONAL_ALIGNMENT_TOLERANCE } from "./constants";
 
 function applyAlignmentTolerance(start: Point, end: Point): {
     start: Point;
