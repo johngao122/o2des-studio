@@ -153,7 +153,7 @@ const ActivityNode = memo(
     }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
         const [editDuration, setEditDuration] = useState(
-            data?.duration || "op time"
+            data?.duration ?? ""
         );
         const [isHovered, setIsHovered] = useState(false);
 
@@ -209,7 +209,7 @@ const ActivityNode = memo(
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditDuration(data?.duration || "op time");
+            setEditDuration(data?.duration ?? "");
         }, [data?.duration]);
 
         const handleBlur = useCallback(() => {
@@ -501,7 +501,7 @@ const ActivityNode = memo(
 
 ActivityNode.getDefaultData = (): ActivityNodeData => ({
     resources: [],
-    duration: "op time",
+    duration: "",
     width: 120,
     height: 40,
 });
