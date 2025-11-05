@@ -277,6 +277,7 @@ export function PropertiesBar({
         "routingMetrics",
         "selectedHandles",
         "conditionPosition",
+        "duration", // Hide the combined duration field
     ]);
     const visibleProperties = properties.filter((p) => !hiddenKeys.has(p.key));
 
@@ -295,6 +296,11 @@ export function PropertiesBar({
                 {visibleProperties.map((property) => {
                     const isArrowheadProperty =
                         property.key === "arrowheadStyle";
+
+                    // Skip durationValue and durationUnit - they'll be rendered together
+                    if (property.key === "durationValue" || property.key === "durationUnit") {
+                        return null;
+                    }
 
                     return (
                         <div key={property.key}>
@@ -453,6 +459,55 @@ export function PropertiesBar({
                         </div>
                     );
                 })}
+
+                {/* Special handling for Duration fields - render durationValue and durationUnit together */}
+                {(() => {
+                    const durationValueProp = visibleProperties.find(p => p.key === "durationValue");
+                    const durationUnitProp = visibleProperties.find(p => p.key === "durationUnit");
+
+                    if (durationValueProp || durationUnitProp) {
+                        return (
+                            <div key="duration-fields">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                    Duration
+                                </Label>
+                                <div className="flex gap-2 mt-1">
+                                    <Input
+                                        type="number"
+                                        value={String(durationValueProp?.value ?? 0)}
+                                        min={0}
+                                        step="any"
+                                        className="flex-1"
+                                        placeholder="Value"
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            const numValue = parseFloat(value);
+
+                                            if (value === "" || isNaN(numValue)) {
+                                                onPropertyChange("durationValue", 0);
+                                            } else if (numValue < 0) {
+                                                onPropertyChange("durationValue", 0);
+                                            } else {
+                                                onPropertyChange("durationValue", numValue);
+                                            }
+                                        }}
+                                    />
+                                    <Input
+                                        type="text"
+                                        value={String(durationUnitProp?.value ?? "")}
+                                        className="flex-1"
+                                        placeholder="Unit"
+                                        onChange={(e) => {
+                                            onPropertyChange("durationUnit", e.target.value);
+                                        }}
+                                    />
+                                </div>
+                                <Separator className="mt-4" />
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Special handling for ActivityNode and GlobalNode resources */}
                 {(() => {

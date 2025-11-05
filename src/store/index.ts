@@ -1105,6 +1105,25 @@ export const useStore = create<StoreState>((set, get) => ({
                     };
                 }, {});
 
+                // If durationValue or durationUnit changed, update the combined duration field
+                const durationValueProp = editableProperties.find((p) => p.key === "durationValue");
+                const durationUnitProp = editableProperties.find((p) => p.key === "durationUnit");
+
+                if (durationValueProp || durationUnitProp) {
+                    const currentDurationValue = durationValueProp
+                        ? (durationValueProp.value as number)
+                        : (node.data.durationValue ?? 0);
+                    const currentDurationUnit = durationUnitProp
+                        ? String(durationUnitProp.value)
+                        : (node.data.durationUnit ?? "");
+
+                    const combinedDuration = currentDurationUnit
+                        ? `${currentDurationValue} ${currentDurationUnit}`
+                        : currentDurationValue.toString();
+
+                    (newData as any).duration = combinedDuration;
+                }
+
                 const nameProperty = editableProperties.find(
                     (p) => p.key === "name"
                 );
