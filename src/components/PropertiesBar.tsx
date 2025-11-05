@@ -176,6 +176,63 @@ export function PropertiesBar({
         );
     };
 
+    const renderArrowheadPreview = (
+        variant: string,
+        className?: string
+    ) => {
+        const isFilled = variant === "filled";
+
+        return (
+            <svg
+                className={cn("w-full", className)}
+                height="40"
+                viewBox="0 0 50 20"
+                aria-hidden="true"
+                focusable="false"
+                preserveAspectRatio="xMidYMid meet"
+            >
+                {isFilled ? (
+                    <>
+                        <line
+                            x1="1"
+                            y1="10"
+                            x2="15"
+                            y2="10"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                        />
+                        <path
+                            d="M 15 0 L 49 10 L 15 20 Z"
+                            fill="currentColor"
+                            stroke="none"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <line
+                            x1="1"
+                            y1="10"
+                            x2="28"
+                            y2="10"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                        />
+                        <path
+                            d="M 28 1 L 49 10 L 28 19"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </>
+                )}
+            </svg>
+        );
+    };
+
     const renderMultiSelectionMessage = () => {
         if (!selectionInfo) return null;
 
@@ -239,6 +296,9 @@ export function PropertiesBar({
 
             <div className="space-y-4 overflow-y-auto flex-1">
                 {visibleProperties.map((property) => {
+                    const isArrowheadProperty =
+                        property.key === "arrowheadStyle";
+
                     return (
                         <div key={property.key}>
                             <Label className="text-sm font-medium flex items-center gap-2">
@@ -285,16 +345,45 @@ export function PropertiesBar({
                                         onPropertyChange(property.key, value);
                                     }}
                                 >
-                                    <SelectTrigger className="nodrag text-xs h-6 dark:bg-zinc-700 mt-1">
-                                        <SelectValue
-                                            placeholder={property.key}
-                                        />
+                                    <SelectTrigger
+                                        className={cn(
+                                            "nodrag text-xs dark:bg-zinc-700 mt-1",
+                                            isArrowheadProperty
+                                                ? "h-14 px-3"
+                                                : "h-6"
+                                        )}
+                                    >
+                                        {isArrowheadProperty ? (
+                                            <div className="flex h-full w-full items-center justify-center">
+                                                {renderArrowheadPreview(
+                                                    String(property.value)
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <SelectValue placeholder={property.key} />
+                                        )}
                                     </SelectTrigger>
                                     <SelectContent>
                                         {property.options.map((opt) => (
-                                            <SelectItem key={opt} value={opt}>
-                                                {opt.charAt(0).toUpperCase() +
-                                                    opt.slice(1)}
+                                            <SelectItem
+                                                key={opt}
+                                                value={opt}
+                                                className={
+                                                    isArrowheadProperty
+                                                        ? "h-12 py-1 justify-center cursor-pointer"
+                                                        : undefined
+                                                }
+                                            >
+                                                {isArrowheadProperty ? (
+                                                    <div className="flex h-full w-full items-center justify-center">
+                                                        {renderArrowheadPreview(
+                                                            opt
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    opt.charAt(0).toUpperCase() +
+                                                    opt.slice(1)
+                                                )}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
