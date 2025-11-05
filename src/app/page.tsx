@@ -35,6 +35,9 @@ export default function DiagramEditor() {
         (state) => state.copySelectedElements
     );
     const pasteElements = useStore((state) => state.pasteElements);
+    const refreshEdgeMarkerColors = useStore(
+        (state) => state.refreshEdgeMarkerColors
+    );
 
     const getSerializedState = useStore.getState().getSerializedState;
     const loadSerializedState = useStore.getState().loadSerializedState;
@@ -147,8 +150,9 @@ export default function DiagramEditor() {
     const handleToggleDarkMode = useCallback(() => {
         setIsDarkMode((prev) => !prev);
         document.documentElement.classList.toggle("dark");
+        refreshEdgeMarkerColors();
         setLastAction(`Switched to ${isDarkMode ? "light" : "dark"} mode`);
-    }, [isDarkMode]);
+    }, [isDarkMode, refreshEdgeMarkerColors]);
 
     const handleShowShortcuts = useCallback(() => {
         setIsShortcutsDialogOpen(true);

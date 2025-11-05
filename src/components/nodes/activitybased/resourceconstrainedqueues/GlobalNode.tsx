@@ -112,6 +112,26 @@ export const GlobalNodePreview = () => {
                 </div>
             </div>
 
+            {/* Duration indicator lines on bottom edge */}
+            <div
+                className="absolute bg-black dark:bg-white"
+                style={{
+                    top: `${35 + previewHeight - 4}px`,
+                    left: `${previewWidth / 2 - 4}px`,
+                    width: "2px",
+                    height: "8px",
+                }}
+            />
+            <div
+                className="absolute bg-black dark:bg-white"
+                style={{
+                    top: `${35 + previewHeight - 4}px`,
+                    left: `${previewWidth / 2 + 2}px`,
+                    width: "2px",
+                    height: "8px",
+                }}
+            />
+
             {/* Duration */}
             <div
                 className="absolute text-xs text-gray-600 dark:text-gray-400 text-center"
@@ -285,6 +305,30 @@ const GlobalNode = memo(
                     </div>
                 </div>
 
+                {/* Duration indicator lines on bottom edge */}
+                {data?.duration && data.duration.trim() !== "" && (
+                    <>
+                        <div
+                            className="absolute bg-black dark:bg-white"
+                            style={{
+                                top: `${35 + dimensions.height - 4}px`,
+                                left: `${dimensions.width / 2 - 4}px`,
+                                width: "2px",
+                                height: "8px",
+                            }}
+                        />
+                        <div
+                            className="absolute bg-black dark:bg-white"
+                            style={{
+                                top: `${35 + dimensions.height - 4}px`,
+                                left: `${dimensions.width / 2 + 2}px`,
+                                width: "2px",
+                                height: "8px",
+                            }}
+                        />
+                    </>
+                )}
+
                 {/* Duration */}
                 {data?.duration && data.duration.trim() !== "" && (
                     <div
@@ -297,11 +341,22 @@ const GlobalNode = memo(
                     >
                         {isEditing ? (
                             <input
-                                type="text"
+                                type="number"
                                 value={editDuration}
-                                onChange={(e) =>
-                                    setEditDuration(e.target.value)
-                                }
+                                min="0"
+                                step="any"
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    const numValue = parseFloat(value);
+
+                                    if (value === "" || isNaN(numValue)) {
+                                        setEditDuration("");
+                                    } else if (numValue < 0) {
+                                        setEditDuration("0");
+                                    } else {
+                                        setEditDuration(value);
+                                    }
+                                }}
                                 onBlur={handleBlur}
                                 className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
                                 placeholder="Duration"

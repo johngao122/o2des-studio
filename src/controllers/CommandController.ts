@@ -247,7 +247,7 @@ export class CommandController {
                 console.log("[CommandController] Executing edge update:", {
                     edgeId,
                     updates: modifiedUpdates,
-                    hasMarkerEnd: 'markerEnd' in modifiedUpdates
+                    hasMarkerEnd: "markerEnd" in modifiedUpdates,
                 });
                 useStore.setState((state) => ({
                     edges: state.edges.map((e) => {
@@ -256,7 +256,7 @@ export class CommandController {
                             console.log("[CommandController] Updated edge:", {
                                 id: updated.id,
                                 markerEnd: updated.markerEnd,
-                                arrowheadStyle: updated.data?.arrowheadStyle
+                                arrowheadStyle: updated.data?.arrowheadStyle,
                             });
                             return updated;
                         }

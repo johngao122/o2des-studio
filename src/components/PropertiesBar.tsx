@@ -176,10 +176,7 @@ export function PropertiesBar({
         );
     };
 
-    const renderArrowheadPreview = (
-        variant: string,
-        className?: string
-    ) => {
+    const renderArrowheadPreview = (variant: string, className?: string) => {
         const isFilled = variant === "filled";
 
         return (
@@ -360,7 +357,9 @@ export function PropertiesBar({
                                                 )}
                                             </div>
                                         ) : (
-                                            <SelectValue placeholder={property.key} />
+                                            <SelectValue
+                                                placeholder={property.key}
+                                            />
                                         )}
                                     </SelectTrigger>
                                     <SelectContent>
@@ -381,7 +380,9 @@ export function PropertiesBar({
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    opt.charAt(0).toUpperCase() +
+                                                    opt
+                                                        .charAt(0)
+                                                        .toUpperCase() +
                                                     opt.slice(1)
                                                 )}
                                             </SelectItem>
@@ -409,12 +410,15 @@ export function PropertiesBar({
                             ) : (
                                 <Input
                                     type={
-                                        property.type === "number"
+                                        property.type === "number" ||
+                                        property.key === "duration"
                                             ? "number"
                                             : "text"
                                     }
                                     value={String(property.value)}
                                     readOnly={!property.editable}
+                                    min={property.key === "duration" ? 0 : undefined}
+                                    step={property.key === "duration" ? "any" : undefined}
                                     className={cn(
                                         "mt-1",
                                         !property.editable &&
@@ -422,11 +426,22 @@ export function PropertiesBar({
                                     )}
                                     onChange={(e) => {
                                         if (!property.editable) return;
-                                        const newValue =
-                                            property.type === "number"
-                                                ? parseFloat(e.target.value) ||
-                                                  0
-                                                : e.target.value;
+
+                                        let newValue: string | number = e.target.value;
+
+                                        if (property.key === "duration") {
+                                            const numValue = parseFloat(e.target.value);
+                                            if (e.target.value === "" || isNaN(numValue)) {
+                                                newValue = "";
+                                            } else if (numValue < 0) {
+                                                newValue = "0";
+                                            } else {
+                                                newValue = e.target.value;
+                                            }
+                                        } else if (property.type === "number") {
+                                            newValue = parseFloat(e.target.value) || 0;
+                                        }
+
                                         onPropertyChange(
                                             property.key,
                                             newValue

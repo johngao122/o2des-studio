@@ -27,6 +27,7 @@ import { GRID_SIZE } from "@/lib/utils/math";
 import { AutosaveService } from "../services/AutosaveService";
 import { GraphValidationService } from "../services/GraphValidationService";
 import { ValidationError, ModelValidationState } from "../types/validation";
+import { getArrowheadColor } from "@/lib/utils/edgeUtils";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
@@ -132,6 +133,7 @@ export interface StoreState {
     updateSelectedProperties: (properties: SelectedProperty[]) => void;
     updateProjectName: (name: string) => void;
     updateMetadata: (metadata: Partial<ProjectMetadata>) => void;
+    refreshEdgeMarkerColors: () => void;
     startDragProxy: (nodes: BaseNode[], edges: BaseEdge[]) => void;
     updateDragProxy: (
         position: { x: number; y: number },
@@ -975,14 +977,14 @@ export const useStore = create<StoreState>((set, get) => ({
                         arrowheadStyle === "filled"
                             ? {
                                   type: MarkerType.ArrowClosed,
-                                  color: "#ffffff",
+                                  color: getArrowheadColor(),
                                   width: 15,
                                   height: 15,
                               }
                             : arrowheadStyle === "open"
                             ? {
                                   type: MarkerType.Arrow,
-                                  color: "#ffffff",
+                                  color: getArrowheadColor(),
                                   width: 15,
                                   height: 15,
                               }
@@ -1182,14 +1184,14 @@ export const useStore = create<StoreState>((set, get) => ({
                         arrowheadStyle === "filled"
                             ? {
                                   type: MarkerType.ArrowClosed,
-                                  color: "#ffffff",
+                                  color: getArrowheadColor(),
                                   width: 15,
                                   height: 15,
                               }
                             : arrowheadStyle === "open"
                             ? {
                                   type: MarkerType.Arrow,
-                                  color: "#ffffff",
+                                  color: getArrowheadColor(),
                                   width: 15,
                                   height: 15,
                               }
@@ -1263,6 +1265,23 @@ export const useStore = create<StoreState>((set, get) => ({
                 modified: new Date().toISOString(),
             },
         }));
+    },
+
+    refreshEdgeMarkerColors: () => {
+        const { edges } = get();
+        const updatedEdges = edges.map((edge) => {
+            if (edge.markerEnd && typeof edge.markerEnd === "object") {
+                return {
+                    ...edge,
+                    markerEnd: {
+                        ...edge.markerEnd,
+                        color: getArrowheadColor(),
+                    },
+                };
+            }
+            return edge;
+        });
+        set({ edges: updatedEdges });
     },
 
     startDragProxy: (nodes: BaseNode[], edges: BaseEdge[]) => {

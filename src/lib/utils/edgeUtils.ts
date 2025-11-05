@@ -8,6 +8,20 @@ import { BaseNode } from "@/types/base";
 import { getHandleSide } from "./nodeHandles";
 
 /**
+ * Returns the appropriate arrowhead color based on the current theme
+ *
+ * @returns "#000000" for light mode, "#ffffff" for dark mode
+ */
+export function getArrowheadColor(): string {
+    if (typeof document === "undefined") {
+        return "#ffffff"; // Default to white for SSR
+    }
+
+    const isDark = document.documentElement.classList.contains("dark");
+    return isDark ? "#ffffff" : "#000000";
+}
+
+/**
  * Determines if a connection should be automatically created as a dependency edge
  *
  * Dependency criteria:
