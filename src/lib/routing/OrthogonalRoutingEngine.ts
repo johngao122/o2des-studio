@@ -13,6 +13,7 @@ import {
     generateControlPoints,
     createOrthogonalPath,
     compareOrthogonalPaths,
+    createPerpendicularApproachPath,
 } from "./pathGeneration";
 
 export interface RoutingComparison {
@@ -26,6 +27,7 @@ export interface RoutingOptions {
     avoidObstacles?: boolean;
     obstacles?: NodeBounds[];
     preferredRouting?: "horizontal-first" | "vertical-first";
+    usePerpendicularApproach?: boolean;
 }
 
 /**
@@ -52,23 +54,37 @@ export class OrthogonalRoutingEngine {
             return this.pathCache.get(cacheKey)!;
         }
 
-        const horizontalFirstPath = createOrthogonalPath(
-            sourceHandle,
-            targetHandle,
-            "horizontal-first"
-        );
+        // Use perpendicular approach if enabled (default: true)
+        const usePerpendicularApproach = options.usePerpendicularApproach !== false;
 
-        const verticalFirstPath = createOrthogonalPath(
-            sourceHandle,
-            targetHandle,
-            "vertical-first"
-        );
+        let optimalPath: OrthogonalPath;
 
-        const optimalPath = this.selectOptimalPath(
-            horizontalFirstPath,
-            verticalFirstPath,
-            options
-        );
+        if (usePerpendicularApproach) {
+            // Use perpendicular approach to ensure target is approached perpendicularly
+            optimalPath = createPerpendicularApproachPath(
+                sourceHandle,
+                targetHandle
+            );
+        } else {
+            // Use original horizontal-first/vertical-first logic
+            const horizontalFirstPath = createOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                "horizontal-first"
+            );
+
+            const verticalFirstPath = createOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                "vertical-first"
+            );
+
+            optimalPath = this.selectOptimalPath(
+                horizontalFirstPath,
+                verticalFirstPath,
+                options
+            );
+        }
 
         this.pathCache.set(cacheKey, optimalPath);
 
