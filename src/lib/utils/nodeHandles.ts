@@ -357,26 +357,24 @@ export function getTerminatorNodeHandles(
 
 /**
  * Extract handle information for Event nodes
- * Replicates the exact logic from EventNode.tsx using standard handle positions
+ * Replicates the exact logic from EventNode.tsx using ellipse handle positions
  */
 export function getEventNodeHandles(
     nodeId: string,
     nodePosition: NodePosition,
     dimensions: NodeDimensions
 ): NodeHandleInfo[] {
-    const handlePositions = getStandardHandlePositions(
-        dimensions.width,
-        dimensions.height
-    );
+    const { getEllipseHandlePositions } = require("./math");
+    const ellipseHandles = getEllipseHandlePositions(dimensions.width, dimensions.height);
 
     const handles: NodeHandleInfo[] = [];
 
-    handlePositions.horizontal.slice(1, -1).forEach((leftPos, index) => {
+    ellipseHandles.top.forEach((handle: { x: number; y: number }, index: number) => {
         handles.push({
             id: `${nodeId}-top-${index}`,
             coordinates: {
-                x: nodePosition.x + leftPos,
-                y: nodePosition.y + 5,
+                x: nodePosition.x + handle.x,
+                y: nodePosition.y + handle.y,
             },
             side: "top",
             type: "source",
@@ -384,12 +382,12 @@ export function getEventNodeHandles(
         });
     });
 
-    handlePositions.vertical.forEach((topPos, index) => {
+    ellipseHandles.right.forEach((handle: { x: number; y: number }, index: number) => {
         handles.push({
             id: `${nodeId}-right-${index}`,
             coordinates: {
-                x: nodePosition.x + dimensions.width - 10,
-                y: nodePosition.y + topPos - 10,
+                x: nodePosition.x + handle.x,
+                y: nodePosition.y + handle.y,
             },
             side: "right",
             type: "source",
@@ -397,12 +395,12 @@ export function getEventNodeHandles(
         });
     });
 
-    handlePositions.horizontal.slice(1, -1).forEach((leftPos, index) => {
+    ellipseHandles.bottom.forEach((handle: { x: number; y: number }, index: number) => {
         handles.push({
             id: `${nodeId}-bottom-${index}`,
             coordinates: {
-                x: nodePosition.x + leftPos,
-                y: nodePosition.y + dimensions.height - 10,
+                x: nodePosition.x + handle.x,
+                y: nodePosition.y + handle.y,
             },
             side: "bottom",
             type: "source",
@@ -410,12 +408,12 @@ export function getEventNodeHandles(
         });
     });
 
-    handlePositions.vertical.forEach((topPos, index) => {
+    ellipseHandles.left.forEach((handle: { x: number; y: number }, index: number) => {
         handles.push({
             id: `${nodeId}-left-${index}`,
             coordinates: {
-                x: nodePosition.x + 5,
-                y: nodePosition.y + topPos - 10,
+                x: nodePosition.x + handle.x,
+                y: nodePosition.y + handle.y,
             },
             side: "left",
             type: "target",

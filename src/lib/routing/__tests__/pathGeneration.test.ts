@@ -152,7 +152,7 @@ describe("Path Generation Utilities", () => {
             const targetHandle: HandleInfo = {
                 id: "target-1",
                 nodeId: "node-2",
-                position: { x: 10, y: 5 },
+                position: { x: 10, y: 10 },
                 side: "left",
                 type: "target",
             };
@@ -164,7 +164,7 @@ describe("Path Generation Utilities", () => {
             );
 
             expect(path.routingType).toBe("horizontal-first");
-            expect(path.totalLength).toBe(15);
+            expect(path.totalLength).toBe(20);
             expect(path.segments).toHaveLength(2);
             expect(path.controlPoints).toHaveLength(3);
             expect(path.efficiency).toBeGreaterThan(1);

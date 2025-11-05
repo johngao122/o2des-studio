@@ -28,6 +28,8 @@ export interface RoutingOptions {
     obstacles?: NodeBounds[];
     preferredRouting?: "horizontal-first" | "vertical-first";
     usePerpendicularApproach?: boolean;
+    sourceNodeBounds?: NodeBounds;
+    targetNodeBounds?: NodeBounds;
 }
 
 /**
@@ -60,10 +62,19 @@ export class OrthogonalRoutingEngine {
         let optimalPath: OrthogonalPath;
 
         if (usePerpendicularApproach) {
-            // Use perpendicular approach to ensure target is approached perpendicularly
+            const sourceNodeBounds = options.sourceNodeBounds
+                ? { width: options.sourceNodeBounds.width, height: options.sourceNodeBounds.height }
+                : undefined;
+
+            const targetNodeBounds = options.targetNodeBounds
+                ? { width: options.targetNodeBounds.width, height: options.targetNodeBounds.height }
+                : undefined;
+
             optimalPath = createPerpendicularApproachPath(
                 sourceHandle,
-                targetHandle
+                targetHandle,
+                sourceNodeBounds,
+                targetNodeBounds
             );
         } else {
             // Use original horizontal-first/vertical-first logic
@@ -156,11 +167,13 @@ export class OrthogonalRoutingEngine {
         targetY: number,
         sourcePosition?: string,
         targetPosition?: string,
-        options: RoutingOptions = {}
+        options: RoutingOptions = {},
+        sourceNodeId?: string,
+        targetNodeId?: string
     ): OrthogonalPath {
         const sourceHandle: HandleInfo = {
             id: "source",
-            nodeId: "source",
+            nodeId: sourceNodeId || "source",
             position: { x: sourceX, y: sourceY },
             side: this.positionToSide(sourcePosition || "right"),
             type: "source",
@@ -168,7 +181,7 @@ export class OrthogonalRoutingEngine {
 
         const targetHandle: HandleInfo = {
             id: "target",
-            nodeId: "target",
+            nodeId: targetNodeId || "target",
             position: { x: targetX, y: targetY },
             side: this.positionToSide(targetPosition || "left"),
             type: "target",

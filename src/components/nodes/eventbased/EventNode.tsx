@@ -619,7 +619,6 @@ const EventNode = memo(
                 {/* Handles */}
                 {id !== "preview" && (
                     <>
-                        {/* Top handles (ellipse) */}
                         {ellipseHandles.top.map((h, index) => (
                             <Handle
                                 key={`top-${index}`}
@@ -634,13 +633,12 @@ const EventNode = memo(
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${h.x}px`,
-                                    top: `${h.y + 5}px`,
+                                    top: `${h.y}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}
 
-                        {/* Right handles (ellipse) */}
                         {ellipseHandles.right.map((h, index) => (
                             <Handle
                                 key={`right-${index}`}
@@ -661,7 +659,6 @@ const EventNode = memo(
                             />
                         ))}
 
-                        {/* Bottom handles (ellipse) */}
                         {ellipseHandles.bottom.map((h, index) => (
                             <Handle
                                 key={`bottom-${index}`}
@@ -676,13 +673,12 @@ const EventNode = memo(
                                 isConnectable={isConnectable}
                                 style={{
                                     left: `${h.x}px`,
-                                    top: `${h.y - 5}px`,
+                                    top: `${h.y}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
                             />
                         ))}
 
-                        {/* Left handles (ellipse) */}
                         {ellipseHandles.left.map((h, index) => (
                             <Handle
                                 key={`left-${index}`}

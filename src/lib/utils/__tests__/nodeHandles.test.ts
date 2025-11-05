@@ -37,8 +37,13 @@ describe("nodeHandles - Real Node Testing", () => {
             expect(bottomHandles.length).toBeGreaterThan(0);
             expect(leftHandles.length).toBeGreaterThan(0);
 
-            handles.forEach((handle) => {
+            [...topHandles, ...rightHandles, ...bottomHandles].forEach((handle) => {
                 expect(handle.type).toBe("source");
+                expect(handle.nodeId).toBe(nodeId);
+            });
+
+            leftHandles.forEach((handle) => {
+                expect(handle.type).toBe("target");
                 expect(handle.nodeId).toBe(nodeId);
             });
 
@@ -57,12 +62,12 @@ describe("nodeHandles - Real Node Testing", () => {
                 expect(handle.coordinates.x).toBeLessThanOrEqual(
                     position.x + dimensions.width
                 );
-                expect(handle.coordinates.y).toBe(position.y + headerHeight);
+                expect(handle.coordinates.y).toBe(position.y + headerHeight + 6);
             });
 
             rightHandles.forEach((handle) => {
                 expect(handle.coordinates.x).toBe(
-                    position.x + dimensions.width
+                    position.x + dimensions.width - 6
                 );
                 expect(handle.coordinates.y).toBeGreaterThanOrEqual(position.y);
                 expect(handle.coordinates.y).toBeLessThanOrEqual(
@@ -156,7 +161,7 @@ describe("nodeHandles - Real Node Testing", () => {
     });
 
     describe("getEventNodeHandles", () => {
-        it("should extract rectangular handle positions with correct types", () => {
+        it("should extract ellipse handle positions with correct types", () => {
             const nodeId = "event-789";
             const position = { x: 200, y: 300 };
             const dimensions = { width: 180, height: 100 };
@@ -168,10 +173,10 @@ describe("nodeHandles - Real Node Testing", () => {
             const bottomHandles = handles.filter((h) => h.side === "bottom");
             const leftHandles = handles.filter((h) => h.side === "left");
 
-            expect(topHandles.length).toBeGreaterThan(0);
-            expect(rightHandles.length).toBeGreaterThan(0);
-            expect(bottomHandles.length).toBeGreaterThan(0);
-            expect(leftHandles.length).toBeGreaterThan(0);
+            expect(topHandles.length).toBe(3);
+            expect(rightHandles.length).toBe(1);
+            expect(bottomHandles.length).toBe(3);
+            expect(leftHandles.length).toBe(1);
 
             [...topHandles, ...rightHandles, ...bottomHandles].forEach(
                 (handle) => {
@@ -184,11 +189,13 @@ describe("nodeHandles - Real Node Testing", () => {
             });
 
             topHandles.forEach((handle) => {
-                expect(handle.coordinates.y).toBe(position.y + 5);
+                expect(handle.coordinates.y).toBeGreaterThanOrEqual(position.y);
+                expect(handle.coordinates.y).toBeLessThanOrEqual(position.y + 30);
             });
 
             leftHandles.forEach((handle) => {
-                expect(handle.coordinates.x).toBe(position.x + 5);
+                expect(handle.coordinates.x).toBeGreaterThanOrEqual(position.x);
+                expect(handle.coordinates.x).toBeLessThanOrEqual(position.x + 30);
             });
         });
     });

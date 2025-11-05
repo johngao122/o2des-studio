@@ -227,36 +227,40 @@ function FlowCanvas({
 
             let resolvedSourceHandle = connection.sourceHandle;
 
-            try {
-                const sourceNode = nodes.find((n) => n.id === connection.source);
-                const targetNode = nodes.find((n) => n.id === connection.target);
+            const isSelfLoop = connection.source === connection.target;
 
-                const sourceInfo = sourceNode
-                    ? createNodeInfo(sourceNode as BaseNode, "source")
-                    : null;
-                const targetInfo = targetNode
-                    ? createNodeInfo(
-                          targetNode as BaseNode,
-                          "target",
-                          connection.targetHandle
-                      )
-                    : null;
+            if (!isSelfLoop) {
+                try {
+                    const sourceNode = nodes.find((n) => n.id === connection.source);
+                    const targetNode = nodes.find((n) => n.id === connection.target);
 
-                if (sourceInfo && targetInfo) {
-                    const optimal = handleSelectionService.findOptimalHandles(
-                        sourceInfo,
-                        targetInfo
-                    );
+                    const sourceInfo = sourceNode
+                        ? createNodeInfo(sourceNode as BaseNode, "source")
+                        : null;
+                    const targetInfo = targetNode
+                        ? createNodeInfo(
+                              targetNode as BaseNode,
+                              "target",
+                              connection.targetHandle
+                          )
+                        : null;
 
-                    if (optimal?.sourceHandle?.id) {
-                        resolvedSourceHandle = optimal.sourceHandle.id;
+                    if (sourceInfo && targetInfo) {
+                        const optimal = handleSelectionService.findOptimalHandles(
+                            sourceInfo,
+                            targetInfo
+                        );
+
+                        if (optimal?.sourceHandle?.id) {
+                            resolvedSourceHandle = optimal.sourceHandle.id;
+                        }
                     }
+                } catch (error) {
+                    console.warn(
+                        "[Flow] handleConnect → auto handle selection fallback",
+                        error
+                    );
                 }
-            } catch (error) {
-                console.warn(
-                    "[Flow] handleConnect → auto handle selection fallback",
-                    error
-                );
             }
 
             if (!resolvedSourceHandle || !connection.targetHandle) {

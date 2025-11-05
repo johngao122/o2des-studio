@@ -223,12 +223,13 @@ export function createOrthogonalPath(
 }
 
 /**
- * Generate path with perpendicular approach to target handle
- * This ensures the final segment always enters the target node perpendicular to its handle side
+ * Generate path with perpendicular approach to both source and target handles
+ * This ensures edges always exit and enter nodes perpendicular to their handle sides
  */
 export function generatePerpendicularApproachPath(
     sourceHandle: HandleInfo,
     targetHandle: HandleInfo,
+    minExitDistance: number = 30,
     minApproachDistance: number = 30
 ): PathSegment[] {
     const segments: PathSegment[] = [];
@@ -239,122 +240,154 @@ export function generatePerpendicularApproachPath(
         return segments;
     }
 
-    // Calculate the approach point based on target handle side
+    let exitPoint: Point;
+    let exitDirection: "horizontal" | "vertical";
+
+    switch (sourceHandle.side) {
+        case "right":
+            exitPoint = { x: start.x + minExitDistance, y: start.y };
+            exitDirection = "horizontal";
+            break;
+        case "left":
+            exitPoint = { x: start.x - minExitDistance, y: start.y };
+            exitDirection = "horizontal";
+            break;
+        case "top":
+            exitPoint = { x: start.x, y: start.y - minExitDistance };
+            exitDirection = "vertical";
+            break;
+        case "bottom":
+            exitPoint = { x: start.x, y: start.y + minExitDistance };
+            exitDirection = "vertical";
+            break;
+        default:
+            exitPoint = { x: start.x + minExitDistance, y: start.y };
+            exitDirection = "horizontal";
+    }
+
     let approachPoint: Point;
-    let finalSegmentDirection: "horizontal" | "vertical";
+    let approachDirection: "horizontal" | "vertical";
 
     switch (targetHandle.side) {
         case "right":
-            // Approach from the right (horizontally)
             approachPoint = { x: end.x + minApproachDistance, y: end.y };
-            finalSegmentDirection = "horizontal";
+            approachDirection = "horizontal";
             break;
         case "left":
-            // Approach from the left (horizontally)
             approachPoint = { x: end.x - minApproachDistance, y: end.y };
-            finalSegmentDirection = "horizontal";
+            approachDirection = "horizontal";
             break;
         case "top":
-            // Approach from the top (vertically)
             approachPoint = { x: end.x, y: end.y - minApproachDistance };
-            finalSegmentDirection = "vertical";
+            approachDirection = "vertical";
             break;
         case "bottom":
-            // Approach from the bottom (vertically)
             approachPoint = { x: end.x, y: end.y + minApproachDistance };
-            finalSegmentDirection = "vertical";
+            approachDirection = "vertical";
             break;
         default:
             approachPoint = { x: end.x + minApproachDistance, y: end.y };
-            finalSegmentDirection = "horizontal";
+            approachDirection = "horizontal";
     }
 
-    // Check if we can go directly from source to approach point
+    segments.push({
+        start,
+        end: exitPoint,
+        direction: exitDirection,
+        length: Math.abs(
+            exitDirection === "horizontal"
+                ? exitPoint.x - start.x
+                : exitPoint.y - start.y
+        ),
+    });
+
     const needsIntermediate =
-        Math.abs(start.x - approachPoint.x) > 0.1 &&
-        Math.abs(start.y - approachPoint.y) > 0.1;
+        Math.abs(exitPoint.x - approachPoint.x) > 0.1 &&
+        Math.abs(exitPoint.y - approachPoint.y) > 0.1;
 
-    if (!needsIntermediate) {
-        // Direct path: source → approach point → target
-        if (Math.abs(start.x - approachPoint.x) > 0.1) {
-            // Horizontal segment to approach point
-            segments.push({
-                start,
-                end: approachPoint,
-                direction: "horizontal",
-                length: Math.abs(approachPoint.x - start.x),
-            });
-        } else if (Math.abs(start.y - approachPoint.y) > 0.1) {
-            // Vertical segment to approach point
-            segments.push({
-                start,
-                end: approachPoint,
-                direction: "vertical",
-                length: Math.abs(approachPoint.y - start.y),
-            });
-        }
-    } else {
-        // Need intermediate corner: source → intermediate → approach point → target
-        let intermediatePoint: Point;
+    if (needsIntermediate) {
+        if (exitDirection === approachDirection) {
+            const midDirection: "horizontal" | "vertical" = exitDirection === "horizontal" ? "vertical" : "horizontal";
+            const midPoint = exitDirection === "horizontal"
+                ? { x: exitPoint.x, y: approachPoint.y }
+                : { x: approachPoint.x, y: exitPoint.y };
 
-        // Choose intermediate point based on final approach direction
-        if (finalSegmentDirection === "horizontal") {
-            // If final segment is horizontal, intermediate goes vertical first, then horizontal to approach
-            intermediatePoint = { x: start.x, y: approachPoint.y };
-
-            // Segment 1: source to intermediate (vertical)
-            if (Math.abs(intermediatePoint.y - start.y) > 0.1) {
+            if (Math.abs(midPoint.x - exitPoint.x) > 0.1 || Math.abs(midPoint.y - exitPoint.y) > 0.1) {
                 segments.push({
-                    start,
-                    end: intermediatePoint,
-                    direction: "vertical",
-                    length: Math.abs(intermediatePoint.y - start.y),
+                    start: exitPoint,
+                    end: midPoint,
+                    direction: midDirection,
+                    length: Math.abs(
+                        midDirection === "horizontal"
+                            ? midPoint.x - exitPoint.x
+                            : midPoint.y - exitPoint.y
+                    ),
                 });
             }
 
-            // Segment 2: intermediate to approach point (horizontal)
-            if (Math.abs(approachPoint.x - intermediatePoint.x) > 0.1) {
+            if (Math.abs(approachPoint.x - midPoint.x) > 0.1 || Math.abs(approachPoint.y - midPoint.y) > 0.1) {
                 segments.push({
-                    start: intermediatePoint,
+                    start: midPoint,
                     end: approachPoint,
-                    direction: "horizontal",
-                    length: Math.abs(approachPoint.x - intermediatePoint.x),
+                    direction: exitDirection,
+                    length: Math.abs(
+                        exitDirection === "horizontal"
+                            ? approachPoint.x - midPoint.x
+                            : approachPoint.y - midPoint.y
+                    ),
                 });
             }
         } else {
-            // If final segment is vertical, intermediate goes horizontal first, then vertical to approach
-            intermediatePoint = { x: approachPoint.x, y: start.y };
+            const corner1 = exitDirection === "horizontal"
+                ? { x: approachPoint.x, y: exitPoint.y }
+                : { x: exitPoint.x, y: approachPoint.y };
 
-            // Segment 1: source to intermediate (horizontal)
-            if (Math.abs(intermediatePoint.x - start.x) > 0.1) {
+            if (Math.abs(corner1.x - exitPoint.x) > 0.1 || Math.abs(corner1.y - exitPoint.y) > 0.1) {
                 segments.push({
-                    start,
-                    end: intermediatePoint,
-                    direction: "horizontal",
-                    length: Math.abs(intermediatePoint.x - start.x),
+                    start: exitPoint,
+                    end: corner1,
+                    direction: exitDirection,
+                    length: Math.abs(
+                        exitDirection === "horizontal"
+                            ? corner1.x - exitPoint.x
+                            : corner1.y - exitPoint.y
+                    ),
                 });
             }
 
-            // Segment 2: intermediate to approach point (vertical)
-            if (Math.abs(approachPoint.y - intermediatePoint.y) > 0.1) {
+            if (Math.abs(approachPoint.x - corner1.x) > 0.1 || Math.abs(approachPoint.y - corner1.y) > 0.1) {
                 segments.push({
-                    start: intermediatePoint,
+                    start: corner1,
                     end: approachPoint,
-                    direction: "vertical",
-                    length: Math.abs(approachPoint.y - intermediatePoint.y),
+                    direction: approachDirection,
+                    length: Math.abs(
+                        approachDirection === "horizontal"
+                            ? approachPoint.x - corner1.x
+                            : approachPoint.y - corner1.y
+                    ),
                 });
             }
         }
+    } else if (Math.abs(exitPoint.x - approachPoint.x) > 0.1 || Math.abs(exitPoint.y - approachPoint.y) > 0.1) {
+        segments.push({
+            start: exitPoint,
+            end: approachPoint,
+            direction: exitDirection,
+            length: Math.abs(
+                exitDirection === "horizontal"
+                    ? approachPoint.x - exitPoint.x
+                    : approachPoint.y - exitPoint.y
+            ),
+        });
     }
 
-    // Final segment: approach point → target (perpendicular to handle)
     if (Math.abs(end.x - approachPoint.x) > 0.1 || Math.abs(end.y - approachPoint.y) > 0.1) {
         segments.push({
             start: approachPoint,
             end,
-            direction: finalSegmentDirection,
+            direction: approachDirection,
             length: Math.abs(
-                finalSegmentDirection === "horizontal"
+                approachDirection === "horizontal"
                     ? end.x - approachPoint.x
                     : end.y - approachPoint.y
             ),
@@ -365,22 +398,221 @@ export function generatePerpendicularApproachPath(
 }
 
 /**
- * Create orthogonal path with perpendicular approach to target
+ * Generate self-loop path for edges connecting a node to itself
+ * Creates a rectangular loop that extends outward from the node
+ */
+export function generateSelfLoopPath(
+    sourceHandle: HandleInfo,
+    targetHandle: HandleInfo,
+    loopExtension?: number,
+    nodeBounds?: { width: number; height: number }
+): PathSegment[] {
+    // Calculate loop extension based on node size if not provided
+    if (!loopExtension && nodeBounds) {
+        // Use 100-120% of the average of width and height as extension
+        // This creates a prominent, visible loop around the node
+        const avgDimension = (nodeBounds.width + nodeBounds.height) / 2;
+        loopExtension = avgDimension * 1.1; // 110% of average dimension
+        // Clamp to reasonable bounds (minimum 60px, maximum 250px)
+        loopExtension = Math.max(60, Math.min(loopExtension, 250));
+    } else if (!loopExtension) {
+        loopExtension = 80; // Default fallback (increased from 50)
+    }
+    const segments: PathSegment[] = [];
+    const start = sourceHandle.position;
+    const end = targetHandle.position;
+
+    // Calculate loop extension based on handle positions and sides
+    const sourceSide = sourceHandle.side;
+    const targetSide = targetHandle.side;
+
+    // Determine the loop rectangle corners based on handle sides
+    let corner1: Point;
+    let corner2: Point;
+
+    if (sourceSide === "top" && targetSide === "top") {
+        // Both on top - create upward loop
+        corner1 = { x: start.x, y: start.y - loopExtension };
+        corner2 = { x: end.x, y: end.y - loopExtension };
+    } else if (sourceSide === "bottom" && targetSide === "bottom") {
+        // Both on bottom - create downward loop
+        corner1 = { x: start.x, y: start.y + loopExtension };
+        corner2 = { x: end.x, y: end.y + loopExtension };
+    } else if (sourceSide === "left" && targetSide === "left") {
+        // Both on left - create leftward loop
+        corner1 = { x: start.x - loopExtension, y: start.y };
+        corner2 = { x: end.x - loopExtension, y: end.y };
+    } else if (sourceSide === "right" && targetSide === "right") {
+        // Both on right - create rightward loop
+        corner1 = { x: start.x + loopExtension, y: start.y };
+        corner2 = { x: end.x + loopExtension, y: end.y };
+    } else if (sourceSide === "top" && targetSide === "left") {
+        // Top to left - create corner loop
+        corner1 = { x: start.x, y: start.y - loopExtension };
+        corner2 = { x: end.x - loopExtension, y: corner1.y };
+    } else if (sourceSide === "left" && targetSide === "top") {
+        // Left to top - create corner loop
+        corner1 = { x: start.x - loopExtension, y: start.y };
+        corner2 = { x: corner1.x, y: end.y - loopExtension };
+    } else if (sourceSide === "top" && targetSide === "right") {
+        // Top to right - create corner loop
+        corner1 = { x: start.x, y: start.y - loopExtension };
+        corner2 = { x: end.x + loopExtension, y: corner1.y };
+    } else if (sourceSide === "right" && targetSide === "top") {
+        // Right to top - create corner loop
+        corner1 = { x: start.x + loopExtension, y: start.y };
+        corner2 = { x: corner1.x, y: end.y - loopExtension };
+    } else if (sourceSide === "bottom" && targetSide === "left") {
+        // Bottom to left - create corner loop
+        corner1 = { x: start.x, y: start.y + loopExtension };
+        corner2 = { x: end.x - loopExtension, y: corner1.y };
+    } else if (sourceSide === "left" && targetSide === "bottom") {
+        // Left to bottom - create corner loop
+        corner1 = { x: start.x - loopExtension, y: start.y };
+        corner2 = { x: corner1.x, y: end.y + loopExtension };
+    } else if (sourceSide === "bottom" && targetSide === "right") {
+        // Bottom to right - create corner loop
+        corner1 = { x: start.x, y: start.y + loopExtension };
+        corner2 = { x: end.x + loopExtension, y: corner1.y };
+    } else if (sourceSide === "right" && targetSide === "bottom") {
+        // Right to bottom - create corner loop
+        corner1 = { x: start.x + loopExtension, y: start.y };
+        corner2 = { x: corner1.x, y: end.y + loopExtension };
+    } else if (sourceSide === "right" && targetSide === "left") {
+        // Right to left - create rightward loop
+        corner1 = { x: start.x + loopExtension, y: start.y };
+        corner2 = { x: end.x - loopExtension, y: end.y };
+    } else if (sourceSide === "left" && targetSide === "right") {
+        // Left to right - create leftward loop
+        corner1 = { x: start.x - loopExtension, y: start.y };
+        corner2 = { x: end.x + loopExtension, y: end.y };
+    } else if (sourceSide === "top" && targetSide === "bottom") {
+        // Top to bottom - create upward loop
+        corner1 = { x: start.x, y: start.y - loopExtension };
+        corner2 = { x: end.x, y: end.y + loopExtension };
+    } else if (sourceSide === "bottom" && targetSide === "top") {
+        // Bottom to top - create downward loop
+        corner1 = { x: start.x, y: start.y + loopExtension };
+        corner2 = { x: end.x, y: end.y - loopExtension };
+    } else {
+        // Other combinations - create extended loop
+        // Default to top-bottom loop
+        corner1 = { x: start.x, y: start.y - loopExtension };
+        corner2 = { x: end.x, y: end.y + loopExtension };
+    }
+
+    // Build the path segments
+    // Segment 1: Exit from source
+    const exitDirection = (sourceSide === "left" || sourceSide === "right") ? "horizontal" : "vertical";
+    const exitLength = Math.abs(exitDirection === "horizontal" ? corner1.x - start.x : corner1.y - start.y);
+
+    if (exitLength > 0.1) {
+        segments.push({
+            start,
+            end: corner1,
+            direction: exitDirection,
+            length: exitLength,
+        });
+    }
+
+    // Segment 2: Connect corners (if needed)
+    const useExitDirection = exitLength > 0.1;
+    const startPoint = useExitDirection ? corner1 : start;
+
+    if (Math.abs(startPoint.x - corner2.x) > 0.1 && Math.abs(startPoint.y - corner2.y) > 0.1) {
+        // Need an intermediate segment
+        const intermediate = exitDirection === "horizontal"
+            ? { x: corner2.x, y: startPoint.y }
+            : { x: startPoint.x, y: corner2.y };
+
+        const midLength = Math.abs(exitDirection === "horizontal" ? intermediate.y - startPoint.y : intermediate.x - startPoint.x);
+        if (midLength > 0.1) {
+            segments.push({
+                start: startPoint,
+                end: intermediate,
+                direction: exitDirection === "horizontal" ? "vertical" : "horizontal",
+                length: midLength,
+            });
+        }
+
+        const finalLength = Math.abs(exitDirection === "horizontal" ? corner2.x - intermediate.x : corner2.y - intermediate.y);
+        if (finalLength > 0.1) {
+            segments.push({
+                start: intermediate,
+                end: corner2,
+                direction: exitDirection,
+                length: finalLength,
+            });
+        }
+    } else if (Math.abs(startPoint.x - corner2.x) > 0.1 || Math.abs(startPoint.y - corner2.y) > 0.1) {
+        // Direct connection between corners
+        const direction = Math.abs(startPoint.x - corner2.x) > 0.1 ? "horizontal" : "vertical";
+        const directLength = Math.abs(direction === "horizontal" ? corner2.x - startPoint.x : corner2.y - startPoint.y);
+        if (directLength > 0.1) {
+            segments.push({
+                start: startPoint,
+                end: corner2,
+                direction,
+                length: directLength,
+            });
+        }
+    }
+
+    // Final segment: Enter target
+    const entryDirection = (targetSide === "left" || targetSide === "right") ? "horizontal" : "vertical";
+    const entryLength = Math.abs(entryDirection === "horizontal" ? end.x - corner2.x : end.y - corner2.y);
+
+    if (entryLength > 0.1) {
+        segments.push({
+            start: corner2,
+            end,
+            direction: entryDirection,
+            length: entryLength,
+        });
+    }
+
+    return segments;
+}
+
+/**
+ * Create orthogonal path with perpendicular approach to both source and target
  */
 export function createPerpendicularApproachPath(
     sourceHandle: HandleInfo,
-    targetHandle: HandleInfo
+    targetHandle: HandleInfo,
+    sourceNodeBounds?: { width: number; height: number },
+    targetNodeBounds?: { width: number; height: number }
 ): OrthogonalPath {
-    const segments = generatePerpendicularApproachPath(
-        sourceHandle,
-        targetHandle
-    );
+    const isSelfLoop = sourceHandle.nodeId === targetHandle.nodeId;
+
+    let segments: PathSegment[];
+
+    if (isSelfLoop) {
+        segments = generateSelfLoopPath(sourceHandle, targetHandle, undefined, sourceNodeBounds);
+    } else {
+        const calculateExtension = (bounds?: { width: number; height: number }): number => {
+            if (!bounds) return 30;
+            const avgDimension = (bounds.width + bounds.height) / 2;
+            const extension = avgDimension * 0.2;
+            return Math.max(20, Math.min(extension, 80));
+        };
+
+        const minExitDistance = calculateExtension(sourceNodeBounds);
+        const minApproachDistance = calculateExtension(targetNodeBounds);
+
+        segments = generatePerpendicularApproachPath(
+            sourceHandle,
+            targetHandle,
+            minExitDistance,
+            minApproachDistance
+        );
+    }
 
     const totalLength = calculatePathLength(segments);
     let controlPoints = generateControlPoints(segments);
 
-    // Handle edge case: same position
-    if (segments.length === 0 &&
+    // Handle edge case: same position (shouldn't happen for self-loops)
+    if (!isSelfLoop && segments.length === 0 &&
         sourceHandle.position.x === targetHandle.position.x &&
         sourceHandle.position.y === targetHandle.position.y) {
         controlPoints = [
