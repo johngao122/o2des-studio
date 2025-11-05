@@ -34,6 +34,7 @@ interface EventNodeData {
     stateUpdatePosition?: string;
     width?: number;
     height?: number;
+    stateUpdateCollapsed?: boolean;
 }
 
 interface ExtendedNodeProps extends NodeProps<EventNodeData> {
@@ -138,6 +139,8 @@ const EventNode = memo(
             typographyConfig
         );
 
+        const isCollapsed = storeData?.stateUpdateCollapsed ?? false;
+
         const stateUpdateLines = useMemo(() => {
             return String(data?.stateUpdate || "")
                 .trim()
@@ -169,7 +172,7 @@ const EventNode = memo(
 
             window.addEventListener("resize", updateHeight);
             return () => window.removeEventListener("resize", updateHeight);
-        }, [stateUpdateLines]);
+        }, [stateUpdateLines, isCollapsed]);
 
         const bracketHeightStyle = textBlockHeight
             ? { height: textBlockHeight }
@@ -429,6 +432,21 @@ const EventNode = memo(
 
         const hasErrors = validationErrors.length > 0;
 
+        const handleToggleCollapse = useCallback(
+            (e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...storeData,
+                        stateUpdateCollapsed: !isCollapsed,
+                    },
+                });
+                commandController.execute(command);
+            },
+            [id, storeData, isCollapsed]
+        );
+
         return (
             <ErrorTooltip errors={validationErrors}>
                 <div
@@ -436,271 +454,332 @@ const EventNode = memo(
                     className={`relative ${selected ? "shadow-lg" : ""} ${
                         hasErrors ? "shadow-red-200" : ""
                     }`}
-                style={{
-                    width: `${nodeWidth + 2}px`,
-                    height: `${nodeHeight + 2}px`,
-                    minWidth: 120,
-                    minHeight: 50,
-                }}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-            >
-                {/* SVG Ellipse */}
-                <svg
-                    width={nodeWidth}
-                    height={nodeHeight}
-                    viewBox={`0 0 ${nodeWidth} ${nodeHeight}`}
-                    className="absolute"
-                    style={{ left: "1px", top: "1px" }}
-                    preserveAspectRatio="none"
-                >
-                    <ellipse
-                        cx={nodeWidth / 2}
-                        cy={nodeHeight / 2}
-                        rx={(nodeWidth - 2) / 2}
-                        ry={(nodeHeight - 2) / 2}
-                        fill="white"
-                        stroke={
-                            hasErrors
-                                ? "#ef4444"
-                                : selected
-                                ? "#3b82f6"
-                                : "currentColor"
-                        }
-                        strokeWidth={hasErrors ? 3 : 2}
-                        className={`dark:fill-zinc-800 ${
-                            hasErrors ? "drop-shadow-sm" : ""
-                        }`}
-                    />
-                </svg>
-
-                {/* Centered text */}
-                <div
-                    className="absolute flex items-center justify-center text-center dark:text-white text-black"
                     style={{
-                        left: "1px",
-                        top: "1px",
-                        width: `${nodeWidth}px`,
-                        height: `${nodeHeight}px`,
+                        width: `${nodeWidth + 2}px`,
+                        height: `${nodeHeight + 2}px`,
+                        minWidth: 120,
+                        minHeight: 50,
                     }}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
                 >
-                    <ResponsiveText
-                        nodeWidth={nodeWidth}
-                        nodeHeight={nodeHeight}
-                        maxWidth={Math.max(40, nodeWidth * 0.95)}
-                        fontWeight="medium"
-                        centerAlign
-                        className="dark:text-white text-black"
-                        style={{ lineHeight: 0.9, padding: 0, margin: 0 }}
+                    {/* SVG Ellipse */}
+                    <svg
+                        width={nodeWidth}
+                        height={nodeHeight}
+                        viewBox={`0 0 ${nodeWidth} ${nodeHeight}`}
+                        className="absolute"
+                        style={{ left: "1px", top: "1px" }}
+                        preserveAspectRatio="none"
                     >
-                        {nodeName}
-                    </ResponsiveText>
-                </div>
-                <NodeResizer
-                    isVisible={selected || isHovered}
-                    minWidth={120}
-                    minHeight={50}
-                    onResize={handleResize}
-                    handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
-                    lineClassName="!border-blue-500 !border-2"
-                />
+                        <ellipse
+                            cx={nodeWidth / 2}
+                            cy={nodeHeight / 2}
+                            rx={(nodeWidth - 2) / 2}
+                            ry={(nodeHeight - 2) / 2}
+                            fill="white"
+                            stroke={
+                                hasErrors
+                                    ? "#ef4444"
+                                    : selected
+                                    ? "#3b82f6"
+                                    : "currentColor"
+                            }
+                            strokeWidth={hasErrors ? 3 : 2}
+                            className={`dark:fill-zinc-800 ${
+                                hasErrors ? "drop-shadow-sm" : ""
+                            }`}
+                        />
+                    </svg>
 
-                {/* External state-update badge */}
-                {(isEditing ||
-                    (data?.stateUpdate && data.stateUpdate.trim() !== "")) && (
+                    {/* Centered text */}
                     <div
-                        className="absolute text-sm select-none cursor-move nodrag"
+                        className="absolute flex items-center justify-center text-center dark:text-white text-black"
                         style={{
-                            left:
-                                dragBadgePos?.left ??
-                                getAnchorCoordinates(
-                                    getStateUpdateAnchor(),
-                                    nodeWidth,
-                                    nodeHeight
-                                ).left,
-                            top:
-                                dragBadgePos?.top ??
-                                getAnchorCoordinates(
-                                    getStateUpdateAnchor(),
-                                    nodeWidth,
-                                    nodeHeight
-                                ).top,
-                            transform: dragBadgePos
-                                ? getAnchorCoordinates(
-                                      draggedAnchor,
-                                      nodeWidth,
-                                      nodeHeight
-                                  ).transform
-                                : getAnchorCoordinates(
-                                      getStateUpdateAnchor(),
-                                      nodeWidth,
-                                      nodeHeight
-                                  ).transform,
-                            maxWidth: Math.max(120, nodeWidth * 0.8),
-                        }}
-                        onMouseDown={startBadgeDrag}
-                        onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            setIsEditing(true);
-                            setEditStateUpdate(data?.stateUpdate || "");
+                            left: "1px",
+                            top: "1px",
+                            width: `${nodeWidth}px`,
+                            height: `${nodeHeight}px`,
                         }}
                     >
-                        {isEditing ? (
-                            <textarea
-                                value={editStateUpdate}
-                                onChange={(e) =>
-                                    setEditStateUpdate(e.target.value)
-                                }
-                                onBlur={handleBlur}
-                                className="event-node-input nodrag p-1 border rounded dark:bg-zinc-700 dark:text-white bg-white text-black"
+                        <ResponsiveText
+                            nodeWidth={nodeWidth}
+                            nodeHeight={nodeHeight}
+                            maxWidth={Math.max(40, nodeWidth * 0.95)}
+                            fontWeight="medium"
+                            centerAlign
+                            className="dark:text-white text-black"
+                            style={{ lineHeight: 0.9, padding: 0, margin: 0 }}
+                        >
+                            {nodeName}
+                        </ResponsiveText>
+                    </div>
+                    <NodeResizer
+                        isVisible={selected || isHovered}
+                        minWidth={120}
+                        minHeight={50}
+                        onResize={handleResize}
+                        handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
+                        lineClassName="!border-blue-500 !border-2"
+                    />
+
+                    {/* External state-update badge */}
+                    {(isEditing ||
+                        (data?.stateUpdate &&
+                            data.stateUpdate.trim() !== "")) &&
+                        !isCollapsed && (
+                            <div
+                                className="absolute text-sm select-none cursor-move nodrag"
                                 style={{
-                                    minWidth: 120,
+                                    left:
+                                        dragBadgePos?.left ??
+                                        getAnchorCoordinates(
+                                            getStateUpdateAnchor(),
+                                            nodeWidth,
+                                            nodeHeight
+                                        ).left,
+                                    top:
+                                        dragBadgePos?.top ??
+                                        getAnchorCoordinates(
+                                            getStateUpdateAnchor(),
+                                            nodeWidth,
+                                            nodeHeight
+                                        ).top,
+                                    transform: dragBadgePos
+                                        ? getAnchorCoordinates(
+                                              draggedAnchor,
+                                              nodeWidth,
+                                              nodeHeight
+                                          ).transform
+                                        : getAnchorCoordinates(
+                                              getStateUpdateAnchor(),
+                                              nodeWidth,
+                                              nodeHeight
+                                          ).transform,
                                     maxWidth: Math.max(120, nodeWidth * 0.8),
-                                    fontSize: `${Math.max(
-                                        12,
-                                        typography.fontSize - 2
-                                    )}px`,
                                 }}
-                                placeholder="State update"
-                                autoFocus
-                            />
-                        ) : (
-                            <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-center">
-                                <svg
-                                    className="w-3 text-blue-400 dark:text-blue-300 mr-1 flex-shrink-0"
-                                    viewBox="0 0 10 100"
-                                    preserveAspectRatio="none"
-                                    aria-hidden="true"
-                                    style={bracketHeightStyle}
-                                >
-                                    <path
-                                        d="M8 0 C2 0 2 20 2 30 L2 45 C2 50 0 52 0 52 C0 52 2 54 2 59 L2 70 C2 80 2 100 8 100"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
+                                onMouseDown={startBadgeDrag}
+                                onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsEditing(true);
+                                    setEditStateUpdate(data?.stateUpdate || "");
+                                }}
+                            >
+                                {isEditing ? (
+                                    <textarea
+                                        value={editStateUpdate}
+                                        onChange={(e) =>
+                                            setEditStateUpdate(e.target.value)
+                                        }
+                                        onBlur={handleBlur}
+                                        className="event-node-input nodrag p-1 border rounded dark:bg-zinc-700 dark:text-white bg-white text-black"
+                                        style={{
+                                            minWidth: 120,
+                                            maxWidth: Math.max(
+                                                120,
+                                                nodeWidth * 0.8
+                                            ),
+                                            fontSize: `${Math.max(
+                                                12,
+                                                typography.fontSize - 2
+                                            )}px`,
+                                        }}
+                                        placeholder="State update"
+                                        autoFocus
                                     />
-                                </svg>
-                                <div
-                                    ref={textBlockRef}
-                                    className="flex flex-col justify-center px-1"
-                                >
-                                    {stateUpdateLines.map((line, index) => (
-                                        <div
-                                            key={index}
-                                            className="text-center"
-                                        >
-                                            <ReactKatex>{line}</ReactKatex>
+                                ) : (
+                                    <div className="relative">
+                                        <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-center">
+                                            <svg
+                                                className="w-3 text-blue-400 dark:text-blue-300 mr-1 flex-shrink-0"
+                                                viewBox="0 0 10 100"
+                                                preserveAspectRatio="none"
+                                                aria-hidden="true"
+                                                style={bracketHeightStyle}
+                                            >
+                                                <path
+                                                    d="M8 0 C2 0 2 20 2 30 L2 45 C2 50 0 52 0 52 C0 52 2 54 2 59 L2 70 C2 80 2 100 8 100"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+                                            </svg>
+                                            <div
+                                                ref={textBlockRef}
+                                                className="flex flex-col justify-center px-1"
+                                            >
+                                                {stateUpdateLines.map(
+                                                    (line, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="text-center"
+                                                        >
+                                                            <ReactKatex>
+                                                                {line}
+                                                            </ReactKatex>
+                                                        </div>
+                                                    )
+                                                )}
+                                            </div>
+                                            <svg
+                                                className="w-3 text-blue-400 dark:text-blue-300 ml-1 flex-shrink-0"
+                                                viewBox="0 0 10 100"
+                                                preserveAspectRatio="none"
+                                                aria-hidden="true"
+                                                style={mirroredBracketStyle}
+                                            >
+                                                <path
+                                                    d="M8 0 C2 0 2 20 2 30 L2 45 C2 50 0 52 0 52 C0 52 2 54 2 59 L2 70 C2 80 2 100 8 100"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+                                            </svg>
                                         </div>
-                                    ))}
-                                </div>
-                                <svg
-                                    className="w-3 text-blue-400 dark:text-blue-300 ml-1 flex-shrink-0"
-                                    viewBox="0 0 10 100"
-                                    preserveAspectRatio="none"
-                                    aria-hidden="true"
-                                    style={mirroredBracketStyle}
-                                >
-                                    <path
-                                        d="M8 0 C2 0 2 20 2 30 L2 45 C2 50 0 52 0 52 C0 52 2 54 2 59 L2 70 C2 80 2 100 8 100"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </svg>
+                                        {/* Collapse button */}
+                                        <button
+                                            className="absolute -top-5 -right-1 w-4 h-4 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full text-xs font-bold nodrag cursor-pointer"
+                                            onMouseDown={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                            }}
+                                            onClick={handleToggleCollapse}
+                                            title="Collapse"
+                                        >
+                                            -
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
-                    </div>
-                )}
 
-                {/* Handles */}
-                {id !== "preview" && (
-                    <>
-                        {ellipseHandles.top.map((h, index) => (
-                            <Handle
-                                key={`top-${index}`}
-                                id={`${id}-top-${index}`}
-                                type="source"
-                                position={Position.Top}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
+                    {/* Expand button when collapsed */}
+                    {isCollapsed &&
+                        data?.stateUpdate &&
+                        data.stateUpdate.trim() !== "" && (
+                            <div
+                                className="absolute"
                                 style={{
-                                    left: `${h.x}px`,
-                                    top: `${h.y}px`,
-                                    transform: "translate(-50%, -50%)",
+                                    left: getAnchorCoordinates(
+                                        getStateUpdateAnchor(),
+                                        nodeWidth,
+                                        nodeHeight
+                                    ).left,
+                                    top: getAnchorCoordinates(
+                                        getStateUpdateAnchor(),
+                                        nodeWidth,
+                                        nodeHeight
+                                    ).top,
+                                    transform: getAnchorCoordinates(
+                                        getStateUpdateAnchor(),
+                                        nodeWidth,
+                                        nodeHeight
+                                    ).transform,
                                 }}
-                            />
-                        ))}
+                            >
+                                <button
+                                    className="w-4 h-4 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full text-xs font-bold nodrag cursor-pointer"
+                                    onMouseDown={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }}
+                                    onClick={handleToggleCollapse}
+                                    title="Expand"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        )}
 
-                        {ellipseHandles.right.map((h, index) => (
-                            <Handle
-                                key={`right-${index}`}
-                                id={`${id}-right-${index}`}
-                                type="source"
-                                position={Position.Right}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${h.x}px`,
-                                    top: `${h.y}px`,
-                                    transform: "translate(-50%, -50%)",
-                                }}
-                            />
-                        ))}
+                    {/* Handles */}
+                    {id !== "preview" && (
+                        <>
+                            {ellipseHandles.top.map((h, index) => (
+                                <Handle
+                                    key={`top-${index}`}
+                                    id={`${id}-top-${index}`}
+                                    type="source"
+                                    position={Position.Top}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${h.x}px`,
+                                        top: `${h.y}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
 
-                        {ellipseHandles.bottom.map((h, index) => (
-                            <Handle
-                                key={`bottom-${index}`}
-                                id={`${id}-bottom-${index}`}
-                                type="source"
-                                position={Position.Bottom}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${h.x}px`,
-                                    top: `${h.y}px`,
-                                    transform: "translate(-50%, -50%)",
-                                }}
-                            />
-                        ))}
+                            {ellipseHandles.right.map((h, index) => (
+                                <Handle
+                                    key={`right-${index}`}
+                                    id={`${id}-right-${index}`}
+                                    type="source"
+                                    position={Position.Right}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${h.x}px`,
+                                        top: `${h.y}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
 
-                        {ellipseHandles.left.map((h, index) => (
-                            <Handle
-                                key={`left-${index}`}
-                                id={`${id}-left-${index}`}
-                                type="target"
-                                position={Position.Left}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${h.x}px`,
-                                    top: `${h.y}px`,
-                                    transform: "translate(-50%, -50%)",
-                                }}
-                            />
-                        ))}
-                    </>
-                )}
-            </div>
+                            {ellipseHandles.bottom.map((h, index) => (
+                                <Handle
+                                    key={`bottom-${index}`}
+                                    id={`${id}-bottom-${index}`}
+                                    type="source"
+                                    position={Position.Bottom}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${h.x}px`,
+                                        top: `${h.y}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
+
+                            {ellipseHandles.left.map((h, index) => (
+                                <Handle
+                                    key={`left-${index}`}
+                                    id={`${id}-left-${index}`}
+                                    type="target"
+                                    position={Position.Left}
+                                    className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                        selected || isHovered
+                                            ? "!bg-transparent"
+                                            : "!bg-transparent !opacity-0"
+                                    }`}
+                                    isConnectable={isConnectable}
+                                    style={{
+                                        left: `${h.x}px`,
+                                        top: `${h.y}px`,
+                                        transform: "translate(-50%, -50%)",
+                                    }}
+                                />
+                            ))}
+                        </>
+                    )}
+                </div>
             </ErrorTooltip>
         );
     },
@@ -734,6 +813,7 @@ EventNode.getDefaultData = (): EventNodeData => ({
     stateUpdatePosition: "right",
     width: 120,
     height: 50,
+    stateUpdateCollapsed: false,
 });
 
 EventNode.getGraphType = (): string => "eventBased";
