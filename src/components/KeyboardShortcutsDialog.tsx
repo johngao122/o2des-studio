@@ -25,6 +25,7 @@ const shortcutDescriptions = {
     TOGGLE_MINIMAP: "Show/hide minimap",
     TOGGLE_CONTROLS: "Show/hide controls",
     SHOW_SHORTCUTS: "Show keyboard shortcuts",
+    TOGGLE_DEV_MODE: "Toggle developer mode",
 } as const;
 
 export function KeyboardShortcutsDialog({

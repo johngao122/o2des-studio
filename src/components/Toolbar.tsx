@@ -37,6 +37,7 @@ import {
     BookOpen,
     ArrowRight,
     ArrowDown,
+    Code,
 } from "lucide-react";
 import { KeyboardShortcuts, formatShortcut } from "@/lib/constants/shortcuts";
 import { useStore } from "@/store";
@@ -74,6 +75,8 @@ interface ToolbarProps {
     isSidebarVisible?: boolean;
     isMinimapVisible?: boolean;
     isControlsVisible?: boolean;
+    onToggleDevMode?: () => void;
+    isDevModeEnabled?: boolean;
 }
 
 export function Toolbar({
@@ -95,6 +98,8 @@ export function Toolbar({
     isSidebarVisible,
     isMinimapVisible,
     isControlsVisible,
+    onToggleDevMode,
+    isDevModeEnabled,
 }: ToolbarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -547,6 +552,22 @@ export function Toolbar({
                                 </span>
                             </div>
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={onToggleDevMode}>
+                            <div className="flex justify-between w-full items-center">
+                                <div className="flex items-center">
+                                    <Code className="mr-2 h-4 w-4" />
+                                    {isDevModeEnabled
+                                        ? "Disable Developer Mode"
+                                        : "Enable Developer Mode"}
+                                </div>
+                                <span className="text-xs text-muted-foreground ml-8">
+                                    {formatShortcut(
+                                        KeyboardShortcuts.TOGGLE_DEV_MODE
+                                    )}
+                                </span>
+                            </div>
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -590,6 +611,19 @@ export function Toolbar({
             </div>
 
             <div className="ml-auto flex items-center space-x-2">
+                {/* Dev Mode Badge */}
+                {isDevModeEnabled && (
+                    <Button
+                        onClick={onToggleDevMode}
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-3 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 font-semibold"
+                        title="Click to disable developer mode"
+                    >
+                        DEV MODE
+                    </Button>
+                )}
+
                 {/* Last modified info */}
                 {formattedDate && (
                     <div className="text-xs text-muted-foreground flex items-center mr-2">

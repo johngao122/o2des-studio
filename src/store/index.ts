@@ -28,11 +28,14 @@ import { AutosaveService } from "../services/AutosaveService";
 import { GraphValidationService } from "../services/GraphValidationService";
 import { ValidationError, ModelValidationState } from "../types/validation";
 import { getArrowheadColor } from "@/lib/utils/edgeUtils";
+import { DevModeService } from "../services/DevModeService";
+import { DevModeState } from "../types/devMode";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
 const autosaveService = AutosaveService.getInstance();
 const graphValidationService = GraphValidationService.getInstance();
+const devModeService = DevModeService.getInstance();
 
 const DRAG_PROXY_THRESHOLD = 3;
 const EMPTY_VALIDATION_ERRORS: ValidationError[] = [];
@@ -120,6 +123,7 @@ export interface StoreState {
         edges: BaseEdge[];
     };
     validation: ModelValidationState;
+    devMode: DevModeState;
     onNodesChange: (changes: NodeChange[]) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
@@ -146,6 +150,8 @@ export interface StoreState {
     validateElement: (elementId: string) => void;
     clearValidationErrors: () => void;
     getValidationErrors: (elementId?: string) => ValidationError[];
+    setDevMode: (enabled: boolean) => void;
+    isDevModeEnabled: () => boolean;
 }
 
 interface SerializedState {
@@ -195,6 +201,10 @@ export const useStore = create<StoreState>((set, get) => ({
         errorMap: {},
         lastValidated: null,
         isValidating: false,
+    },
+    devMode: devModeService.restoreDevModeState() || {
+        isEnabled: false,
+        enabledAt: null,
     },
 
     onNodesChange: (changes: NodeChange[]) => {
@@ -1638,6 +1648,12 @@ export const useStore = create<StoreState>((set, get) => ({
     },
 
     validateModel: () => {
+        // Skip validation if dev mode is enabled
+        if (get().devMode.isEnabled) {
+            console.info("[DevMode] Model validation skipped - dev mode active");
+            return;
+        }
+
         const { nodes, edges } = get();
         set((state) => ({
             validation: { ...state.validation, isValidating: true },
@@ -1664,6 +1680,12 @@ export const useStore = create<StoreState>((set, get) => ({
     },
 
     validateElement: (elementId: string) => {
+        // Skip validation if dev mode is enabled
+        if (get().devMode.isEnabled) {
+            console.info(`[DevMode] Element validation skipped for ${elementId} - dev mode active`);
+            return;
+        }
+
         const { nodes, edges } = get();
 
         try {
@@ -1721,5 +1743,34 @@ export const useStore = create<StoreState>((set, get) => ({
         }
 
         return validation.errorMap[elementId] ?? EMPTY_VALIDATION_ERRORS;
+    },
+
+    setDevMode: (enabled: boolean) => {
+        if (enabled) {
+            devModeService.enableDevMode();
+            console.info("[DevMode] Developer mode enabled - validation disabled");
+        } else {
+            devModeService.disableDevMode();
+            console.info("[DevMode] Developer mode disabled - validation enabled");
+        }
+
+        set({
+            devMode: {
+                isEnabled: enabled,
+                enabledAt: enabled ? new Date().toISOString() : null,
+            },
+        });
+
+        // Clear existing validation errors when enabling dev mode
+        if (enabled) {
+            get().clearValidationErrors();
+        } else {
+            // Re-validate model when disabling dev mode
+            get().validateModel();
+        }
+    },
+
+    isDevModeEnabled: () => {
+        return get().devMode.isEnabled;
     },
 }));
