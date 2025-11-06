@@ -176,6 +176,60 @@ export function PropertiesBar({
         );
     };
 
+    const renderArrowheadPreview = (variant: string, className?: string) => {
+        const isFilled = variant === "filled";
+
+        return (
+            <svg
+                className={cn("w-full", className)}
+                height="40"
+                viewBox="0 0 50 20"
+                aria-hidden="true"
+                focusable="false"
+                preserveAspectRatio="xMidYMid meet"
+            >
+                {isFilled ? (
+                    <>
+                        <line
+                            x1="1"
+                            y1="10"
+                            x2="15"
+                            y2="10"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                        />
+                        <path
+                            d="M 15 0 L 49 10 L 15 20 Z"
+                            fill="currentColor"
+                            stroke="none"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <line
+                            x1="1"
+                            y1="10"
+                            x2="28"
+                            y2="10"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                        />
+                        <path
+                            d="M 28 1 L 49 10 L 28 19"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </>
+                )}
+            </svg>
+        );
+    };
+
     const renderMultiSelectionMessage = () => {
         if (!selectionInfo) return null;
 
@@ -223,6 +277,7 @@ export function PropertiesBar({
         "routingMetrics",
         "selectedHandles",
         "conditionPosition",
+        "duration", // Hide the combined duration field
     ]);
     const visibleProperties = properties.filter((p) => !hiddenKeys.has(p.key));
 
@@ -239,6 +294,14 @@ export function PropertiesBar({
 
             <div className="space-y-4 overflow-y-auto flex-1">
                 {visibleProperties.map((property) => {
+                    const isArrowheadProperty =
+                        property.key === "arrowheadStyle";
+
+                    // Skip durationValue and durationUnit - they'll be rendered together
+                    if (property.key === "durationValue" || property.key === "durationUnit") {
+                        return null;
+                    }
+
                     return (
                         <div key={property.key}>
                             <Label className="text-sm font-medium flex items-center gap-2">
@@ -285,16 +348,49 @@ export function PropertiesBar({
                                         onPropertyChange(property.key, value);
                                     }}
                                 >
-                                    <SelectTrigger className="nodrag text-xs h-6 dark:bg-zinc-700 mt-1">
-                                        <SelectValue
-                                            placeholder={property.key}
-                                        />
+                                    <SelectTrigger
+                                        className={cn(
+                                            "nodrag text-xs dark:bg-zinc-700 mt-1",
+                                            isArrowheadProperty
+                                                ? "h-14 px-3"
+                                                : "h-6"
+                                        )}
+                                    >
+                                        {isArrowheadProperty ? (
+                                            <div className="flex h-full w-full items-center justify-center">
+                                                {renderArrowheadPreview(
+                                                    String(property.value)
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <SelectValue
+                                                placeholder={property.key}
+                                            />
+                                        )}
                                     </SelectTrigger>
                                     <SelectContent>
                                         {property.options.map((opt) => (
-                                            <SelectItem key={opt} value={opt}>
-                                                {opt.charAt(0).toUpperCase() +
-                                                    opt.slice(1)}
+                                            <SelectItem
+                                                key={opt}
+                                                value={opt}
+                                                className={
+                                                    isArrowheadProperty
+                                                        ? "h-12 py-1 justify-center cursor-pointer"
+                                                        : undefined
+                                                }
+                                            >
+                                                {isArrowheadProperty ? (
+                                                    <div className="flex h-full w-full items-center justify-center">
+                                                        {renderArrowheadPreview(
+                                                            opt
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    opt
+                                                        .charAt(0)
+                                                        .toUpperCase() +
+                                                    opt.slice(1)
+                                                )}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -320,12 +416,15 @@ export function PropertiesBar({
                             ) : (
                                 <Input
                                     type={
-                                        property.type === "number"
+                                        property.type === "number" ||
+                                        property.key === "duration"
                                             ? "number"
                                             : "text"
                                     }
                                     value={String(property.value)}
                                     readOnly={!property.editable}
+                                    min={property.key === "duration" ? 0 : undefined}
+                                    step={property.key === "duration" ? "any" : undefined}
                                     className={cn(
                                         "mt-1",
                                         !property.editable &&
@@ -333,11 +432,22 @@ export function PropertiesBar({
                                     )}
                                     onChange={(e) => {
                                         if (!property.editable) return;
-                                        const newValue =
-                                            property.type === "number"
-                                                ? parseFloat(e.target.value) ||
-                                                  0
-                                                : e.target.value;
+
+                                        let newValue: string | number = e.target.value;
+
+                                        if (property.key === "duration") {
+                                            const numValue = parseFloat(e.target.value);
+                                            if (e.target.value === "" || isNaN(numValue)) {
+                                                newValue = "";
+                                            } else if (numValue < 0) {
+                                                newValue = "0";
+                                            } else {
+                                                newValue = e.target.value;
+                                            }
+                                        } else if (property.type === "number") {
+                                            newValue = parseFloat(e.target.value) || 0;
+                                        }
+
                                         onPropertyChange(
                                             property.key,
                                             newValue
@@ -349,6 +459,55 @@ export function PropertiesBar({
                         </div>
                     );
                 })}
+
+                {/* Special handling for Duration fields - render durationValue and durationUnit together */}
+                {(() => {
+                    const durationValueProp = visibleProperties.find(p => p.key === "durationValue");
+                    const durationUnitProp = visibleProperties.find(p => p.key === "durationUnit");
+
+                    if (durationValueProp || durationUnitProp) {
+                        return (
+                            <div key="duration-fields">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                    Duration
+                                </Label>
+                                <div className="flex gap-2 mt-1">
+                                    <Input
+                                        type="number"
+                                        value={String(durationValueProp?.value ?? 0)}
+                                        min={0}
+                                        step="any"
+                                        className="flex-1"
+                                        placeholder="Value"
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            const numValue = parseFloat(value);
+
+                                            if (value === "" || isNaN(numValue)) {
+                                                onPropertyChange("durationValue", 0);
+                                            } else if (numValue < 0) {
+                                                onPropertyChange("durationValue", 0);
+                                            } else {
+                                                onPropertyChange("durationValue", numValue);
+                                            }
+                                        }}
+                                    />
+                                    <Input
+                                        type="text"
+                                        value={String(durationUnitProp?.value ?? "")}
+                                        className="flex-1"
+                                        placeholder="Unit"
+                                        onChange={(e) => {
+                                            onPropertyChange("durationUnit", e.target.value);
+                                        }}
+                                    />
+                                </div>
+                                <Separator className="mt-4" />
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Special handling for ActivityNode and GlobalNode resources */}
                 {(() => {

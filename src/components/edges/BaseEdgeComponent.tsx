@@ -156,6 +156,8 @@ export interface BaseEdgeProps<T extends BaseEdgeData = BaseEdgeData>
 export const BaseEdgeComponent = memo(
     <T extends BaseEdgeData = BaseEdgeData>({
         id,
+        source,
+        target,
         sourceX,
         sourceY,
         targetX,
@@ -397,6 +399,36 @@ export const BaseEdgeComponent = memo(
                     preferredRouting = "horizontal-first";
                 }
 
+                const isSelfLoop = source === target;
+                let sourceNodeBounds;
+                let targetNodeBounds;
+
+                const sourceNode = nodes.find((n) => n.id === source);
+                if (sourceNode) {
+                    const nodeWidth = sourceNode.data?.width || sourceNode.width || 200;
+                    const nodeHeight = sourceNode.data?.height || sourceNode.height || 120;
+                    sourceNodeBounds = {
+                        x: sourceNode.position.x,
+                        y: sourceNode.position.y,
+                        width: nodeWidth,
+                        height: nodeHeight,
+                    };
+                }
+
+                if (!isSelfLoop) {
+                    const targetNode = nodes.find((n) => n.id === target);
+                    if (targetNode) {
+                        const nodeWidth = targetNode.data?.width || targetNode.width || 200;
+                        const nodeHeight = targetNode.data?.height || targetNode.height || 120;
+                        targetNodeBounds = {
+                            x: targetNode.position.x,
+                            y: targetNode.position.y,
+                            width: nodeWidth,
+                            height: nodeHeight,
+                        };
+                    }
+                }
+
                 const orthogonalPath =
                     orthogonalRoutingEngine.calculateOrthogonalPathFromEdgeCoordinates(
                         sourceX,
@@ -405,7 +437,13 @@ export const BaseEdgeComponent = memo(
                         targetY,
                         sourcePosition,
                         targetPosition,
-                        { preferredRouting }
+                        {
+                            preferredRouting,
+                            sourceNodeBounds,
+                            targetNodeBounds,
+                        },
+                        source,
+                        target
                     );
 
                 const routingControlPoints =
@@ -461,6 +499,9 @@ export const BaseEdgeComponent = memo(
             targetY,
             sourcePosition,
             targetPosition,
+            source,
+            target,
+            nodes,
         ]);
 
         let edgePath: string = "";

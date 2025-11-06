@@ -1,6 +1,8 @@
+import { MarkerType } from "reactflow";
 import { BaseEdge } from "../types/base";
 import { edgeTypes } from "@/components/edges";
 import { EDGE_TYPES } from "@/components/edges";
+import { getArrowheadColor } from "@/lib/utils/edgeUtils";
 
 export type EdgeCreator = (
     source: string,
@@ -30,9 +32,17 @@ export class EdgeRegistry {
                         graphType,
                         animated: graphType === "eventBased",
 
-                        markerEnd: "url(#react-flow__arrowclosed)",
+                        markerEnd: {
+                            type: MarkerType.ArrowClosed,
+                            color: getArrowheadColor(),
+                            width: 25,
+                            height: 25,
+                        },
 
-                        data: EdgeComponent.getDefaultData?.() || {},
+                        data: {
+                            ...(EdgeComponent.getDefaultData?.() || {}),
+                            arrowheadStyle: "filled",
+                        },
                         conditions: [],
                     };
                 }

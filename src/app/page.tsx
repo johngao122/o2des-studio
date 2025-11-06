@@ -16,6 +16,7 @@ import superjson from "superjson";
 import { NodeController } from "@/controllers/NodeController";
 import { EdgeController } from "@/controllers/EdgeController";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { DevModeDialog } from "@/components/DevModeDialog";
 
 const viewController = ViewController.getInstance();
 const serializationService = new SerializationService();
@@ -35,6 +36,11 @@ export default function DiagramEditor() {
         (state) => state.copySelectedElements
     );
     const pasteElements = useStore((state) => state.pasteElements);
+    const refreshEdgeMarkerColors = useStore(
+        (state) => state.refreshEdgeMarkerColors
+    );
+    const devMode = useStore((state) => state.devMode);
+    const setDevMode = useStore((state) => state.setDevMode);
 
     const getSerializedState = useStore.getState().getSerializedState;
     const loadSerializedState = useStore.getState().loadSerializedState;
@@ -45,6 +51,7 @@ export default function DiagramEditor() {
     const [isMinimapVisible, setIsMinimapVisible] = useState(true);
     const [isControlsVisible, setIsControlsVisible] = useState(true);
     const [isShortcutsDialogOpen, setIsShortcutsDialogOpen] = useState(false);
+    const [isDevModeDialogOpen, setIsDevModeDialogOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -147,8 +154,9 @@ export default function DiagramEditor() {
     const handleToggleDarkMode = useCallback(() => {
         setIsDarkMode((prev) => !prev);
         document.documentElement.classList.toggle("dark");
+        refreshEdgeMarkerColors();
         setLastAction(`Switched to ${isDarkMode ? "light" : "dark"} mode`);
-    }, [isDarkMode]);
+    }, [isDarkMode, refreshEdgeMarkerColors]);
 
     const handleShowShortcuts = useCallback(() => {
         setIsShortcutsDialogOpen(true);
@@ -188,6 +196,32 @@ export default function DiagramEditor() {
         setLastAction(`${isControlsVisible ? "Hidden" : "Shown"} controls`);
     }, [isControlsVisible]);
 
+    const handleOpenDevModeDialog = useCallback(() => {
+        if (devMode.isEnabled) {
+            // If already enabled, disable it directly
+            setDevMode(false);
+            toast.info("Developer mode disabled", {
+                description: "Syntax validation is now enabled",
+            });
+            setLastAction("Developer mode disabled");
+        } else {
+            // If disabled, open dialog to enable
+            setIsDevModeDialogOpen(true);
+        }
+    }, [devMode.isEnabled, setDevMode]);
+
+    const handleDevModeEnabled = useCallback(() => {
+        setDevMode(true);
+        toast.success("Developer mode enabled", {
+            description: "Syntax validation is now disabled",
+        });
+        setLastAction("Developer mode enabled");
+    }, [setDevMode]);
+
+    const handleCloseDevModeDialog = useCallback(() => {
+        setIsDevModeDialogOpen(false);
+    }, []);
+
     useKeyboardShortcuts({
         onSave: handleSave,
         onLoad: () => fileInputRef.current?.click(),
@@ -209,11 +243,17 @@ export default function DiagramEditor() {
             if (event.key === "Escape" && isShortcutsDialogOpen) {
                 handleCloseShortcuts();
             }
+
+            // Dev mode shortcut: Ctrl+Shift+E or Meta+Shift+E
+            if (event.key === "E" && event.shiftKey && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                handleOpenDevModeDialog();
+            }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isShortcutsDialogOpen, handleCloseShortcuts]);
+    }, [isShortcutsDialogOpen, handleCloseShortcuts, handleOpenDevModeDialog]);
 
     return (
         <div className="w-screen h-screen flex flex-col overflow-hidden">
@@ -236,6 +276,8 @@ export default function DiagramEditor() {
                 isSidebarVisible={isSidebarVisible}
                 isMinimapVisible={isMinimapVisible}
                 isControlsVisible={isControlsVisible}
+                onToggleDevMode={handleOpenDevModeDialog}
+                isDevModeEnabled={devMode.isEnabled}
             />
             <div className="flex-1 flex overflow-hidden">
                 {isSidebarVisible && <ComponentDrawer />}
@@ -267,6 +309,11 @@ export default function DiagramEditor() {
             <KeyboardShortcutsDialog
                 isOpen={isShortcutsDialogOpen}
                 onClose={handleCloseShortcuts}
+            />
+            <DevModeDialog
+                isOpen={isDevModeDialogOpen}
+                onClose={handleCloseDevModeDialog}
+                onSuccess={handleDevModeEnabled}
             />
         </div>
     );

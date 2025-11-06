@@ -15,6 +15,7 @@ export const KeyboardShortcuts = {
     TOGGLE_MINIMAP: ["Meta", "M"],
     TOGGLE_CONTROLS: ["Meta", "K"],
     SHOW_SHORTCUTS: ["Meta", "/"],
+    TOGGLE_DEV_MODE: ["Meta", "Shift", "E"],
 } as const;
 
 export function formatShortcut(keys: readonly string[]): string {

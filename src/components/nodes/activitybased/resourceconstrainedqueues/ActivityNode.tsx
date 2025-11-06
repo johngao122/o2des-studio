@@ -34,6 +34,8 @@ const commandController = CommandController.getInstance();
 interface ActivityNodeData {
     resources?: string[];
     duration?: string;
+    durationValue?: number;
+    durationUnit?: string;
     updateNodeData?: (nodeId: string, data: any) => void;
     width?: number;
     height?: number;
@@ -126,6 +128,26 @@ export const ActivityNodePreview = () => {
                 </div>
             </div>
 
+            {/* Duration indicator lines on bottom edge */}
+            <div
+                className="absolute bg-black dark:bg-white"
+                style={{
+                    top: `${35 + previewHeight - 4}px`,
+                    left: `${previewWidth / 2 - 4}px`,
+                    width: "2px",
+                    height: "8px",
+                }}
+            />
+            <div
+                className="absolute bg-black dark:bg-white"
+                style={{
+                    top: `${35 + previewHeight - 4}px`,
+                    left: `${previewWidth / 2 + 2}px`,
+                    width: "2px",
+                    height: "8px",
+                }}
+            />
+
             {/* Duration */}
             <div
                 className="absolute text-xs text-gray-600 dark:text-gray-400 text-center"
@@ -152,8 +174,11 @@ const ActivityNode = memo(
         yPos,
     }: ExtendedNodeProps) => {
         const [isEditing, setIsEditing] = useState(false);
-        const [editDuration, setEditDuration] = useState(
-            data?.duration ?? ""
+        const [editDurationValue, setEditDurationValue] = useState(
+            data?.durationValue?.toString() ?? ""
+        );
+        const [editDurationUnit, setEditDurationUnit] = useState(
+            data?.durationUnit ?? ""
         );
         const [isHovered, setIsHovered] = useState(false);
 
@@ -209,19 +234,9 @@ const ActivityNode = memo(
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditDuration(data?.duration ?? "");
-        }, [data?.duration]);
-
-        const handleBlur = useCallback(() => {
-            setIsEditing(false);
-
-            if (data?.updateNodeData) {
-                data.updateNodeData(id, {
-                    ...data,
-                    duration: editDuration,
-                });
-            }
-        }, [editDuration, id, data]);
+            setEditDurationValue(data?.durationValue?.toString() ?? "");
+            setEditDurationUnit(data?.durationUnit ?? "");
+        }, [data?.durationValue, data?.durationUnit]);
 
         const getHandlePositions = () => {
             return getGridAlignedHandlePositions(
@@ -315,6 +330,30 @@ const ActivityNode = memo(
                     </div>
                 </div>
 
+                {/* Duration indicator lines on bottom edge */}
+                {data?.duration && data.duration.trim() !== "" && (
+                    <>
+                        <div
+                            className="absolute bg-black dark:bg-white"
+                            style={{
+                                top: `${35 + dimensions.height - 4}px`,
+                                left: `${dimensions.width / 2 - 4}px`,
+                                width: "2px",
+                                height: "8px",
+                            }}
+                        />
+                        <div
+                            className="absolute bg-black dark:bg-white"
+                            style={{
+                                top: `${35 + dimensions.height - 4}px`,
+                                left: `${dimensions.width / 2 + 2}px`,
+                                width: "2px",
+                                height: "8px",
+                            }}
+                        />
+                    </>
+                )}
+
                 {/* Duration */}
                 {data?.duration && data.duration.trim() !== "" && (
                     <div
@@ -326,23 +365,84 @@ const ActivityNode = memo(
                         }}
                     >
                         {isEditing ? (
-                            <input
-                                type="text"
-                                value={editDuration}
-                                onChange={(e) =>
-                                    setEditDuration(e.target.value)
-                                }
-                                onBlur={handleBlur}
-                                className="w-full p-1 border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
-                                style={{
-                                    fontSize: `${Math.max(
-                                        10,
-                                        typography.fontSize - 2
-                                    )}px`,
-                                }}
-                                placeholder="Duration"
-                                autoFocus
-                            />
+                            <div className="flex gap-1 w-full px-2 nodrag">
+                                <input
+                                    type="number"
+                                    value={editDurationValue}
+                                    min="0"
+                                    step="any"
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        const numValue = parseFloat(value);
+
+                                        if (value === "" || isNaN(numValue)) {
+                                            setEditDurationValue("");
+                                        } else if (numValue < 0) {
+                                            setEditDurationValue("0");
+                                        } else {
+                                            setEditDurationValue(value);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        const numValue = parseFloat(editDurationValue);
+                                        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+                                        const combinedDuration = editDurationUnit
+                                            ? `${finalValue} ${editDurationUnit}`
+                                            : finalValue.toString();
+
+                                        if (data?.updateNodeData) {
+                                            data.updateNodeData(id, {
+                                                ...data,
+                                                durationValue: finalValue,
+                                                durationUnit: editDurationUnit,
+                                                duration: combinedDuration,
+                                            });
+                                        }
+                                        setIsEditing(false);
+                                    }}
+                                    className="flex-1 p-1 border rounded dark:bg-zinc-700 dark:text-white text-center"
+                                    style={{
+                                        fontSize: `${Math.max(
+                                            10,
+                                            typography.fontSize - 2
+                                        )}px`,
+                                    }}
+                                    placeholder="Value"
+                                    autoFocus
+                                />
+                                <input
+                                    type="text"
+                                    value={editDurationUnit}
+                                    onChange={(e) => {
+                                        setEditDurationUnit(e.target.value);
+                                    }}
+                                    onBlur={() => {
+                                        const numValue = parseFloat(editDurationValue);
+                                        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+                                        const combinedDuration = editDurationUnit
+                                            ? `${finalValue} ${editDurationUnit}`
+                                            : finalValue.toString();
+
+                                        if (data?.updateNodeData) {
+                                            data.updateNodeData(id, {
+                                                ...data,
+                                                durationValue: finalValue,
+                                                durationUnit: editDurationUnit,
+                                                duration: combinedDuration,
+                                            });
+                                        }
+                                        setIsEditing(false);
+                                    }}
+                                    className="flex-1 p-1 border rounded dark:bg-zinc-700 dark:text-white text-center"
+                                    style={{
+                                        fontSize: `${Math.max(
+                                            10,
+                                            typography.fontSize - 2
+                                        )}px`,
+                                    }}
+                                    placeholder="Unit"
+                                />
+                            </div>
                         ) : (
                             <ResponsiveText
                                 nodeWidth={dimensions.width}
@@ -351,7 +451,7 @@ const ActivityNode = memo(
                                 centerAlign
                                 className="text-gray-600 dark:text-gray-400"
                             >
-                                {`Duration: ${data?.duration}`}
+                                {`Duration: ${data?.duration ?? ""}`}
                             </ResponsiveText>
                         )}
                     </div>
@@ -494,7 +594,9 @@ const ActivityNode = memo(
             prevName === nextName &&
             JSON.stringify(prev.data?.resources) ===
                 JSON.stringify(next.data?.resources) &&
-            prev.data?.duration === next.data?.duration
+            prev.data?.duration === next.data?.duration &&
+            prev.data?.durationValue === next.data?.durationValue &&
+            prev.data?.durationUnit === next.data?.durationUnit
         );
     }
 ) as any;
@@ -502,6 +604,8 @@ const ActivityNode = memo(
 ActivityNode.getDefaultData = (): ActivityNodeData => ({
     resources: [],
     duration: "",
+    durationValue: 0,
+    durationUnit: "",
     width: 120,
     height: 40,
 });

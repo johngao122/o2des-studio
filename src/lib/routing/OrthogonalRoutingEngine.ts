@@ -13,6 +13,7 @@ import {
     generateControlPoints,
     createOrthogonalPath,
     compareOrthogonalPaths,
+    createPerpendicularApproachPath,
 } from "./pathGeneration";
 
 export interface RoutingComparison {
@@ -26,6 +27,9 @@ export interface RoutingOptions {
     avoidObstacles?: boolean;
     obstacles?: NodeBounds[];
     preferredRouting?: "horizontal-first" | "vertical-first";
+    usePerpendicularApproach?: boolean;
+    sourceNodeBounds?: NodeBounds;
+    targetNodeBounds?: NodeBounds;
 }
 
 /**
@@ -52,23 +56,46 @@ export class OrthogonalRoutingEngine {
             return this.pathCache.get(cacheKey)!;
         }
 
-        const horizontalFirstPath = createOrthogonalPath(
-            sourceHandle,
-            targetHandle,
-            "horizontal-first"
-        );
+        // Use perpendicular approach if enabled (default: true)
+        const usePerpendicularApproach = options.usePerpendicularApproach !== false;
 
-        const verticalFirstPath = createOrthogonalPath(
-            sourceHandle,
-            targetHandle,
-            "vertical-first"
-        );
+        let optimalPath: OrthogonalPath;
 
-        const optimalPath = this.selectOptimalPath(
-            horizontalFirstPath,
-            verticalFirstPath,
-            options
-        );
+        if (usePerpendicularApproach) {
+            const sourceNodeBounds = options.sourceNodeBounds
+                ? { width: options.sourceNodeBounds.width, height: options.sourceNodeBounds.height }
+                : undefined;
+
+            const targetNodeBounds = options.targetNodeBounds
+                ? { width: options.targetNodeBounds.width, height: options.targetNodeBounds.height }
+                : undefined;
+
+            optimalPath = createPerpendicularApproachPath(
+                sourceHandle,
+                targetHandle,
+                sourceNodeBounds,
+                targetNodeBounds
+            );
+        } else {
+            // Use original horizontal-first/vertical-first logic
+            const horizontalFirstPath = createOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                "horizontal-first"
+            );
+
+            const verticalFirstPath = createOrthogonalPath(
+                sourceHandle,
+                targetHandle,
+                "vertical-first"
+            );
+
+            optimalPath = this.selectOptimalPath(
+                horizontalFirstPath,
+                verticalFirstPath,
+                options
+            );
+        }
 
         this.pathCache.set(cacheKey, optimalPath);
 
@@ -140,11 +167,13 @@ export class OrthogonalRoutingEngine {
         targetY: number,
         sourcePosition?: string,
         targetPosition?: string,
-        options: RoutingOptions = {}
+        options: RoutingOptions = {},
+        sourceNodeId?: string,
+        targetNodeId?: string
     ): OrthogonalPath {
         const sourceHandle: HandleInfo = {
             id: "source",
-            nodeId: "source",
+            nodeId: sourceNodeId || "source",
             position: { x: sourceX, y: sourceY },
             side: this.positionToSide(sourcePosition || "right"),
             type: "source",
@@ -152,7 +181,7 @@ export class OrthogonalRoutingEngine {
 
         const targetHandle: HandleInfo = {
             id: "target",
-            nodeId: "target",
+            nodeId: targetNodeId || "target",
             position: { x: targetX, y: targetY },
             side: this.positionToSide(targetPosition || "left"),
             type: "target",

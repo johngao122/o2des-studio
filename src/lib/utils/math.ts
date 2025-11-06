@@ -841,25 +841,35 @@ export function getEllipseHandlePositions(width: number, height: number) {
         return right ? cx + dx : cx - dx;
     };
 
-    // One handle on top/bottom, three on left/right
-    const top = [{ x: cx, y: yOnEllipseForX(cx, true) }];
-    const bottom = [{ x: cx, y: yOnEllipseForX(cx, false) }];
+    const topCenter = { x: cx, y: yOnEllipseForX(cx, true) + 8 };
+    const bottomCenter = { x: cx, y: yOnEllipseForX(cx, false) - 8 };
 
-    // Left handles: evenly spaced along the left curve
-    const left = [
-        { x: xOnEllipseForY(height * 0.05, false), y: height * 0.05 },
-        { x: xOnEllipseForY(cy, false) + 7, y: cy },
-        { x: xOnEllipseForY(height * 0.95, false), y: height * 0.95 },
-    ];
+    const topLeftHandle = {
+        x: xOnEllipseForY(height * 0.05 + 1, false),
+        y: height * 0.05 + 8,
+    };
+    const middleLeftHandle = { x: xOnEllipseForY(cy, false) + 7, y: cy };
+    const bottomLeftHandle = {
+        x: xOnEllipseForY(height * 0.95 - 1, false),
+        y: height * 0.95 - 8,
+    };
 
-    // Right handles: evenly spaced along the right curve
-    const right = [
-        { x: xOnEllipseForY(height * 0.05, true), y: height * 0.05 },
-        { x: xOnEllipseForY(cy, true) - 7, y: cy },
-        { x: xOnEllipseForY(height * 0.95, true), y: height * 0.95 },
-    ];
+    const topRightHandle = {
+        x: xOnEllipseForY(height * 0.05 + 1, true),
+        y: height * 0.05 + 8,
+    };
+    const middleRightHandle = { x: xOnEllipseForY(cy, true) - 7, y: cy };
+    const bottomRightHandle = {
+        x: xOnEllipseForY(height * 0.95 - 1, true),
+        y: height * 0.95 - 8,
+    };
 
-    return { top, right, bottom, left };
+    return {
+        top: [topLeftHandle, topCenter, topRightHandle],
+        right: [middleRightHandle],
+        bottom: [bottomLeftHandle, bottomCenter, bottomRightHandle],
+        left: [middleLeftHandle],
+    };
 }
 
 /**

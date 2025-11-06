@@ -35,6 +35,7 @@ interface InitializationNodeData {
     height?: number;
 
     initializationsPosition?: string;
+    initializationsCollapsed?: boolean;
 }
 
 interface ExtendedNodeProps extends NodeProps<InitializationNodeData> {
@@ -114,6 +115,7 @@ export const getDefaultData = (): InitializationNodeData => ({
     width: 120,
     height: 50,
     initializationsPosition: "right",
+    initializationsCollapsed: false,
 });
 
 const InitializationNode = memo(
@@ -426,6 +428,23 @@ const InitializationNode = memo(
 
         const hasErrors = validationErrors.length > 0;
 
+        const isCollapsed = storeData?.initializationsCollapsed ?? false;
+
+        const handleToggleCollapse = useCallback(
+            (e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const command = commandController.createUpdateNodeCommand(id, {
+                    data: {
+                        ...storeData,
+                        initializationsCollapsed: !isCollapsed,
+                    },
+                });
+                commandController.execute(command);
+            },
+            [id, storeData, isCollapsed]
+        );
+
         return (
             <ErrorTooltip errors={validationErrors}>
                 <div
@@ -436,140 +455,225 @@ const InitializationNode = memo(
                             : selected
                             ? "border-blue-500"
                             : "border-black dark:border-white"
-                    } bg-white dark:bg-zinc-800 ${selected ? "shadow-lg" : ""} ${
-                        hasErrors ? "shadow-red-200" : ""
-                    }`}
-                style={{
-                    width: nodeWidth,
-                    height: nodeHeight,
-                    minWidth: 120,
-                    minHeight: 50,
-                    ...paddingStyles,
-                }}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-            >
-                {/* Centered name */}
-                <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black">
-                    <ResponsiveText
-                        nodeWidth={nodeWidth}
-                        nodeHeight={nodeHeight}
-                        maxWidth={Math.max(40, nodeWidth * 0.95)}
-                        fontWeight="medium"
-                        centerAlign
-                        className="dark:text-white text-black"
-                        style={{ lineHeight: 0.9, padding: 0, margin: 0 }}
-                    >
-                        {nodeName}
-                    </ResponsiveText>
-                </div>
+                    } bg-white dark:bg-zinc-800 ${
+                        selected ? "shadow-lg" : ""
+                    } ${hasErrors ? "shadow-red-200" : ""}`}
+                    style={{
+                        width: nodeWidth,
+                        height: nodeHeight,
+                        minWidth: 120,
+                        minHeight: 50,
+                        ...paddingStyles,
+                    }}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                >
+                    {/* Centered name */}
+                    <div className="absolute inset-0 flex items-center justify-center text-center dark:text-white text-black">
+                        <ResponsiveText
+                            nodeWidth={nodeWidth}
+                            nodeHeight={nodeHeight}
+                            maxWidth={Math.max(40, nodeWidth * 0.95)}
+                            fontWeight="medium"
+                            centerAlign
+                            className="dark:text-white text-black"
+                            style={{ lineHeight: 0.9, padding: 0, margin: 0 }}
+                        >
+                            {nodeName}
+                        </ResponsiveText>
+                    </div>
 
-                <NodeResizer
-                    isVisible={selected || isHovered}
-                    minWidth={120}
-                    minHeight={50}
-                    onResize={handleResize}
-                    handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
-                    lineClassName="!border-blue-500 !border-2"
-                />
+                    <NodeResizer
+                        isVisible={selected || isHovered}
+                        minWidth={120}
+                        minHeight={50}
+                        onResize={handleResize}
+                        handleClassName="!w-3 !h-3 !border-2 !border-blue-500 !bg-white dark:!bg-zinc-700 !rounded-sm !opacity-100"
+                        lineClassName="!border-blue-500 !border-2"
+                    />
 
-                {/* External initializations badge */}
-                {(isEditing || validItems.length > 0) && (
-                    <div
-                        className="absolute text-sm select-none cursor-move nodrag"
-                        style={{
-                            left:
-                                dragBadgePos?.left ??
-                                getAnchorCoordinates(
+                    {/* External initializations badge */}
+                    {(isEditing || validItems.length > 0) && !isCollapsed && (
+                        <div
+                            className="absolute text-sm select-none cursor-move nodrag"
+                            style={{
+                                left:
+                                    dragBadgePos?.left ??
+                                    getAnchorCoordinates(
+                                        getInitializationsAnchor(),
+                                        nodeWidth,
+                                        nodeHeight
+                                    ).left,
+                                top:
+                                    dragBadgePos?.top ??
+                                    getAnchorCoordinates(
+                                        getInitializationsAnchor(),
+                                        nodeWidth,
+                                        nodeHeight
+                                    ).top,
+                                transform: dragBadgePos
+                                    ? getAnchorCoordinates(
+                                          draggedAnchor,
+                                          nodeWidth,
+                                          nodeHeight
+                                      ).transform
+                                    : getAnchorCoordinates(
+                                          getInitializationsAnchor(),
+                                          nodeWidth,
+                                          nodeHeight
+                                      ).transform,
+                                maxWidth: Math.max(120, nodeWidth * 0.8),
+                            }}
+                            onMouseDown={startBadgeDrag}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditing(true);
+                                setEditValue(validItems.join("\n"));
+                            }}
+                        >
+                            {isEditing ? (
+                                <textarea
+                                    value={editValue}
+                                    onChange={(e) =>
+                                        setEditValue(e.target.value)
+                                    }
+                                    onBlur={handleBlur}
+                                    className="event-node-input nodrag p-1 border rounded dark:bg-zinc-700 dark:text-white bg-white text-black"
+                                    style={{
+                                        minWidth: 120,
+                                        maxWidth: Math.max(
+                                            120,
+                                            nodeWidth * 0.8
+                                        ),
+                                        fontSize: `${Math.max(
+                                            12,
+                                            typography.fontSize - 2
+                                        )}px`,
+                                    }}
+                                    placeholder="Initializations"
+                                    autoFocus
+                                />
+                            ) : (
+                                <div className="relative">
+                                    <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-stretch">
+                                        <span className="text-blue-400 dark:text-blue-300 text-lg mr-1 flex items-center">
+                                            {"{"}
+                                        </span>
+                                        <div className="flex flex-col justify-center">
+                                            {validItems.map((line, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="text-center"
+                                                >
+                                                    <ReactKatex>
+                                                        {line}
+                                                    </ReactKatex>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <span className="text-blue-400 dark:text-blue-300 text-lg ml-1 flex items-center">
+                                            {"}"}
+                                        </span>
+                                    </div>
+                                    {/* Collapse button */}
+                                    <button
+                                        className="absolute -top-5 -right-1 w-4 h-4 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full text-xs font-bold nodrag cursor-pointer"
+                                        onMouseDown={(e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                        }}
+                                        onClick={handleToggleCollapse}
+                                        title="Collapse"
+                                    >
+                                        -
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Expand button when collapsed */}
+                    {isCollapsed && validItems.length > 0 && (
+                        <div
+                            className="absolute"
+                            style={{
+                                left: getAnchorCoordinates(
                                     getInitializationsAnchor(),
                                     nodeWidth,
                                     nodeHeight
                                 ).left,
-                            top:
-                                dragBadgePos?.top ??
-                                getAnchorCoordinates(
+                                top: getAnchorCoordinates(
                                     getInitializationsAnchor(),
                                     nodeWidth,
                                     nodeHeight
                                 ).top,
-                            transform: dragBadgePos
-                                ? getAnchorCoordinates(
-                                      draggedAnchor,
-                                      nodeWidth,
-                                      nodeHeight
-                                  ).transform
-                                : getAnchorCoordinates(
-                                      getInitializationsAnchor(),
-                                      nodeWidth,
-                                      nodeHeight
-                                  ).transform,
-                            maxWidth: Math.max(120, nodeWidth * 0.8),
-                        }}
-                        onMouseDown={startBadgeDrag}
-                        onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            setIsEditing(true);
-                            setEditValue(validItems.join("\n"));
-                        }}
-                    >
-                        {isEditing ? (
-                            <textarea
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={handleBlur}
-                                className="event-node-input nodrag p-1 border rounded dark:bg-zinc-700 dark:text-white bg-white text-black"
-                                style={{
-                                    minWidth: 120,
-                                    maxWidth: Math.max(120, nodeWidth * 0.8),
-                                    fontSize: `${Math.max(
-                                        12,
-                                        typography.fontSize - 2
-                                    )}px`,
+                                transform: getAnchorCoordinates(
+                                    getInitializationsAnchor(),
+                                    nodeWidth,
+                                    nodeHeight
+                                ).transform,
+                            }}
+                        >
+                            <button
+                                className="w-4 h-4 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full text-xs font-bold nodrag cursor-pointer"
+                                onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                 }}
-                                placeholder="Initializations"
-                                autoFocus
-                            />
-                        ) : (
-                            <div className="dark:text-white text-black whitespace-pre text-center font-mono text-sm flex items-stretch">
-                                <span className="text-blue-400 dark:text-blue-300 text-lg mr-1 flex items-center">
-                                    {"{"}
-                                </span>
-                                <div className="flex flex-col justify-center">
-                                    {validItems.map((line, index) => (
-                                        <div
-                                            key={index}
-                                            className="text-center"
-                                        >
-                                            <ReactKatex>{line}</ReactKatex>
-                                        </div>
-                                    ))}
-                                </div>
-                                <span className="text-blue-400 dark:text-blue-300 text-lg ml-1 flex items-center">
-                                    {"}"}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                )}
+                                onClick={handleToggleCollapse}
+                                title="Expand"
+                            >
+                                +
+                            </button>
+                        </div>
+                    )}
 
-                {/* Handles */}
-                {id !== "preview" && (
-                    <>
-                        {/* Top handles */}
-                        {handlePositions.top.map((leftPos, index) => {
-                            let handleId = `${id}-top-${index}`;
-                            if (index === 0) {
-                                handleId = `${id}-top-left-${index}`;
-                            } else if (index === handlePositions.top.length - 1) {
-                                handleId = `${id}-top-right-${index}`;
-                            }
+                    {/* Handles */}
+                    {id !== "preview" && (
+                        <>
+                            {/* Top handles */}
+                            {handlePositions.top.map((leftPos, index) => {
+                                let handleId = `${id}-top-${index}`;
+                                if (index === 0) {
+                                    handleId = `${id}-top-left-${index}`;
+                                } else if (
+                                    index ===
+                                    handlePositions.top.length - 1
+                                ) {
+                                    handleId = `${id}-top-right-${index}`;
+                                }
 
-                            return (
+                                return (
+                                    <Handle
+                                        key={`top-${index}`}
+                                        id={handleId}
+                                        type="source"
+                                        position={Position.Top}
+                                        className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                            selected || isHovered
+                                                ? "!bg-transparent"
+                                                : "!bg-transparent !opacity-0"
+                                        }`}
+                                        isConnectable={isConnectable}
+                                        style={{
+                                            left: `${leftPos}px`,
+                                            top: `${
+                                                handlePositions.headerHeight +
+                                                HANDLE_RADIUS
+                                            }px`,
+                                            transform: "translate(-50%, -50%)",
+                                        }}
+                                    />
+                                );
+                            })}
+
+                            {/* Right handles */}
+                            {handlePositions.right.map((topPos, index) => (
                                 <Handle
-                                    key={`top-${index}`}
-                                    id={handleId}
+                                    key={`right-${index}`}
+                                    id={`${id}-right-${index}`}
                                     type="source"
-                                    position={Position.Top}
+                                    position={Position.Right}
                                     className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                         selected || isHovered
                                             ? "!bg-transparent"
@@ -577,50 +681,57 @@ const InitializationNode = memo(
                                     }`}
                                     isConnectable={isConnectable}
                                     style={{
-                                        left: `${leftPos}px`,
-                                        top: `${handlePositions.headerHeight + HANDLE_RADIUS}px`,
+                                        left: `${nodeWidth - HANDLE_RADIUS}px`,
+                                        top: `${topPos}px`,
                                         transform: "translate(-50%, -50%)",
                                     }}
                                 />
-                            );
-                        })}
+                            ))}
 
-                        {/* Right handles */}
-                        {handlePositions.right.map((topPos, index) => (
-                            <Handle
-                                key={`right-${index}`}
-                                id={`${id}-right-${index}`}
-                                type="source"
-                                position={Position.Right}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${nodeWidth - HANDLE_RADIUS}px`,
-                                    top: `${topPos}px`,
-                                    transform: "translate(-50%, -50%)",
-                                }}
-                            />
-                        ))}
+                            {/* Bottom handles */}
+                            {handlePositions.bottom.map((leftPos, index) => {
+                                let handleId = `${id}-bottom-${index}`;
+                                if (index === 0) {
+                                    handleId = `${id}-bottom-right-${index}`;
+                                } else if (
+                                    index ===
+                                    handlePositions.bottom.length - 1
+                                ) {
+                                    handleId = `${id}-bottom-left-${index}`;
+                                }
 
-                        {/* Bottom handles */}
-                        {handlePositions.bottom.map((leftPos, index) => {
-                            let handleId = `${id}-bottom-${index}`;
-                            if (index === 0) {
-                                handleId = `${id}-bottom-right-${index}`;
-                            } else if (index === handlePositions.bottom.length - 1) {
-                                handleId = `${id}-bottom-left-${index}`;
-                            }
+                                return (
+                                    <Handle
+                                        key={`bottom-${index}`}
+                                        id={handleId}
+                                        type="source"
+                                        position={Position.Bottom}
+                                        className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
+                                            selected || isHovered
+                                                ? "!bg-transparent"
+                                                : "!bg-transparent !opacity-0"
+                                        }`}
+                                        isConnectable={isConnectable}
+                                        style={{
+                                            left: `${leftPos}px`,
+                                            top: `${
+                                                handlePositions.headerHeight +
+                                                nodeHeight -
+                                                HANDLE_RADIUS
+                                            }px`,
+                                            transform: "translate(-50%, -50%)",
+                                        }}
+                                    />
+                                );
+                            })}
 
-                            return (
+                            {/* Left handles */}
+                            {handlePositions.left.map((topPos, index) => (
                                 <Handle
-                                    key={`bottom-${index}`}
-                                    id={handleId}
-                                    type="source"
-                                    position={Position.Bottom}
+                                    key={`left-${index}`}
+                                    id={`${id}-left-${index}`}
+                                    type="target"
+                                    position={Position.Left}
                                     className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
                                         selected || isHovered
                                             ? "!bg-transparent"
@@ -628,37 +739,15 @@ const InitializationNode = memo(
                                     }`}
                                     isConnectable={isConnectable}
                                     style={{
-                                        left: `${leftPos}px`,
-                                        top: `${handlePositions.headerHeight + nodeHeight - HANDLE_RADIUS}px`,
+                                        left: `${HANDLE_RADIUS}px`,
+                                        top: `${topPos}px`,
                                         transform: "translate(-50%, -50%)",
                                     }}
                                 />
-                            );
-                        })}
-
-                        {/* Left handles */}
-                        {handlePositions.left.map((topPos, index) => (
-                            <Handle
-                                key={`left-${index}`}
-                                id={`${id}-left-${index}`}
-                                type="target"
-                                position={Position.Left}
-                                className={`!border-none !w-3 !h-3 before:content-[''] before:absolute before:w-full before:h-0.5 before:bg-blue-500 dark:before:bg-blue-400 before:top-1/2 before:left-0 before:-translate-y-1/2 before:rotate-45 after:content-[''] after:absolute after:w-0.5 after:h-full after:bg-blue-500 dark:after:bg-blue-400 after:left-1/2 after:top-0 after:-translate-x-1/2 after:rotate-45 ${
-                                    selected || isHovered
-                                        ? "!bg-transparent"
-                                        : "!bg-transparent !opacity-0"
-                                }`}
-                                isConnectable={isConnectable}
-                                style={{
-                                    left: `${HANDLE_RADIUS}px`,
-                                    top: `${topPos}px`,
-                                    transform: "translate(-50%, -50%)",
-                                }}
-                            />
-                        ))}
-                    </>
-                )}
-            </div>
+                            ))}
+                        </>
+                    )}
+                </div>
             </ErrorTooltip>
         );
     },
@@ -698,6 +787,7 @@ InitializationNode.getDefaultData = (): InitializationNodeData => ({
     width: 120,
     height: 50,
     initializationsPosition: "right",
+    initializationsCollapsed: false,
 });
 
 InitializationNode.getGraphType = (): string => "eventBased";

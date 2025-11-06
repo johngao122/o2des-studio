@@ -9,6 +9,7 @@ import {
     addEdge,
     applyEdgeChanges,
     applyNodeChanges,
+    MarkerType,
 } from "reactflow";
 import { BaseNode, BaseEdge } from "../types/base";
 import { nanoid } from "nanoid";
@@ -26,11 +27,15 @@ import { GRID_SIZE } from "@/lib/utils/math";
 import { AutosaveService } from "../services/AutosaveService";
 import { GraphValidationService } from "../services/GraphValidationService";
 import { ValidationError, ModelValidationState } from "../types/validation";
+import { getArrowheadColor } from "@/lib/utils/edgeUtils";
+import { DevModeService } from "../services/DevModeService";
+import { DevModeState } from "../types/devMode";
 
 const commandController = CommandController.getInstance();
 const serializationService = new SerializationService();
 const autosaveService = AutosaveService.getInstance();
 const graphValidationService = GraphValidationService.getInstance();
+const devModeService = DevModeService.getInstance();
 
 const DRAG_PROXY_THRESHOLD = 3;
 const EMPTY_VALIDATION_ERRORS: ValidationError[] = [];
@@ -54,12 +59,17 @@ const logValidationErrors = (context: string, errors: ValidationError[]) => {
         return;
     }
 
-    const counts = errors.reduce<Partial<Record<ValidationError['errorType'], number>>>((acc, error) => {
+    const counts = errors.reduce<
+        Partial<Record<ValidationError["errorType"], number>>
+    >((acc, error) => {
         acc[error.errorType] = (acc[error.errorType] ?? 0) + 1;
         return acc;
     }, {});
 
-    console.info(`[Validation] ${context}: ${errors.length} error(s) detected`, counts);
+    console.info(
+        `[Validation] ${context}: ${errors.length} error(s) detected`,
+        counts
+    );
 };
 
 interface DragProxyState {
@@ -113,6 +123,7 @@ export interface StoreState {
         edges: BaseEdge[];
     };
     validation: ModelValidationState;
+    devMode: DevModeState;
     onNodesChange: (changes: NodeChange[]) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
@@ -126,6 +137,7 @@ export interface StoreState {
     updateSelectedProperties: (properties: SelectedProperty[]) => void;
     updateProjectName: (name: string) => void;
     updateMetadata: (metadata: Partial<ProjectMetadata>) => void;
+    refreshEdgeMarkerColors: () => void;
     startDragProxy: (nodes: BaseNode[], edges: BaseEdge[]) => void;
     updateDragProxy: (
         position: { x: number; y: number },
@@ -138,6 +150,8 @@ export interface StoreState {
     validateElement: (elementId: string) => void;
     clearValidationErrors: () => void;
     getValidationErrors: (elementId?: string) => ValidationError[];
+    setDevMode: (enabled: boolean) => void;
+    isDevModeEnabled: () => boolean;
 }
 
 interface SerializedState {
@@ -187,6 +201,10 @@ export const useStore = create<StoreState>((set, get) => ({
         errorMap: {},
         lastValidated: null,
         isValidating: false,
+    },
+    devMode: devModeService.restoreDevModeState() || {
+        isEnabled: false,
+        enabledAt: null,
     },
 
     onNodesChange: (changes: NodeChange[]) => {
@@ -452,6 +470,34 @@ export const useStore = create<StoreState>((set, get) => ({
                     (e) => e.id === selectedEdgeIds[0]
                 );
                 if (selectedEdge) {
+                    if (
+                        selectedEdge.data?.arrowheadStyle &&
+                        !selectedEdge.markerEnd
+                    ) {
+                        const arrowheadStyle = selectedEdge.data.arrowheadStyle;
+                        const markerEnd =
+                            arrowheadStyle === "filled"
+                                ? {
+                                      type: MarkerType.ArrowClosed,
+                                      color: "#ffffff",
+                                      width: 25,
+                                      height: 25,
+                                  }
+                                : arrowheadStyle === "open"
+                                ? {
+                                      type: MarkerType.Arrow,
+                                      color: "#ffffff",
+                                      width: 25,
+                                      height: 25,
+                                  }
+                                : undefined;
+
+                        const { edges } = get();
+                        const updatedEdges = edges.map((e) =>
+                            e.id === selectedEdge.id ? { ...e, markerEnd } : e
+                        );
+                        set({ edges: updatedEdges });
+                    }
                     const explicitProps = [
                         {
                             key: "id",
@@ -567,6 +613,15 @@ export const useStore = create<StoreState>((set, get) => ({
                                         ],
                                     };
                                 }
+                                if (key === "arrowheadStyle") {
+                                    return {
+                                        key: "arrowheadStyle",
+                                        value: value as string,
+                                        type: "string" as const,
+                                        editable: true,
+                                        options: ["filled", "open"],
+                                    };
+                                }
                                 return {
                                     key,
                                     value: value as string | number | boolean,
@@ -595,7 +650,6 @@ export const useStore = create<StoreState>((set, get) => ({
                             });
                         }
 
-                        // Add routing type property if missing
                         if (!selectedEdge.data.edgeRoutingType) {
                             dataProps.push({
                                 key: "edgeRoutingType",
@@ -603,6 +657,16 @@ export const useStore = create<StoreState>((set, get) => ({
                                 type: "string" as const,
                                 editable: true,
                                 options: ["orthogonal", "straight", "bezier"],
+                            });
+                        }
+
+                        if (!selectedEdge.data.arrowheadStyle) {
+                            dataProps.push({
+                                key: "arrowheadStyle",
+                                value: "filled",
+                                type: "string" as const,
+                                editable: true,
+                                options: ["filled", "open"],
                             });
                         }
 
@@ -658,9 +722,7 @@ export const useStore = create<StoreState>((set, get) => ({
                             }
                         } else if (selectedEdge.type === "initialization") {
                             if (
-                                !dataProps.find(
-                                    (p) => p.key === "initialDelay"
-                                )
+                                !dataProps.find((p) => p.key === "initialDelay")
                             ) {
                                 dataProps.push({
                                     key: "initialDelay",
@@ -918,12 +980,56 @@ export const useStore = create<StoreState>((set, get) => ({
                 modified: new Date().toISOString(),
             };
 
+            const edgesWithMarkers = edges.map((edge) => {
+                const arrowheadStyle = edge.data?.arrowheadStyle;
+                if (arrowheadStyle) {
+                    const markerEnd =
+                        arrowheadStyle === "filled"
+                            ? {
+                                  type: MarkerType.ArrowClosed,
+                                  color: getArrowheadColor(),
+                                  width: 15,
+                                  height: 15,
+                              }
+                            : arrowheadStyle === "open"
+                            ? {
+                                  type: MarkerType.Arrow,
+                                  color: getArrowheadColor(),
+                                  width: 15,
+                                  height: 15,
+                              }
+                            : undefined;
+                    console.log("[Store/loadProject] Syncing edge marker:", {
+                        edgeId: edge.id,
+                        arrowheadStyle,
+                        oldMarkerEnd: edge.markerEnd,
+                        newMarkerEnd: markerEnd,
+                    });
+                    return { ...edge, markerEnd };
+                }
+                return edge;
+            });
+
+            console.log("[Store/loadProject] Loaded edges with markers:", {
+                totalEdges: edgesWithMarkers.length,
+                edgesWithMarkerEnd: edgesWithMarkers.filter((e) => e.markerEnd)
+                    .length,
+            });
+
             set({
                 nodes,
-                edges,
+                edges: edgesWithMarkers,
                 projectName: projectName || "Untitled Project",
                 metadata: updatedMetadata,
             });
+
+            setTimeout(() => {
+                const currentEdges = get().edges;
+                set({ edges: [...currentEdges] });
+                console.log(
+                    "[Store/loadProject] Forced edges refresh for React Flow"
+                );
+            }, 100);
         } catch (deserializeError) {
             console.error(
                 "Deserialization error:",
@@ -1009,6 +1115,25 @@ export const useStore = create<StoreState>((set, get) => ({
                     };
                 }, {});
 
+                // If durationValue or durationUnit changed, update the combined duration field
+                const durationValueProp = editableProperties.find((p) => p.key === "durationValue");
+                const durationUnitProp = editableProperties.find((p) => p.key === "durationUnit");
+
+                if (durationValueProp || durationUnitProp) {
+                    const currentDurationValue = durationValueProp
+                        ? (durationValueProp.value as number)
+                        : (node.data.durationValue ?? 0);
+                    const currentDurationUnit = durationUnitProp
+                        ? String(durationUnitProp.value)
+                        : (node.data.durationUnit ?? "");
+
+                    const combinedDuration = currentDurationUnit
+                        ? `${currentDurationValue} ${currentDurationUnit}`
+                        : currentDurationValue.toString();
+
+                    (newData as any).duration = combinedDuration;
+                }
+
                 const nameProperty = editableProperties.find(
                     (p) => p.key === "name"
                 );
@@ -1024,19 +1149,21 @@ export const useStore = create<StoreState>((set, get) => ({
                 );
                 commandController.execute(command);
 
-                // Trigger validation for specific properties
-                const changedFields = editableProperties.map(p => p.key);
-                const validationTriggerFields = ['initializations', 'stateUpdate'];
-                const shouldValidate = changedFields.some(field => validationTriggerFields.includes(field));
+                const changedFields = editableProperties.map((p) => p.key);
+                const validationTriggerFields = [
+                    "initializations",
+                    "stateUpdate",
+                ];
+                const shouldValidate = changedFields.some((field) =>
+                    validationTriggerFields.includes(field)
+                );
 
                 if (shouldValidate) {
-                    // Debounced validation
                     setTimeout(() => {
                         const { validateElement } = get();
                         validateElement(nodeId);
 
-                        // If initializations changed, validate entire model
-                        if (changedFields.includes('initializations')) {
+                        if (changedFields.includes("initializations")) {
                             const { validateModel } = get();
                             validateModel();
                         }
@@ -1054,7 +1181,6 @@ export const useStore = create<StoreState>((set, get) => ({
                     };
                 }, {});
 
-                // If routing type is changed away from orthogonal, clear orthogonal control data
                 if (
                     Object.prototype.hasOwnProperty.call(
                         newData,
@@ -1062,11 +1188,10 @@ export const useStore = create<StoreState>((set, get) => ({
                     )
                 ) {
                     const rt = (newData as any).edgeRoutingType as string;
-                    // Keep legacy flag in sync
+
                     (newData as any).useOrthogonalRouting = rt === "orthogonal";
 
                     if (rt === "straight" || rt === "bezier") {
-                        // Drop preserved orthogonal geometry so straight/bezier renders as expected
                         (newData as any).controlPoints = undefined;
                         (newData as any).routingType = undefined;
                         (newData as any).routingMetrics = undefined;
@@ -1076,19 +1201,71 @@ export const useStore = create<StoreState>((set, get) => ({
 
                 const updateData: any = { data: { ...edge.data, ...newData } };
 
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        newData,
+                        "arrowheadStyle"
+                    )
+                ) {
+                    const arrowheadStyle = (newData as any)
+                        .arrowheadStyle as string;
+                    updateData.markerEnd =
+                        arrowheadStyle === "filled"
+                            ? {
+                                  type: MarkerType.ArrowClosed,
+                                  color: getArrowheadColor(),
+                                  width: 15,
+                                  height: 15,
+                              }
+                            : arrowheadStyle === "open"
+                            ? {
+                                  type: MarkerType.Arrow,
+                                  color: getArrowheadColor(),
+                                  width: 15,
+                                  height: 15,
+                              }
+                            : undefined;
+                    console.log("[Store] Updating edge arrowhead:", {
+                        edgeId,
+                        arrowheadStyle,
+                        markerEnd: updateData.markerEnd,
+                        updateData,
+                    });
+                }
+
                 const command = commandController.createUpdateEdgeCommand(
                     edgeId,
                     updateData
                 );
                 commandController.execute(command);
 
-                // Trigger validation for specific edge properties
-                const changedFields = editableProperties.map(p => p.key);
-                const edgeValidationTriggerFields = ['condition', 'delay', 'parameter', 'initialDelay'];
-                const shouldValidate = changedFields.some(field => edgeValidationTriggerFields.includes(field));
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        newData,
+                        "arrowheadStyle"
+                    )
+                ) {
+                    setTimeout(() => {
+                        const { edges } = get();
+                        set({ edges: [...edges] });
+                        console.log(
+                            "[Store] Forced edges array update for React Flow re-render"
+                        );
+                    }, 10);
+                }
+
+                const changedFields = editableProperties.map((p) => p.key);
+                const edgeValidationTriggerFields = [
+                    "condition",
+                    "delay",
+                    "parameter",
+                    "initialDelay",
+                ];
+                const shouldValidate = changedFields.some((field) =>
+                    edgeValidationTriggerFields.includes(field)
+                );
 
                 if (shouldValidate) {
-                    // Debounced validation
                     setTimeout(() => {
                         const { validateElement } = get();
                         validateElement(edgeId);
@@ -1117,6 +1294,23 @@ export const useStore = create<StoreState>((set, get) => ({
                 modified: new Date().toISOString(),
             },
         }));
+    },
+
+    refreshEdgeMarkerColors: () => {
+        const { edges } = get();
+        const updatedEdges = edges.map((edge) => {
+            if (edge.markerEnd && typeof edge.markerEnd === "object") {
+                return {
+                    ...edge,
+                    markerEnd: {
+                        ...edge.markerEnd,
+                        color: getArrowheadColor(),
+                    },
+                };
+            }
+            return edge;
+        });
+        set({ edges: updatedEdges });
     },
 
     startDragProxy: (nodes: BaseNode[], edges: BaseEdge[]) => {
@@ -1454,33 +1648,56 @@ export const useStore = create<StoreState>((set, get) => ({
     },
 
     validateModel: () => {
+        // Skip validation if dev mode is enabled
+        if (get().devMode.isEnabled) {
+            console.info("[DevMode] Model validation skipped - dev mode active");
+            return;
+        }
+
         const { nodes, edges } = get();
-        set((state) => ({ validation: { ...state.validation, isValidating: true } }));
+        set((state) => ({
+            validation: { ...state.validation, isValidating: true },
+        }));
 
         try {
             const result = graphValidationService.validateModel(nodes, edges);
             const groupedErrors = buildValidationErrorMap(result.errors);
-            logValidationErrors('model validation', result.errors);
+            logValidationErrors("model validation", result.errors);
             set((state) => ({
                 validation: {
                     errors: result.errors,
                     errorMap: groupedErrors,
                     lastValidated: new Date().toISOString(),
                     isValidating: false,
-                }
+                },
             }));
         } catch (error) {
-            console.error('Validation error:', error);
-            set((state) => ({ validation: { ...state.validation, isValidating: false } }));
+            console.error("Validation error:", error);
+            set((state) => ({
+                validation: { ...state.validation, isValidating: false },
+            }));
         }
     },
 
     validateElement: (elementId: string) => {
+        // Skip validation if dev mode is enabled
+        if (get().devMode.isEnabled) {
+            console.info(`[DevMode] Element validation skipped for ${elementId} - dev mode active`);
+            return;
+        }
+
         const { nodes, edges } = get();
 
         try {
-            const elementErrors = graphValidationService.validateElement(elementId, nodes, edges);
-            logValidationErrors(`element validation (${elementId})`, elementErrors);
+            const elementErrors = graphValidationService.validateElement(
+                elementId,
+                nodes,
+                edges
+            );
+            logValidationErrors(
+                `element validation (${elementId})`,
+                elementErrors
+            );
 
             set((state) => {
                 const remainingErrors = state.validation.errors.filter(
@@ -1505,7 +1722,7 @@ export const useStore = create<StoreState>((set, get) => ({
                 };
             });
         } catch (error) {
-            console.error('Element validation error:', error);
+            console.error("Element validation error:", error);
         }
     },
 
@@ -1515,7 +1732,7 @@ export const useStore = create<StoreState>((set, get) => ({
                 ...state.validation,
                 errors: [],
                 errorMap: {},
-            }
+            },
         }));
     },
 
@@ -1526,5 +1743,34 @@ export const useStore = create<StoreState>((set, get) => ({
         }
 
         return validation.errorMap[elementId] ?? EMPTY_VALIDATION_ERRORS;
+    },
+
+    setDevMode: (enabled: boolean) => {
+        if (enabled) {
+            devModeService.enableDevMode();
+            console.info("[DevMode] Developer mode enabled - validation disabled");
+        } else {
+            devModeService.disableDevMode();
+            console.info("[DevMode] Developer mode disabled - validation enabled");
+        }
+
+        set({
+            devMode: {
+                isEnabled: enabled,
+                enabledAt: enabled ? new Date().toISOString() : null,
+            },
+        });
+
+        // Clear existing validation errors when enabling dev mode
+        if (enabled) {
+            get().clearValidationErrors();
+        } else {
+            // Re-validate model when disabling dev mode
+            get().validateModel();
+        }
+    },
+
+    isDevModeEnabled: () => {
+        return get().devMode.isEnabled;
     },
 }));

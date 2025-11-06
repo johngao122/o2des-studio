@@ -21,6 +21,8 @@ import {
 interface GlobalNodeData {
     resources?: string[];
     duration?: string;
+    durationValue?: number;
+    durationUnit?: string;
     updateNodeData?: (nodeId: string, data: any) => void;
     width?: number;
     height?: number;
@@ -112,6 +114,26 @@ export const GlobalNodePreview = () => {
                 </div>
             </div>
 
+            {/* Duration indicator lines on bottom edge */}
+            <div
+                className="absolute bg-black dark:bg-white"
+                style={{
+                    top: `${35 + previewHeight - 4}px`,
+                    left: `${previewWidth / 2 - 4}px`,
+                    width: "2px",
+                    height: "8px",
+                }}
+            />
+            <div
+                className="absolute bg-black dark:bg-white"
+                style={{
+                    top: `${35 + previewHeight - 4}px`,
+                    left: `${previewWidth / 2 + 2}px`,
+                    width: "2px",
+                    height: "8px",
+                }}
+            />
+
             {/* Duration */}
             <div
                 className="absolute text-xs text-gray-600 dark:text-gray-400 text-center"
@@ -130,6 +152,8 @@ export const GlobalNodePreview = () => {
 export const getDefaultData = (): GlobalNodeData => ({
     resources: [],
     duration: "op time",
+    durationValue: 0,
+    durationUnit: "op time",
     width: 120,
     height: 50,
 });
@@ -146,8 +170,11 @@ const GlobalNode = memo(
     }: ExtendedNodeProps) => {
         const [isHovered, setIsHovered] = useState(false);
         const [isEditing, setIsEditing] = useState(false);
-        const [editDuration, setEditDuration] = useState(
-            data?.duration || "op time"
+        const [editDurationValue, setEditDurationValue] = useState(
+            data?.durationValue?.toString() ?? ""
+        );
+        const [editDurationUnit, setEditDurationUnit] = useState(
+            data?.durationUnit ?? "op time"
         );
 
         const nodeRef = useRef<HTMLDivElement>(null);
@@ -189,19 +216,9 @@ const GlobalNode = memo(
 
         const handleDoubleClick = useCallback(() => {
             setIsEditing(true);
-            setEditDuration(data?.duration || "op time");
-        }, [data?.duration]);
-
-        const handleBlur = useCallback(() => {
-            setIsEditing(false);
-
-            if (data?.updateNodeData) {
-                data.updateNodeData(id, {
-                    ...data,
-                    duration: editDuration,
-                });
-            }
-        }, [editDuration, id, data]);
+            setEditDurationValue(data?.durationValue?.toString() ?? "");
+            setEditDurationUnit(data?.durationUnit ?? "op time");
+        }, [data?.durationValue, data?.durationUnit]);
 
         const getHandlePositions = () => {
             return getGridAlignedHandlePositions(
@@ -285,6 +302,30 @@ const GlobalNode = memo(
                     </div>
                 </div>
 
+                {/* Duration indicator lines on bottom edge */}
+                {data?.duration && data.duration.trim() !== "" && (
+                    <>
+                        <div
+                            className="absolute bg-black dark:bg-white"
+                            style={{
+                                top: `${35 + dimensions.height - 4}px`,
+                                left: `${dimensions.width / 2 - 4}px`,
+                                width: "2px",
+                                height: "8px",
+                            }}
+                        />
+                        <div
+                            className="absolute bg-black dark:bg-white"
+                            style={{
+                                top: `${35 + dimensions.height - 4}px`,
+                                left: `${dimensions.width / 2 + 2}px`,
+                                width: "2px",
+                                height: "8px",
+                            }}
+                        />
+                    </>
+                )}
+
                 {/* Duration */}
                 {data?.duration && data.duration.trim() !== "" && (
                     <div
@@ -296,20 +337,75 @@ const GlobalNode = memo(
                         }}
                     >
                         {isEditing ? (
-                            <input
-                                type="text"
-                                value={editDuration}
-                                onChange={(e) =>
-                                    setEditDuration(e.target.value)
-                                }
-                                onBlur={handleBlur}
-                                className="w-full p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white nodrag text-center"
-                                placeholder="Duration"
-                                autoFocus
-                            />
+                            <div className="flex gap-1 w-full px-2 nodrag">
+                                <input
+                                    type="number"
+                                    value={editDurationValue}
+                                    min="0"
+                                    step="any"
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        const numValue = parseFloat(value);
+
+                                        if (value === "" || isNaN(numValue)) {
+                                            setEditDurationValue("");
+                                        } else if (numValue < 0) {
+                                            setEditDurationValue("0");
+                                        } else {
+                                            setEditDurationValue(value);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        const numValue = parseFloat(editDurationValue);
+                                        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+                                        const combinedDuration = editDurationUnit
+                                            ? `${finalValue} ${editDurationUnit}`
+                                            : finalValue.toString();
+
+                                        if (data?.updateNodeData) {
+                                            data.updateNodeData(id, {
+                                                ...data,
+                                                durationValue: finalValue,
+                                                durationUnit: editDurationUnit,
+                                                duration: combinedDuration,
+                                            });
+                                        }
+                                        setIsEditing(false);
+                                    }}
+                                    className="flex-1 p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white text-center"
+                                    placeholder="Value"
+                                    autoFocus
+                                />
+                                <input
+                                    type="text"
+                                    value={editDurationUnit}
+                                    onChange={(e) => {
+                                        setEditDurationUnit(e.target.value);
+                                    }}
+                                    onBlur={() => {
+                                        const numValue = parseFloat(editDurationValue);
+                                        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
+                                        const combinedDuration = editDurationUnit
+                                            ? `${finalValue} ${editDurationUnit}`
+                                            : finalValue.toString();
+
+                                        if (data?.updateNodeData) {
+                                            data.updateNodeData(id, {
+                                                ...data,
+                                                durationValue: finalValue,
+                                                durationUnit: editDurationUnit,
+                                                duration: combinedDuration,
+                                            });
+                                        }
+                                        setIsEditing(false);
+                                    }}
+                                    className="flex-1 p-1 text-xs border rounded dark:bg-zinc-700 dark:text-white text-center"
+                                    placeholder="Unit"
+                                />
+                            </div>
                         ) : (
                             <div className="text-gray-600 dark:text-gray-400">
-                                Duration: {data?.duration}
+                                Duration: {data?.duration ?? ""}
                             </div>
                         )}
                     </div>
