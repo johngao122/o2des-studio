@@ -118,19 +118,19 @@ export const GlobalNodePreview = () => {
             <div
                 className="absolute bg-black dark:bg-white"
                 style={{
-                    top: `${35 + previewHeight - 4}px`,
+                    top: `${35 + previewHeight - 10}px`,
                     left: `${previewWidth / 2 - 4}px`,
                     width: "2px",
-                    height: "8px",
+                    height: `${Math.max(8, Math.min(20, previewWidth * 0.08))}px`,
                 }}
             />
             <div
                 className="absolute bg-black dark:bg-white"
                 style={{
-                    top: `${35 + previewHeight - 4}px`,
+                    top: `${35 + previewHeight - 10}px`,
                     left: `${previewWidth / 2 + 2}px`,
                     width: "2px",
-                    height: "8px",
+                    height: `${Math.max(8, Math.min(20, previewWidth * 0.08))}px`,
                 }}
             />
 
@@ -308,19 +308,19 @@ const GlobalNode = memo(
                         <div
                             className="absolute bg-black dark:bg-white"
                             style={{
-                                top: `${35 + dimensions.height - 4}px`,
+                                top: `${35 + dimensions.height - 10}px`,
                                 left: `${dimensions.width / 2 - 4}px`,
                                 width: "2px",
-                                height: "8px",
+                                height: `${Math.max(8, Math.min(20, dimensions.width * 0.08))}px`,
                             }}
                         />
                         <div
                             className="absolute bg-black dark:bg-white"
                             style={{
-                                top: `${35 + dimensions.height - 4}px`,
+                                top: `${35 + dimensions.height - 10}px`,
                                 left: `${dimensions.width / 2 + 2}px`,
                                 width: "2px",
-                                height: "8px",
+                                height: `${Math.max(8, Math.min(20, dimensions.width * 0.08))}px`,
                             }}
                         />
                     </>

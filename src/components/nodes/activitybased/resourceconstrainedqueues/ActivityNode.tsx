@@ -132,19 +132,25 @@ export const ActivityNodePreview = () => {
             <div
                 className="absolute bg-black dark:bg-white"
                 style={{
-                    top: `${35 + previewHeight - 4}px`,
+                    top: `${35 + previewHeight - 8}px`,
                     left: `${previewWidth / 2 - 4}px`,
                     width: "2px",
-                    height: "8px",
+                    height: `${Math.max(
+                        8,
+                        Math.min(20, previewWidth * 0.08)
+                    )}px`,
                 }}
             />
             <div
                 className="absolute bg-black dark:bg-white"
                 style={{
-                    top: `${35 + previewHeight - 4}px`,
+                    top: `${35 + previewHeight - 8}px`,
                     left: `${previewWidth / 2 + 2}px`,
                     width: "2px",
-                    height: "8px",
+                    height: `${Math.max(
+                        8,
+                        Math.min(20, previewWidth * 0.08)
+                    )}px`,
                 }}
             />
 
@@ -336,19 +342,25 @@ const ActivityNode = memo(
                         <div
                             className="absolute bg-black dark:bg-white"
                             style={{
-                                top: `${35 + dimensions.height - 4}px`,
+                                top: `${35 + dimensions.height - 8}px`,
                                 left: `${dimensions.width / 2 - 4}px`,
                                 width: "2px",
-                                height: "8px",
+                                height: `${Math.max(
+                                    8,
+                                    Math.min(20, dimensions.width * 0.08)
+                                )}px`,
                             }}
                         />
                         <div
                             className="absolute bg-black dark:bg-white"
                             style={{
-                                top: `${35 + dimensions.height - 4}px`,
+                                top: `${35 + dimensions.height - 8}px`,
                                 left: `${dimensions.width / 2 + 2}px`,
                                 width: "2px",
-                                height: "8px",
+                                height: `${Math.max(
+                                    8,
+                                    Math.min(20, dimensions.width * 0.08)
+                                )}px`,
                             }}
                         />
                     </>
@@ -384,11 +396,16 @@ const ActivityNode = memo(
                                         }
                                     }}
                                     onBlur={() => {
-                                        const numValue = parseFloat(editDurationValue);
-                                        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
-                                        const combinedDuration = editDurationUnit
-                                            ? `${finalValue} ${editDurationUnit}`
-                                            : finalValue.toString();
+                                        const numValue =
+                                            parseFloat(editDurationValue);
+                                        const finalValue =
+                                            isNaN(numValue) || numValue < 0
+                                                ? 0
+                                                : numValue;
+                                        const combinedDuration =
+                                            editDurationUnit
+                                                ? `${finalValue} ${editDurationUnit}`
+                                                : finalValue.toString();
 
                                         if (data?.updateNodeData) {
                                             data.updateNodeData(id, {
@@ -417,11 +434,16 @@ const ActivityNode = memo(
                                         setEditDurationUnit(e.target.value);
                                     }}
                                     onBlur={() => {
-                                        const numValue = parseFloat(editDurationValue);
-                                        const finalValue = isNaN(numValue) || numValue < 0 ? 0 : numValue;
-                                        const combinedDuration = editDurationUnit
-                                            ? `${finalValue} ${editDurationUnit}`
-                                            : finalValue.toString();
+                                        const numValue =
+                                            parseFloat(editDurationValue);
+                                        const finalValue =
+                                            isNaN(numValue) || numValue < 0
+                                                ? 0
+                                                : numValue;
+                                        const combinedDuration =
+                                            editDurationUnit
+                                                ? `${finalValue} ${editDurationUnit}`
+                                                : finalValue.toString();
 
                                         if (data?.updateNodeData) {
                                             data.updateNodeData(id, {
@@ -506,7 +528,9 @@ const ActivityNode = memo(
                                 }`}
                                 isConnectable={isConnectable}
                                 style={{
-                                    left: `${dimensions.width - HANDLE_RADIUS}px`,
+                                    left: `${
+                                        dimensions.width - HANDLE_RADIUS
+                                    }px`,
                                     top: `${topPos}px`,
                                     transform: "translate(-50%, -50%)",
                                 }}
@@ -539,7 +563,11 @@ const ActivityNode = memo(
                                     isConnectable={isConnectable}
                                     style={{
                                         left: `${leftPos}px`,
-                                        top: `${35 + dimensions.height - HANDLE_RADIUS}px`,
+                                        top: `${
+                                            35 +
+                                            dimensions.height -
+                                            HANDLE_RADIUS
+                                        }px`,
                                         transform: "translate(-50%, -50%)",
                                     }}
                                 />
