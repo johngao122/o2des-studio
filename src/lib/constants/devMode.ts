@@ -6,11 +6,11 @@
  */
 
 /** Password required to enable developer mode */
-export const DEV_MODE_PASSWORD = 'dev2025';
+export const DEV_MODE_PASSWORD = process.env.NEXT_PUBLIC_DEV_MODE || "";
 
 /** SessionStorage key for persisting dev mode state */
-export const DEV_MODE_STORAGE_KEY = 'o2des_dev_mode';
+export const DEV_MODE_STORAGE_KEY = "o2des_dev_mode";
 
 /** Keyboard shortcut to open dev mode dialog */
-export const DEV_MODE_SHORTCUT = 'Ctrl+Shift+E'; // Meta+Shift+E on Mac
-export const DEV_MODE_SHORTCUT_MAC = 'Meta+Shift+E';
+export const DEV_MODE_SHORTCUT = "Ctrl+Shift+E"; // Meta+Shift+E on Mac
+export const DEV_MODE_SHORTCUT_MAC = "Meta+Shift+E";
