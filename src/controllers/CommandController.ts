@@ -252,7 +252,14 @@ export class CommandController {
                 useStore.setState((state) => ({
                     edges: state.edges.map((e) => {
                         if (e.id === edgeId) {
-                            const updated = { ...e, ...modifiedUpdates };
+                            const updated = {
+                                ...e,
+                                ...modifiedUpdates,
+                                data: {
+                                    ...e.data,
+                                    ...(modifiedUpdates.data || {})
+                                }
+                            };
                             console.log("[CommandController] Updated edge:", {
                                 id: updated.id,
                                 markerEnd: updated.markerEnd,

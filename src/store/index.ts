@@ -1188,10 +1188,11 @@ export const useStore = create<StoreState>((set, get) => ({
                     )
                 ) {
                     const rt = (newData as any).edgeRoutingType as string;
+                    const currentRoutingType = edge.data?.edgeRoutingType;
 
                     (newData as any).useOrthogonalRouting = rt === "orthogonal";
 
-                    if (rt === "straight" || rt === "bezier") {
+                    if (rt !== currentRoutingType && (rt === "straight" || rt === "bezier")) {
                         (newData as any).controlPoints = undefined;
                         (newData as any).routingType = undefined;
                         (newData as any).routingMetrics = undefined;
@@ -1199,7 +1200,9 @@ export const useStore = create<StoreState>((set, get) => ({
                     }
                 }
 
-                const updateData: any = { data: { ...edge.data, ...newData } };
+                const updateData: any = {
+                    data: newData
+                };
 
                 if (
                     Object.prototype.hasOwnProperty.call(
